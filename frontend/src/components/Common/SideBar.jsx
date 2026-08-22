@@ -375,7 +375,6 @@ const SidebarContent = ({
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-accent)] bg-[var(--color-primary-dark)] text-[var(--color-accent-light)] shadow-[var(--shadow-sm)]">
             {/* <FlaskConical size={26} strokeWidth={2} /> */}
-            <a href=""
           </div>
 
           <div className="min-w-0">
@@ -635,6 +634,7 @@ const Sidebar = () => {
           mobileOpen ? "pointer-events-auto" : "pointer-events-none",
         ].join(" ")}
         aria-hidden={!mobileOpen}
+        inert={!mobileOpen}
       >
         <button
           type="button"
