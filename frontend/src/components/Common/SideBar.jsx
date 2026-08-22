@@ -638,6 +638,7 @@ const Sidebar = () => {
           mobileOpen ? "pointer-events-auto" : "pointer-events-none",
         ].join(" ")}
         aria-hidden={!mobileOpen}
+        inert={!mobileOpen}
       >
         <button
           type="button"
