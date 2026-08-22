@@ -374,7 +374,11 @@ const SidebarContent = ({
           className="flex w-full items-center gap-3 text-left"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-accent)] bg-[var(--color-primary-dark)] text-[var(--color-accent-light)] shadow-[var(--shadow-sm)]">
-            {/* <FlaskConical size={26} strokeWidth={2} /> */}
+            <img
+              src="/faculty_logo.png"
+              alt="Faculty Logo"
+              className="h-full w-full rounded-[var(--radius-md)] object-cover"
+            />
           </div>
 
           <div className="min-w-0">

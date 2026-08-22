@@ -119,8 +119,6 @@ const downloadChemicalReport = async (req, res) => {
       return res.status(404).json({ message: "Chemical not found." });
     }
 
-    // bufferPages lets us go back and stamp "Page X of Y" on every page
-    // once we know the final page count.
     const doc = new PDFDocument({ size: "A4", margin: 40, bufferPages: true });
 
     res.setHeader("Content-Type", "application/pdf");
@@ -159,10 +157,6 @@ const downloadChemicalReport = async (req, res) => {
       return COLOR_TEXT_MUTED;
     };
 
-    /**
-     * Full header — brand banner + chemical identity card. Only drawn
-     * once, at the very top of page 1.
-     */
     const drawFullHeader = () => {
       const bannerHeight = 58;
       const bannerY = marginTop;
@@ -204,7 +198,6 @@ const downloadChemicalReport = async (req, res) => {
           { width: pageWidth - 16, align: "right" },
         );
 
-      // ---------- Chemical identity card ----------
       const cardY = bannerY + bannerHeight + 16;
       const cardHeight = 54;
 
@@ -246,7 +239,7 @@ const downloadChemicalReport = async (req, res) => {
         .text(
           `Base Unit: ${data.baseUnit}    |    Stock Type: ${data.stockDimension}    |    CAS: ${
             data.casNumber || "—"
-          }    |    Batches: ${data.batches.length}`,
+          }    |     Count of Batches: ${data.batches.length}`,
           marginLeft + 14,
           cardY + cardHeight - 16,
         );
@@ -254,11 +247,6 @@ const downloadChemicalReport = async (req, res) => {
       doc.y = cardY + cardHeight + 18;
     };
 
-    /**
-     * Compact running header — drawn at the top of every page after
-     * the first, so a reader can always tell which chemical/page
-     * they're looking at without scrolling back.
-     */
     const drawCompactHeader = () => {
       const bannerHeight = 28;
       const bannerY = marginTop;
@@ -303,14 +291,11 @@ const downloadChemicalReport = async (req, res) => {
 
     let cursorY;
 
-    // Redraw the compact header + table header automatically whenever
-    // a new page starts (including pages pdfkit adds on its own).
     doc.on("pageAdded", () => {
       drawCompactHeader();
       cursorY = drawTableHeader(doc.y);
     });
 
-    // ---------- Page 1 ----------
     drawFullHeader();
     cursorY = drawTableHeader(doc.y);
 
@@ -331,7 +316,7 @@ const downloadChemicalReport = async (req, res) => {
         cursorY + rowHeight >
         doc.page.height - doc.page.margins.bottom - 20
       ) {
-        doc.addPage(); // triggers the 'pageAdded' handler above
+        doc.addPage();
       }
 
       if (index % 2 === 0) {
@@ -367,7 +352,87 @@ const downloadChemicalReport = async (req, res) => {
       cursorY += rowHeight;
     });
 
-    // ---------- Footer on every page ----------
+    // ========== ADD SUMMARY SECTION HERE ==========
+
+    // Calculate totals
+    let totalAvailable = 0;
+    let totalExpired = 0;
+
+    data.batches.forEach((batch) => {
+      if (batch.status === "EXPIRED") {
+        totalExpired += batch.currentQuantity;
+      } else {
+        totalAvailable += batch.currentQuantity;
+      }
+    });
+
+    // Add some spacing before summary
+    cursorY += 16;
+
+    // Check if we need a new page for summary
+    const summaryHeight = 70;
+    if (
+      cursorY + summaryHeight >
+      doc.page.height - doc.page.margins.bottom - 20
+    ) {
+      doc.addPage();
+    }
+
+    // Draw summary section background
+    doc
+      .rect(marginLeft, cursorY, pageWidth, summaryHeight)
+      .fillAndStroke("#F3F0E8", COLOR_BORDER);
+
+    // Summary title
+    doc
+      .fillColor(COLOR_TEXT_MUTED)
+      .font("Helvetica-Bold")
+      .fontSize(7)
+      .text("STOCK SUMMARY", marginLeft + 14, cursorY + 10);
+
+    // Total Available Quantity
+    doc
+      .fillColor(COLOR_TEXT_MUTED)
+      .font("Helvetica")
+      .fontSize(8)
+      .text("Total Available Quantity:", marginLeft + 14, cursorY + 26);
+
+    doc
+      .fillColor(COLOR_SUCCESS)
+      .font("Helvetica-Bold")
+      .fontSize(14)
+      .text(
+        `${totalAvailable.toFixed(2)} ${data.baseUnit}`,
+        marginLeft + 14,
+        cursorY + 38,
+      );
+
+    // Total Expired Quantity
+    doc
+      .fillColor(COLOR_TEXT_MUTED)
+      .font("Helvetica")
+      .fontSize(8)
+      .text(
+        "Total Expired Quantity:",
+        marginLeft + pageWidth * 0.5,
+        cursorY + 26,
+      );
+
+    doc
+      .fillColor(COLOR_DANGER)
+      .font("Helvetica-Bold")
+      .fontSize(14)
+      .text(
+        `${totalExpired.toFixed(2)} ${data.baseUnit}`,
+        marginLeft + pageWidth * 0.5,
+        cursorY + 38,
+      );
+
+    cursorY += summaryHeight;
+
+    // ========== END SUMMARY SECTION ==========
+
+    // Footer on every page
     const range = doc.bufferedPageRange();
     for (let i = range.start; i < range.start + range.count; i++) {
       doc.switchToPage(i);
@@ -451,9 +516,9 @@ const getUsageReport = async (req, res) => {
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
-      return res
-        .status(400)
-        .json({ message: "startDate and endDate query parameters are required." });
+      return res.status(400).json({
+        message: "startDate and endDate query parameters are required.",
+      });
     }
 
     const records = await buildUsageReportData(startDate, endDate);
@@ -471,9 +536,9 @@ const downloadUsageReport = async (req, res) => {
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
-      return res
-        .status(400)
-        .json({ message: "startDate and endDate query parameters are required." });
+      return res.status(400).json({
+        message: "startDate and endDate query parameters are required.",
+      });
     }
 
     const records = await buildUsageReportData(startDate, endDate);
@@ -486,7 +551,7 @@ const downloadUsageReport = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="usage-report-${startDate}-to-${endDate}.pdf"`
+      `attachment; filename="usage-report-${startDate}-to-${endDate}.pdf"`,
     );
 
     doc.pipe(res);
@@ -516,7 +581,7 @@ const downloadUsageReport = async (req, res) => {
     const statusColor = (status) => {
       if (status === "RETURNED") return COLOR_SUCCESS;
       if (status === "RELEASED") return COLOR_WARNING;
-     
+
       return COLOR_TEXT_MUTED;
     };
 
@@ -525,7 +590,9 @@ const downloadUsageReport = async (req, res) => {
       const bannerHeight = 58;
       const bannerY = marginTop;
 
-      doc.rect(marginLeft, bannerY, pageWidth, bannerHeight).fill(COLOR_PRIMARY_DARK);
+      doc
+        .rect(marginLeft, bannerY, pageWidth, bannerHeight)
+        .fill(COLOR_PRIMARY_DARK);
 
       doc
         .fillColor("#FFFFFF")
@@ -540,7 +607,7 @@ const downloadUsageReport = async (req, res) => {
         .text(
           "FACULTY LABORATORY CHEMICAL MANAGEMENT SYSTEM",
           marginLeft + 16,
-          bannerY + 26
+          bannerY + 26,
         );
 
       doc
@@ -557,7 +624,7 @@ const downloadUsageReport = async (req, res) => {
           `Generated ${new Date().toLocaleString("en-GB")}`,
           marginLeft,
           bannerY + 10,
-          { width: pageWidth - 16, align: "right" }
+          { width: pageWidth - 16, align: "right" },
         );
 
       // Date range card
@@ -577,7 +644,11 @@ const downloadUsageReport = async (req, res) => {
         .fillColor(COLOR_TEXT)
         .font("Helvetica-Bold")
         .fontSize(12)
-        .text(`${friendlyStart}  —  ${friendlyEnd}`, marginLeft + 14, cardY + 17);
+        .text(
+          `${friendlyStart}  —  ${friendlyEnd}`,
+          marginLeft + 14,
+          cardY + 17,
+        );
 
       doc
         .fillColor(COLOR_TEXT_MUTED)
@@ -589,7 +660,11 @@ const downloadUsageReport = async (req, res) => {
         .fillColor(COLOR_PRIMARY)
         .font("Helvetica-Bold")
         .fontSize(12)
-        .text(String(records.length), marginLeft + pageWidth * 0.55, cardY + 17);
+        .text(
+          String(records.length),
+          marginLeft + pageWidth * 0.55,
+          cardY + 17,
+        );
 
       doc.y = cardY + cardHeight + 18;
     };
@@ -599,7 +674,9 @@ const downloadUsageReport = async (req, res) => {
       const bannerHeight = 28;
       const bannerY = marginTop;
 
-      doc.rect(marginLeft, bannerY, pageWidth, bannerHeight).fill(COLOR_PRIMARY_DARK);
+      doc
+        .rect(marginLeft, bannerY, pageWidth, bannerHeight)
+        .fill(COLOR_PRIMARY_DARK);
 
       doc
         .fillColor("#FFFFFF")
@@ -609,7 +686,7 @@ const downloadUsageReport = async (req, res) => {
           `FLCMS  ·  Usage Report  (${friendlyStart} — ${friendlyEnd})`,
           marginLeft + 14,
           bannerY + 9,
-          { width: pageWidth * 0.7 }
+          { width: pageWidth * 0.7 },
         );
 
       doc
@@ -654,12 +731,15 @@ const downloadUsageReport = async (req, res) => {
         .text(
           "No usage records found for this period.",
           marginLeft + 4,
-          cursorY + 10
+          cursorY + 10,
         );
     }
 
     records.forEach((record, index) => {
-      if (cursorY + rowHeight > doc.page.height - doc.page.margins.bottom - 20) {
+      if (
+        cursorY + rowHeight >
+        doc.page.height - doc.page.margins.bottom - 20
+      ) {
         doc.addPage();
       }
 
@@ -672,11 +752,16 @@ const downloadUsageReport = async (req, res) => {
         chemicalCode: record.chemicalCode || "—",
         batchNumber: record.batchNumber || "—",
         stuRegisterNum: record.stuRegisterNum || "—",
-        quantityUsed: record.quantityUsed != null ? `${Number(record.quantityUsed).toFixed(2)}${record.baseUnit || ""}` : "—",
+        quantityUsed:
+          record.quantityUsed != null
+            ? `${Number(record.quantityUsed).toFixed(2)}${record.baseUnit || ""}`
+            : "—",
         // purpose: record.purpose || "—",
         returnedStatus: record.returnedStatus || "—",
         dateReleased: formatDate(record.dateReleased),
-        dateReturned: record.dateReturned ? formatDate(record.dateReturned) : "—",
+        dateReturned: record.dateReturned
+          ? formatDate(record.dateReturned)
+          : "—",
       };
 
       let x = marginLeft;
@@ -684,7 +769,9 @@ const downloadUsageReport = async (req, res) => {
         doc.fontSize(8);
         doc.font(col.key === "returnedStatus" ? "Helvetica-Bold" : "Helvetica");
         doc.fillColor(
-          col.key === "returnedStatus" ? statusColor(record.returnedStatus) : COLOR_TEXT
+          col.key === "returnedStatus"
+            ? statusColor(record.returnedStatus)
+            : COLOR_TEXT,
         );
         doc.text(String(rowValues[col.key]), x + 4, cursorY + 8, {
           width: col.width - 8,
@@ -708,7 +795,7 @@ const downloadUsageReport = async (req, res) => {
           `Page ${i + 1} of ${range.count}   ·   Generated by FLCMS — Usage data for period ${friendlyStart} to ${friendlyEnd}.`,
           marginLeft,
           doc.page.height - doc.page.margins.bottom - 14,
-          { width: pageWidth, align: "center", lineBreak: false }
+          { width: pageWidth, align: "center", lineBreak: false },
         );
     }
 
@@ -751,7 +838,7 @@ const downloadFullInventoryReport = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      'attachment; filename="full-inventory-report.pdf"'
+      'attachment; filename="full-inventory-report.pdf"',
     );
 
     doc.pipe(res);
@@ -776,7 +863,9 @@ const downloadFullInventoryReport = async (req, res) => {
       const bannerHeight = 58;
       const bannerY = marginTop;
 
-      doc.rect(marginLeft, bannerY, pageWidth, bannerHeight).fill(COLOR_PRIMARY_DARK);
+      doc
+        .rect(marginLeft, bannerY, pageWidth, bannerHeight)
+        .fill(COLOR_PRIMARY_DARK);
 
       doc
         .fillColor("#FFFFFF")
@@ -791,7 +880,7 @@ const downloadFullInventoryReport = async (req, res) => {
         .text(
           "FACULTY LABORATORY CHEMICAL MANAGEMENT SYSTEM",
           marginLeft + 16,
-          bannerY + 26
+          bannerY + 26,
         );
 
       doc
@@ -808,7 +897,7 @@ const downloadFullInventoryReport = async (req, res) => {
           `Generated ${new Date().toLocaleString("en-GB")}`,
           marginLeft,
           bannerY + 10,
-          { width: pageWidth - 16, align: "right" }
+          { width: pageWidth - 16, align: "right" },
         );
 
       // Inventory Summary Card
@@ -840,7 +929,11 @@ const downloadFullInventoryReport = async (req, res) => {
         .fillColor(COLOR_TEXT_MUTED)
         .font("Helvetica-Bold")
         .fontSize(7)
-        .text("TOTAL BATCHES IN SYSTEM", marginLeft + pageWidth * 0.5, cardY + 8);
+        .text(
+          "TOTAL BATCHES IN SYSTEM",
+          marginLeft + pageWidth * 0.5,
+          cardY + 8,
+        );
 
       doc
         .fillColor(COLOR_PRIMARY)
@@ -855,7 +948,9 @@ const downloadFullInventoryReport = async (req, res) => {
       const bannerHeight = 28;
       const bannerY = marginTop;
 
-      doc.rect(marginLeft, bannerY, pageWidth, bannerHeight).fill(COLOR_PRIMARY_DARK);
+      doc
+        .rect(marginLeft, bannerY, pageWidth, bannerHeight)
+        .fill(COLOR_PRIMARY_DARK);
 
       doc
         .fillColor("#FFFFFF")
@@ -865,7 +960,7 @@ const downloadFullInventoryReport = async (req, res) => {
           "FLCMS  ·  Full Inventory Status Report",
           marginLeft + 14,
           bannerY + 9,
-          { width: pageWidth * 0.7 }
+          { width: pageWidth * 0.7 },
         );
 
       doc
@@ -893,15 +988,19 @@ const downloadFullInventoryReport = async (req, res) => {
       // Calculate sum of remaining quantity
       const totalRemaining = (chemical.batches || []).reduce(
         (sum, b) => sum + Number(b.currentQuantity || 0),
-        0
+        0,
       );
 
       // Estimate the height of this chemical block
       // Header height: ~45pt. Each batch row: 20pt. Space below: 15pt.
       const batchCount = chemical.batches ? chemical.batches.length : 0;
-      const estimatedHeight = 45 + (batchCount > 0 ? (batchCount + 1) * rowHeight : 20) + 15;
+      const estimatedHeight =
+        45 + (batchCount > 0 ? (batchCount + 1) * rowHeight : 20) + 15;
 
-      if (cursorY + estimatedHeight > doc.page.height - doc.page.margins.bottom) {
+      if (
+        cursorY + estimatedHeight >
+        doc.page.height - doc.page.margins.bottom
+      ) {
         doc.addPage();
         cursorY = doc.y;
       }
@@ -915,10 +1014,15 @@ const downloadFullInventoryReport = async (req, res) => {
         .fillColor(COLOR_PRIMARY_DARK)
         .font("Helvetica-Bold")
         .fontSize(9.5)
-        .text(`${chemical.canonicalName} (${chemical.chemicalCode})`, marginLeft + 10, cursorY + 9, {
-          width: pageWidth * 0.65,
-          ellipsis: true,
-        });
+        .text(
+          `${chemical.canonicalName} (${chemical.chemicalCode})`,
+          marginLeft + 10,
+          cursorY + 9,
+          {
+            width: pageWidth * 0.65,
+            ellipsis: true,
+          },
+        );
 
       // Total Available/Remaining Qty on the right
       doc
@@ -929,7 +1033,7 @@ const downloadFullInventoryReport = async (req, res) => {
           `Total Qty: ${totalRemaining.toFixed(2)} ${chemical.baseUnit}`,
           marginLeft,
           cursorY + 9,
-          { width: pageWidth - 10, align: "right" }
+          { width: pageWidth - 10, align: "right" },
         );
 
       cursorY += 28;
@@ -1030,7 +1134,7 @@ const downloadFullInventoryReport = async (req, res) => {
           `Page ${i + 1} of ${range.count}   ·   FLCMS — Faculty Laboratory Chemical Management System`,
           marginLeft,
           doc.page.height - doc.page.margins.bottom - 14,
-          { width: pageWidth, align: "center", lineBreak: false }
+          { width: pageWidth, align: "center", lineBreak: false },
         );
     }
 
@@ -1039,7 +1143,8 @@ const downloadFullInventoryReport = async (req, res) => {
     console.error("Error generating full inventory report:", error);
     if (!res.headersSent) {
       res.status(500).json({
-        message: "An error occurred while generating the full inventory report.",
+        message:
+          "An error occurred while generating the full inventory report.",
       });
     }
   }
@@ -1050,7 +1155,9 @@ const getUsageTrend = async (req, res) => {
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
-      return res.status(400).json({ message: "startDate and endDate query parameters are required." });
+      return res.status(400).json({
+        message: "startDate and endDate query parameters are required.",
+      });
     }
 
     const endOfDay = new Date(endDate);
@@ -1058,21 +1165,30 @@ const getUsageTrend = async (req, res) => {
 
     const trendData = await Dispose.findAll({
       attributes: [
-        [sequelize.fn('date_trunc', 'day', sequelize.col('date_released')), 'date'],
-        [sequelize.fn('COUNT', sequelize.col('id')), 'usageCount']
+        [
+          sequelize.fn("date_trunc", "day", sequelize.col("date_released")),
+          "date",
+        ],
+        [sequelize.fn("COUNT", sequelize.col("id")), "usageCount"],
       ],
       where: {
         dateReleased: {
-          [Op.between]: [new Date(startDate), endOfDay]
+          [Op.between]: [new Date(startDate), endOfDay],
         },
       },
-      group: [sequelize.fn('date_trunc', 'day', sequelize.col('date_released'))],
-      order: [[sequelize.fn('date_trunc', 'day', sequelize.col('date_released')), 'ASC']],
+      group: [
+        sequelize.fn("date_trunc", "day", sequelize.col("date_released")),
+      ],
+      order: [
+        [
+          sequelize.fn("date_trunc", "day", sequelize.col("date_released")),
+          "ASC",
+        ],
+      ],
       raw: true,
     });
 
     res.json({ success: true, trend: trendData });
-
   } catch (error) {
     console.error("Error fetching usage trend data:", error);
     res.status(500).json({
