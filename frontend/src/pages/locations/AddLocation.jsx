@@ -121,7 +121,7 @@ const AddLocation = () => {
         parentLocationId: formData.parentLocationId || null,
       };
 
-      const response = await api.post("/locations", payload);
+      const response = await api.post("/locations/add", payload);
 
       if (!response.data?.success) {
         throw new Error(response.data?.message || "Failed to add new location.");

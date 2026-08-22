@@ -83,7 +83,7 @@ const UnassignedStock = () => {
     <article className={`${PANEL} overflow-hidden`}>
       <SectionHeader
         icon={MapPinOff}
-        title="Unassigned Stock"
+        title="Unassigned Location Stocks"
         text="Batches with stock but without a storage location."
         to="/stock/batches"
         action="Assign"

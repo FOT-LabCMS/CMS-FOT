@@ -39,22 +39,39 @@ const LocationNode = ({ node, onEdit, isPublicView = false }) => {
         </button>
 
         {/* Icon and Name */}
-        <div className="ml-2 flex flex-1 items-center gap-3">
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] ${meta.bg} ${meta.color}`}>
-            <Icon size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-[var(--color-text-primary)]">{node.name}</p>
-            <div className="flex items-center gap-2">
-              <p className={`text-xs font-semibold ${meta.color}`}>{node.type}</p>
-              {isPublicView && visibleBatchCount > 0 && (
-                <span className="text-[11px] font-medium text-gray-500">
-                  ({visibleBatchCount} item{visibleBatchCount > 1 ? 's' : ''})
-                </span>
-              )}
+        {!isPublicView ? (
+          <Link
+            to={`/locations/${node.id}`}
+            className="ml-2 flex flex-1 items-center gap-3 min-w-0"
+          >
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] ${meta.bg} ${meta.color}`}>
+              <Icon size={18} />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-[var(--color-text-primary)] hover:text-[var(--color-primary)]">{node.name}</p>
+              <div className="flex items-center gap-2">
+                <p className={`text-xs font-semibold ${meta.color}`}>{node.type}</p>
+              </div>
+            </div>
+          </Link>
+        ) : (
+          <div className="ml-2 flex flex-1 items-center gap-3 min-w-0">
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] ${meta.bg} ${meta.color}`}>
+              <Icon size={18} />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-[var(--color-text-primary)]">{node.name}</p>
+              <div className="flex items-center gap-2">
+                <p className={`text-xs font-semibold ${meta.color}`}>{node.type}</p>
+                {visibleBatchCount > 0 && (
+                  <span className="text-[11px] font-medium text-gray-500">
+                    ({visibleBatchCount} item{visibleBatchCount > 1 ? 's' : ''})
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Actions */}
         {!isPublicView && (
@@ -112,11 +129,6 @@ const LocationNode = ({ node, onEdit, isPublicView = false }) => {
       )}
     </div>
   );
-
-  if (!isPublicView) {
-    // In authenticated view, link to the details page directly
-    return <Link to={`/locations/${node.id}`} className="block">{nodeContent}</Link>;
-  }
 
   return nodeContent;
 };
