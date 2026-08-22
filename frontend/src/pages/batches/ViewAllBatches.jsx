@@ -205,7 +205,7 @@ const EditBatchModal = ({ batch, onClose, onSuccess }) => {
     const thresholdQuantity = Number(formData.lowStockThresholdQuantity);
 
     if (!formData.batchNumber.trim()) {
-      nextErrors.batchNumber = 'Batch number is required.';
+      nextErrors.batchNumber = 'Bin Card Number is required.';
     }
 
     if (!formData.quantityReceived) {
@@ -295,7 +295,7 @@ const EditBatchModal = ({ batch, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit} className="p-5">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label htmlFor="batchNumber" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Batch Number</label>
+              <label htmlFor="batchNumber" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Bin Card Number</label>
               <input id="batchNumber" name="batchNumber" type="text" value={formData.batchNumber} onChange={handleChange} className={fieldClass('batchNumber')} />
               {errors.batchNumber && <p className="mt-2 text-xs font-medium text-[var(--color-danger)]">{errors.batchNumber}</p>}
             </div>
