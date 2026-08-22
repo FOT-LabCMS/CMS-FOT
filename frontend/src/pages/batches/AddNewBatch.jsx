@@ -321,9 +321,6 @@ const AddNewBatch = () => {
                   <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                     Add New Stock Batch
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Register a new batch of a chemical received from a supplier. This will add a new physical stock unit to the inventory.
-                  </p>
                 </div>
               </div>
             </div>

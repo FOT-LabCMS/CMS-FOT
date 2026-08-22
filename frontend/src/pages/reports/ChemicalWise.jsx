@@ -430,11 +430,6 @@ const ChemicalWise = () => {
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                       Chemical Stock Report
                     </h1>
-
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                      Select a chemical to review every batch on record, then
-                      download a full PDF report.
-                    </p>
                   </div>
 
                   <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] p-4">

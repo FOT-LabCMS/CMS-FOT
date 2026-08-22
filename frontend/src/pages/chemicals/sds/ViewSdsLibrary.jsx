@@ -54,9 +54,6 @@ const PageHeader = () => {
               <h1 className="font-display text-4xl font-bold text-[var(--color-text-inverse)]">
                 SDS Library
               </h1>
-              <p className="mt-1 text-base text-[var(--color-text-inverse)]/80">
-                Search, preview, and download Safety Data Sheets.
-              </p>
             </div>
           </div>
         </div>

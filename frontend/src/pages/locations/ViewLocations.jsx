@@ -153,9 +153,6 @@ const ViewLocations = () => {
                   <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                     Storage Locations
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Browse, search, and manage all physical storage locations within the faculty.
-                  </p>
                 </div>
                 <div className="shrink-0">
                   <Link
