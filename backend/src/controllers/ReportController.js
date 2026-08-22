@@ -119,8 +119,6 @@ const downloadChemicalReport = async (req, res) => {
       return res.status(404).json({ message: "Chemical not found." });
     }
 
-    // bufferPages lets us go back and stamp "Page X of Y" on every page
-    // once we know the final page count.
     const doc = new PDFDocument({ size: "A4", margin: 40, bufferPages: true });
 
     res.setHeader("Content-Type", "application/pdf");
@@ -159,10 +157,6 @@ const downloadChemicalReport = async (req, res) => {
       return COLOR_TEXT_MUTED;
     };
 
-    /**
-     * Full header — brand banner + chemical identity card. Only drawn
-     * once, at the very top of page 1.
-     */
     const drawFullHeader = () => {
       const bannerHeight = 58;
       const bannerY = marginTop;
@@ -204,7 +198,6 @@ const downloadChemicalReport = async (req, res) => {
           { width: pageWidth - 16, align: "right" },
         );
 
-      // ---------- Chemical identity card ----------
       const cardY = bannerY + bannerHeight + 16;
       const cardHeight = 54;
 
@@ -254,11 +247,6 @@ const downloadChemicalReport = async (req, res) => {
       doc.y = cardY + cardHeight + 18;
     };
 
-    /**
-     * Compact running header — drawn at the top of every page after
-     * the first, so a reader can always tell which chemical/page
-     * they're looking at without scrolling back.
-     */
     const drawCompactHeader = () => {
       const bannerHeight = 28;
       const bannerY = marginTop;
@@ -303,14 +291,11 @@ const downloadChemicalReport = async (req, res) => {
 
     let cursorY;
 
-    // Redraw the compact header + table header automatically whenever
-    // a new page starts (including pages pdfkit adds on its own).
     doc.on("pageAdded", () => {
       drawCompactHeader();
       cursorY = drawTableHeader(doc.y);
     });
 
-    // ---------- Page 1 ----------
     drawFullHeader();
     cursorY = drawTableHeader(doc.y);
 
@@ -331,7 +316,7 @@ const downloadChemicalReport = async (req, res) => {
         cursorY + rowHeight >
         doc.page.height - doc.page.margins.bottom - 20
       ) {
-        doc.addPage(); // triggers the 'pageAdded' handler above
+        doc.addPage();
       }
 
       if (index % 2 === 0) {
@@ -367,7 +352,87 @@ const downloadChemicalReport = async (req, res) => {
       cursorY += rowHeight;
     });
 
-    // ---------- Footer on every page ----------
+    // ========== ADD SUMMARY SECTION HERE ==========
+
+    // Calculate totals
+    let totalAvailable = 0;
+    let totalExpired = 0;
+
+    data.batches.forEach((batch) => {
+      if (batch.status === "EXPIRED") {
+        totalExpired += batch.currentQuantity;
+      } else {
+        totalAvailable += batch.currentQuantity;
+      }
+    });
+
+    // Add some spacing before summary
+    cursorY += 16;
+
+    // Check if we need a new page for summary
+    const summaryHeight = 70;
+    if (
+      cursorY + summaryHeight >
+      doc.page.height - doc.page.margins.bottom - 20
+    ) {
+      doc.addPage();
+    }
+
+    // Draw summary section background
+    doc
+      .rect(marginLeft, cursorY, pageWidth, summaryHeight)
+      .fillAndStroke("#F3F0E8", COLOR_BORDER);
+
+    // Summary title
+    doc
+      .fillColor(COLOR_TEXT_MUTED)
+      .font("Helvetica-Bold")
+      .fontSize(7)
+      .text("STOCK SUMMARY", marginLeft + 14, cursorY + 10);
+
+    // Total Available Quantity
+    doc
+      .fillColor(COLOR_TEXT_MUTED)
+      .font("Helvetica")
+      .fontSize(8)
+      .text("Total Available Quantity:", marginLeft + 14, cursorY + 26);
+
+    doc
+      .fillColor(COLOR_SUCCESS)
+      .font("Helvetica-Bold")
+      .fontSize(14)
+      .text(
+        `${totalAvailable.toFixed(2)} ${data.baseUnit}`,
+        marginLeft + 14,
+        cursorY + 38,
+      );
+
+    // Total Expired Quantity
+    doc
+      .fillColor(COLOR_TEXT_MUTED)
+      .font("Helvetica")
+      .fontSize(8)
+      .text(
+        "Total Expired Quantity:",
+        marginLeft + pageWidth * 0.5,
+        cursorY + 26,
+      );
+
+    doc
+      .fillColor(COLOR_DANGER)
+      .font("Helvetica-Bold")
+      .fontSize(14)
+      .text(
+        `${totalExpired.toFixed(2)} ${data.baseUnit}`,
+        marginLeft + pageWidth * 0.5,
+        cursorY + 38,
+      );
+
+    cursorY += summaryHeight;
+
+    // ========== END SUMMARY SECTION ==========
+
+    // Footer on every page
     const range = doc.bufferedPageRange();
     for (let i = range.start; i < range.start + range.count; i++) {
       doc.switchToPage(i);
@@ -451,11 +516,9 @@ const getUsageReport = async (req, res) => {
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
-      return res
-        .status(400)
-        .json({
-          message: "startDate and endDate query parameters are required.",
-        });
+      return res.status(400).json({
+        message: "startDate and endDate query parameters are required.",
+      });
     }
 
     const records = await buildUsageReportData(startDate, endDate);
@@ -473,11 +536,9 @@ const downloadUsageReport = async (req, res) => {
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
-      return res
-        .status(400)
-        .json({
-          message: "startDate and endDate query parameters are required.",
-        });
+      return res.status(400).json({
+        message: "startDate and endDate query parameters are required.",
+      });
     }
 
     const records = await buildUsageReportData(startDate, endDate);
@@ -1094,11 +1155,9 @@ const getUsageTrend = async (req, res) => {
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
-      return res
-        .status(400)
-        .json({
-          message: "startDate and endDate query parameters are required.",
-        });
+      return res.status(400).json({
+        message: "startDate and endDate query parameters are required.",
+      });
     }
 
     const endOfDay = new Date(endDate);
