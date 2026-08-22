@@ -13,7 +13,7 @@ const ProtectedRoute = ({ children, roles }) => {
 
   if (!isAuthenticated) {
     // Redirect them to the /login page, saving the current location
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/" state={{ from: location }} replace />;
   }
 
   // If roles are specified, check if the user has one of the required roles

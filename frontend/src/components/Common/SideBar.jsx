@@ -160,7 +160,7 @@ const MAIN_MENU_ITEMS = [
     roles: ["ADMIN", "TECHNICAL_OFFICER"],
     children: [
       {
-        label: "Chemical Status Report",
+        label: "Chemical Report",
         path: "/reports/chemicalwise",
         roles: ["ADMIN", "TECHNICAL_OFFICER"],
       },

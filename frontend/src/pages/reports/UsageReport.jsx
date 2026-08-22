@@ -320,7 +320,7 @@ const UsageReport = () => {
                       </span>
                     </div>
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
-                      Usage Report
+                      Usage History & Report
                     </h1>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
                       View chemical usage records within a selected date range —
