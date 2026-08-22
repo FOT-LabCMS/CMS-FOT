@@ -137,7 +137,7 @@ const ExpiryWatchlist = () => {
                         {row.chemicalName}
                       </p>
                       <p className="mt-1 text-xs font-semibold text-[var(--color-text-muted)]">
-                        {row.chemicalCode} • Batch {row.batchNumber}
+                        {row.chemicalCode} • Bin card no. {row.batchNumber}
                       </p>
                     </div>
 

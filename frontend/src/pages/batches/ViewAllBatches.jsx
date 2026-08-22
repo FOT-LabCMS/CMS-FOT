@@ -118,7 +118,7 @@ const QrCodeModal = ({ batch, onClose }) => {
         </button>
         <div id="qr-print-area-modal" className="flex flex-col items-center rounded-md bg-white p-4">
           <h1 className="text-lg font-bold text-[var(--color-text-primary)]">{batch.chemical?.canonicalName}</h1>
-          <p className="mb-4 text-sm text-[var(--color-text-secondary)]">Batch: {batch.batchNumber}</p>
+          <p className="mb-4 text-sm text-[var(--color-text-secondary)]">Bin Card Number: {batch.batchNumber}</p>
           <QRCodeSVG value={qrValue} size={200} includeMargin={true} />
         </div>
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -476,7 +476,7 @@ const ViewAllBatches = () => {
             <thead className="bg-[var(--color-surface-muted)]">
               <tr>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Chemical</th>
-                <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Batch No.</th>
+                <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Bin Card No.</th>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Quantity</th>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Supplier</th>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Received</th>

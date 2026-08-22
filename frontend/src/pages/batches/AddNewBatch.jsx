@@ -81,7 +81,7 @@ const SuccessModal = ({ batch, onAddNew, onViewList }) => {
           <div id="qr-code-for-print" className="mt-6 flex flex-col items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
             <QRCodeSVG value={qrValue} size={150} includeMargin={true} />
             <h1 className="mt-3 font-bold text-[var(--color-text-primary)]">{batch.chemical?.canonicalName}</h1>
-            <p className="text-sm text-[var(--color-text-secondary)]">Batch: {batch.batchNumber}</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">Bin Card Number: {batch.batchNumber}</p>
           </div>
 
           <button onClick={handlePrint} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]">

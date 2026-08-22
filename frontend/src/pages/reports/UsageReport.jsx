@@ -654,7 +654,7 @@ const UsageReport = () => {
                         onSort={handleSort}
                       />
                       <SortHeader
-                        label="Batch No."
+                        label="Bin Card Number"
                         field="batchNumber"
                         sortField={sortField}
                         sortDir={sortDir}
