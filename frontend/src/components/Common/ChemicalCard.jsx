@@ -1,6 +1,7 @@
 import React from 'react';
 import { Beaker, FileText, MoreHorizontal, Pencil, Eye, Undo2, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const PHYSICAL_STATE_BADGE = {
   LIQUID: 'bg-blue-100 text-blue-800 border-blue-300',
@@ -10,6 +11,9 @@ const PHYSICAL_STATE_BADGE = {
 };
 
 const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated = false, isPublicView = false }) => {
+  const { user } = useAuth();
+  const canModify = user?.role === 'ADMIN' || user?.role === 'TECHNICAL_OFFICER';
+
   const {
     id,
     chemicalCode,
@@ -113,7 +117,7 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
           <Eye size={14} />
           View
         </Link>
-        {isDeactivated && !isPublicView && (
+        {isDeactivated && !isPublicView && canModify && (
           <button
             type="button"
             onClick={() => onReactivate(chemical)}
@@ -123,7 +127,7 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
             Reactivate
           </button>
         )}
-        {!isDeactivated && !isPublicView && (
+        {!isDeactivated && !isPublicView && canModify && (
           <>
             <button
               type="button"
