@@ -215,7 +215,7 @@ const AddNewBatch = () => {
   const validateForm = () => {
     const nextErrors = {};
     if (!formData.chemicalId) nextErrors.chemicalId = "Please select a chemical.";
-    if (!formData.batchNumber.trim()) nextErrors.batchNumber = "Batch number is required.";
+    if (!formData.batchNumber.trim()) nextErrors.batchNumber = "Bin Card Number is required.";
     if (!formData.quantityReceived) {
       nextErrors.quantityReceived = "Received quantity is required.";
     } else if (Number(formData.quantityReceived) <= 0) {
@@ -384,10 +384,10 @@ const AddNewBatch = () => {
                     <ErrorMessage message={errors.supplier} />
                   </div>
 
-                  {/* Batch Number */}
+                  {/* Bin Card Number */}
                   <div>
                     <InputLabel htmlFor="batchNumber" required description="The unique number identifying this specific batch.">
-                      Batch Number
+                      Bin Card Number
                     </InputLabel>
                     <div className="relative">
                       <Hash size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />

@@ -413,7 +413,7 @@ const UsageDetailPanel = ({ batch, chemicalName, chemicalCode, unit, onClose }) 
           {[
             { label: "Chemical", value: chemicalName, icon: FlaskConical },
             { label: "Chemical code", value: chemicalCode, icon: Info },
-            { label: "Batch number", value: batch.batchNumber, icon: Layers },
+            { label: "Bin Card Number", value: batch.batchNumber, icon: Layers },
             {
               label: "Supplier",
               value: batch.supplier || "—",
@@ -808,7 +808,7 @@ const chemicalwise = () => {
                       type="text"
                       value={batchSearch}
                       onChange={(e) => setBatchSearch(e.target.value)}
-                      placeholder="Search batch number or supplier…"
+                      placeholder="Search Bin card number or supplier…"
                       className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-2.5 pl-9 pr-4 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:outline-none"
                     />
                     {batchSearch && (

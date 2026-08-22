@@ -1517,7 +1517,7 @@ const AddChemical = () => {
                       </h3>
 
                       <p className="mt-2 text-xs leading-5 text-[var(--color-text-secondary)]">
-                        Supplier, batch number, expiry date, storage location
+                        Supplier, Bin Card Number, expiry date, storage location
                         and current quantity should not be saved in this form.
                       </p>
                     </div>

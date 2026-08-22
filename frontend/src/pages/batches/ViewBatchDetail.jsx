@@ -295,7 +295,7 @@ const ViewBatchDetail = () => {
                   </h1>
 
                   <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Viewing details for batch number:{' '}
+                    Viewing details for Bin card number:{' '}
                     <strong className="font-bold text-[var(--color-accent-light)]">
                       {batch.batchNumber}
                     </strong>
@@ -335,7 +335,7 @@ const ViewBatchDetail = () => {
                       icon={Truck}
                     />
                     <DetailItem
-                      label="Batch Number"
+                      label="Bin Card Number"
                       value={batch.batchNumber}
                       icon={Box}
                     />
