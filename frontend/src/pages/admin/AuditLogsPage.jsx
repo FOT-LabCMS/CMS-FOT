@@ -46,6 +46,13 @@ const PageHeader = () => (
 const LogDetailsModal = ({ log, onClose }) => {
   if (!log) return null;
 
+  let displayDetails = { ...log.details };
+
+  if (displayDetails && displayDetails.batchNumber !== undefined) {
+    displayDetails['binCardNumber'] = displayDetails.batchNumber;
+    delete displayDetails.batchNumber;
+  }
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
@@ -70,7 +77,7 @@ const LogDetailsModal = ({ log, onClose }) => {
         </div>
         <div className="max-h-[60vh] overflow-y-auto rounded-[var(--radius-md)] bg-[var(--color-surface-muted)] p-4">
           <pre className="whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]">
-            {JSON.stringify(log.details, null, 2)}
+            {JSON.stringify(displayDetails, null, 2)}
           </pre>
         </div>
         <button

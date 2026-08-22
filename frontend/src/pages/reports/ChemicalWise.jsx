@@ -99,7 +99,7 @@ const BatchCard = ({ batch, baseUnit }) => {
             <Layers size={16} />
           </div>
           <p className="text-sm font-bold text-[var(--color-text-primary)]">
-            Batch {batch.batchNumber}
+            Bin Card No {batch.batchNumber}
           </p>
         </div>
         <ExpiryBadge expiryDate={batch.expiryDate} />

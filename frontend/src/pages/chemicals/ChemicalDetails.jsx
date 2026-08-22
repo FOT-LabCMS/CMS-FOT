@@ -183,7 +183,7 @@ const BatchList = ({ batches, baseUnit, isAuthenticated }) => {
           >
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-sm font-bold text-[var(--color-text-primary)]">Batch: {batch.batchNumber}</p>
+                <p className="text-sm font-bold text-[var(--color-text-primary)]">Bin Card Number: {batch.batchNumber}</p>
                 {isAuthenticated && (
                   <p className="text-xs text-[var(--color-text-secondary)]">Received: {formatDisplayDate(batch.receivedDate)}</p>
                 )}

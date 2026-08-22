@@ -123,7 +123,7 @@ const UnassignedStock = () => {
                         {batch.chemicalName}
                       </p>
                       <p className="mt-1 text-xs font-semibold text-[var(--color-text-muted)]">
-                        {batch.chemicalCode} • Batch {batch.batchNumber}
+                        {batch.chemicalCode} • Bin card no. {batch.batchNumber}
                       </p>
                     </div>
                     <span className="shrink-0 text-sm font-extrabold text-[var(--color-primary)]">

@@ -851,7 +851,7 @@ const chemicalwise = () => {
                     onChange={(e) => setSortKey(e.target.value)}
                     className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-xs font-semibold text-[var(--color-text-primary)] focus:outline-none"
                   >
-                    <option value="batchNumber">Sort: Batch #</option>
+                    <option value="batchNumber">Sort: Bin Card #</option>
                     <option value="pct">Sort: Most used</option>
                     <option value="expiry">Sort: Expiry date</option>
                   </select>
