@@ -452,7 +452,8 @@ const ChemicalDetails = () => {
                   </div>
                 </section>
 
-                <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+                {isAuthenticated && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER' || user.role === 'LECTURER') && (
+                  <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
                   <header className="flex items-center justify-between border-b border-[var(--color-border)] p-4 sm:p-5">
                     <div className="flex items-center gap-3">
                       <Boxes size={20} className="text-[var(--color-primary)]" />
@@ -473,6 +474,7 @@ const ChemicalDetails = () => {
                     <BatchList batches={chemical.batches} baseUnit={chemical.baseUnit} isAuthenticated={isAuthenticated} />
                   </div>
                 </section>
+                )}
               </div>
 
               <div className="space-y-6">

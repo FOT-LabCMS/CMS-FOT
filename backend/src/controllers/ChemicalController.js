@@ -5,6 +5,7 @@ const { createNotification } = require("../services/notificationService.js");
 const axios = require('axios');
 const crypto = require('crypto');
 const fs = require('fs/promises');
+const jwt = require('jsonwebtoken');
 
 const calculateFileChecksum = async (filePath) => {
   const fileBuffer = await fs.readFile(filePath);
@@ -232,26 +233,48 @@ const getLocationPath = async (locationId) => {
 const getChemicalById = async (req, res) => {
   try {
     const { id } = req.params;
-    const chemical = await Chemical.findByPk(id, {
-      include: [{
-        model: Batch,
-        as: 'batches',
-        include: [{ model: Location, as: 'location', attributes: ['id', 'name'] }]
-      }],
-      order: [[{ model: Batch, as: 'batches' }, 'receivedDate', 'DESC']]
-    });
+    
+    // Optional JWT verification to check role for batch display
+    const authHeader = req.headers.authorization;
+    let user = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      try {
+        user = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (err) {
+        // Ignore expired or invalid tokens for optional access checks
+      }
+    }
+
+    const showBatches = user && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER' || user.role === 'LECTURER');
+
+    let chemical;
+    if (showBatches) {
+      chemical = await Chemical.findByPk(id, {
+        include: [{
+          model: Batch,
+          as: 'batches',
+          include: [{ model: Location, as: 'location', attributes: ['id', 'name'] }]
+        }],
+        order: [[{ model: Batch, as: 'batches' }, 'receivedDate', 'DESC']]
+      });
+    } else {
+      chemical = await Chemical.findByPk(id);
+    }
 
     if (!chemical) {
       return res.status(404).json({ success: false, message: 'Chemical not found.' });
     }
 
     const chemicalJson = chemical.toJSON();
-    if (chemicalJson.batches) {
+    if (showBatches && chemicalJson.batches) {
       for (const batch of chemicalJson.batches) {
         if (batch.locationId) {
           batch.locationPath = await getLocationPath(batch.locationId);
         }
       }
+    } else {
+      delete chemicalJson.batches;
     }
 
     res.status(200).json({ success: true, chemical: chemicalJson });

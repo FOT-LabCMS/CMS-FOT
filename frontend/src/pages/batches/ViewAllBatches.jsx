@@ -580,9 +580,6 @@ const ViewAllBatches = () => {
                   <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                     All Stock Batches
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Browse and manage all individual chemical batches in the inventory.
-                  </p>
                 </div>
                 <div className="shrink-0">
                   <Link
