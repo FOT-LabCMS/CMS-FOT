@@ -27,6 +27,7 @@ const INITIAL_FORM = {
   purpose: "",
   stuRegisterNum: "",
   userName: "",
+  supervisorName: "",
   remark: "",
 };
 
@@ -329,6 +330,8 @@ const DisplosaReq = () => {
     if (!form.stuRegisterNum.trim())
       nextErrors.stuRegisterNum = "Student registration number is required.";
     if (!form.userName.trim()) nextErrors.userName = "User name is required.";
+    if (!form.supervisorName.trim())
+      nextErrors.supervisorName = "Supervisor name is required.";
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -602,6 +605,35 @@ const DisplosaReq = () => {
                         />
                       </div>
                       <ErrorMessage message={errors.userName} />
+                    </div>
+
+                    <div>
+                      <InputLabel
+                        htmlFor="supervisorName"
+                        required
+                        description="The name of the supervisor authorising this release."
+                      >
+                        Supervisor Name
+                      </InputLabel>
+                      <div className="relative">
+                        <User
+                          size={18}
+                          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+                        />
+                        <input
+                          id="supervisorName"
+                          type="text"
+                          value={form.supervisorName}
+                          onChange={handleFieldChange("supervisorName")}
+                          placeholder="Enter supervisor name"
+                          className={`w-full rounded-[var(--radius-md)] border bg-[var(--color-surface)] py-3 pl-10 pr-4 text-sm font-medium text-[var(--color-text-primary)] color-transition placeholder:text-[var(--color-text-muted)] ${
+                            errors.supervisorName
+                              ? "border-[var(--color-danger)]"
+                              : "border-[var(--color-border)] focus:border-[var(--color-primary)]"
+                          }`}
+                        />
+                      </div>
+                      <ErrorMessage message={errors.supervisorName} />
                     </div>
                   </div>
                 </section>

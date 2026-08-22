@@ -64,6 +64,12 @@ module.exports = function DisposeModel(sequelize) {
         field: "user_name",
       },
 
+      supervisorName: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: "supervisor_name",
+      },
+
       remark: {
         type: DataTypes.TEXT,
         allowNull: true,

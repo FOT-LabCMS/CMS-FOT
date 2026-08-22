@@ -4,9 +4,7 @@ import {
   FlaskConical,
   Loader2,
   ServerCrash,
-  MapPin,
   ShieldCheck,
-  ChevronRight,
   Search,
   Sparkles,
   GitBranch,
@@ -15,24 +13,6 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import ChemicalCard from "../components/Common/ChemicalCard";
-import LocationNode from "../components/locations/LocationNode";
-
-const HOME_TABS = [
-  {
-    id: "chemicals",
-    label: "Chemicals",
-    icon: FlaskConical,
-    title: "Available Chemicals",
-    description: "Check the public chemical catalogue and open each item for safety and stock details.",
-  },
-  {
-    id: "locations",
-    label: "Locations",
-    icon: MapPin,
-    title: "Storage Locations",
-    description: "Browse the storage hierarchy and expand each location to see the chemicals stored there.",
-  },
-];
 
 const AVAILABILITY_FILTERS = [
   { id: "all", label: "All" },
@@ -67,61 +47,7 @@ const chemicalMatchesSearch = (chemical, searchTerm) => {
     .some((value) => String(value).toLowerCase().includes(searchTerm));
 };
 
-const locationMatchesSearch = (location, searchTerm) => {
-  if (!searchTerm) return true;
 
-  const locationTextMatches = [location.name, location.type]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(searchTerm));
-
-  const batchMatches = location.batches?.some((batch) =>
-    [
-      batch.batchNumber,
-      batch.chemical?.canonicalName,
-      batch.chemical?.chemicalCode,
-      batch.chemical?.baseUnit,
-    ]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(searchTerm))
-  );
-
-  return locationTextMatches || batchMatches;
-};
-
-const filterLocationTree = (locations, searchTerm) => {
-  if (!searchTerm) return locations;
-
-  return locations
-    .map((location) => {
-      const isMatch = locationMatchesSearch(location, searchTerm);
-      const filteredChildren = filterLocationTree(location.children || [], searchTerm);
-      const filteredBatches = (location.batches || []).filter((batch) =>
-        [
-          batch.batchNumber,
-          batch.chemical?.canonicalName,
-          batch.chemical?.chemicalCode,
-          batch.chemical?.baseUnit,
-        ]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(searchTerm))
-      );
-
-      if (isMatch) {
-        return location;
-      }
-
-      if (filteredChildren.length > 0 || filteredBatches.length > 0) {
-        return {
-          ...location,
-          children: filteredChildren,
-          batches: filteredBatches,
-        };
-      }
-
-      return null;
-    })
-    .filter(Boolean);
-};
 
 const PublicChemicalsList = ({ searchQuery, availabilityFilter }) => {
   const { data, isLoading, isError } = useQuery({
@@ -162,77 +88,7 @@ const PublicChemicalsList = ({ searchQuery, availabilityFilter }) => {
   return filteredChemicals.map((chemical) => <ChemicalCard key={chemical.id} chemical={chemical} isPublicView />);
 };
 
-const PublicLocationTree = ({ searchQuery }) => {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["publicLocationTree"],
-    queryFn: async () => {
-      const response = await api.get("/locations/public-tree");
-      return response.data.locations;
-    },
-  });
 
-  if (isLoading) {
-    return <div className="col-span-full flex items-center justify-center gap-2 py-10 text-[var(--color-text-muted)]"><Loader2 className="animate-spin" /> Loading storage locations...</div>;
-  }
-
-  if (isError) {
-    return <div className="col-span-full flex items-center justify-center gap-2 py-10 text-[var(--color-danger)]"><ServerCrash /> Could not load locations.</div>;
-  }
-
-  if (!data || data.length === 0) {
-    return <div className="col-span-full text-center py-10 text-[var(--color-text-muted)]">No storage locations have been defined yet.</div>;
-  }
-
-  const searchTerm = normalizeSearch(searchQuery);
-  const filteredLocations = filterLocationTree(data, searchTerm);
-
-  if (filteredLocations.length === 0) {
-    return (
-      <div className="col-span-full rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-12 text-center text-sm text-[var(--color-text-secondary)]">
-        No locations or stored chemicals match your search.
-      </div>
-    );
-  }
-
-  return (
-    <div className="col-span-full rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 shadow-[var(--shadow-sm)] sm:p-4">
-      {filteredLocations.map(node => (
-        <LocationNode key={node.id} node={node} isPublicView={true} />
-      ))}
-    </div>
-  );
-};
-
-const SectionTabs = ({ activeSection, onChange, className = "" }) => (
-  <div
-    className={`flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-sm)] ${className}`}
-    role="tablist"
-    aria-label="Public home sections"
-  >
-    {HOME_TABS.map((tab) => {
-      const Icon = tab.icon;
-      const isActive = activeSection === tab.id;
-
-      return (
-        <button
-          key={tab.id}
-          type="button"
-          role="tab"
-          aria-selected={isActive}
-          onClick={() => onChange(tab.id)}
-          className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold color-transition sm:min-w-32 ${
-            isActive
-              ? "bg-[var(--color-primary-dark)] text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)]"
-              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-primary-tint)] hover:text-[var(--color-primary-dark)]"
-          }`}
-        >
-          <Icon size={16} />
-          <span>{tab.label}</span>
-        </button>
-      );
-    })}
-  </div>
-);
 
 const SearchField = ({ value, onChange, placeholder }) => (
   <div className="relative w-full">
@@ -282,23 +138,11 @@ const ChemicalFilters = ({ searchQuery, onSearchChange, availabilityFilter, onAv
   </div>
 );
 
-const LocationFilters = ({ searchQuery, onSearchChange }) => (
-  <div className="mb-6 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)] sm:p-4">
-    <SearchField
-      value={searchQuery}
-      onChange={onSearchChange}
-      placeholder="Search locations by name, type, batch, or chemical..."
-    />
-  </div>
-);
+
 
 const Home = () => {
-  const [activeSection, setActiveSection] = useState("chemicals");
   const [chemicalSearch, setChemicalSearch] = useState("");
-  const [locationSearch, setLocationSearch] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
-  const activeTab = HOME_TABS.find((tab) => tab.id === activeSection) || HOME_TABS[0];
-  const ActiveIcon = activeTab.icon;
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-[var(--color-bg)] font-[family-name:var(--font-body)]">
@@ -317,7 +161,7 @@ const Home = () => {
                 Faculty Laboratory Chemical Management System
               </p>
               <p className="text-[11px] sm:text-xs text-[var(--color-accent-light)] mt-1 truncate color-transition hidden sm:block">
-                Faculty Of Technology
+                Faculty Of Technology University of Ruhuna
               </p>
             </div>
           </div>
@@ -350,34 +194,8 @@ const Home = () => {
                     FOTCMS Public Catalogue
                   </h1>
                   <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--color-primary-tint)] sm:text-base">
-                    Explore available chemicals and storage locations before logging in. Staff can sign in to manage stock, batches, and safety records.
+                    Explore available chemicals before logging in. Staff can sign in to manage stock, batches, and safety records.
                   </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 lg:min-w-80">
-                  {HOME_TABS.map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = activeSection === tab.id;
-
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setActiveSection(tab.id)}
-                        className={`min-h-24 rounded-[var(--radius-md)] border p-4 text-left color-transition ${
-                          isActive
-                            ? "border-[var(--color-accent-light)] bg-[rgba(246,244,236,0.14)] text-[var(--color-text-inverse)]"
-                            : "border-[rgba(246,244,236,0.18)] bg-[rgba(246,244,236,0.06)] text-[var(--color-primary-tint)] hover:border-[var(--color-accent-light)]"
-                        }`}
-                      >
-                        <div className="mb-3 flex items-center justify-between">
-                          <Icon size={20} className={isActive ? "text-[var(--color-accent-light)]" : "text-[var(--color-primary-tint)]"} />
-                          <ChevronRight size={16} className={isActive ? "text-[var(--color-accent-light)]" : "text-[var(--color-primary-tint)]"} />
-                        </div>
-                        <p className="text-sm font-bold">{tab.label}</p>
-                      </button>
-                    );
-                  })}
                 </div>
               </div>
             </div>
@@ -387,36 +205,25 @@ const Home = () => {
             <div>
               <h2 className="flex items-center gap-3 text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
                 <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
-                  <ActiveIcon size={23} />
+                  <FlaskConical size={23} />
                 </span>
-                {activeTab.title}
+                Available Chemicals
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-secondary)]">
-                {activeTab.description}
+                Check the public chemical catalogue and open each item for safety and stock details.
               </p>
             </div>
           </div>
 
-          {activeSection === "chemicals" ? (
-            <>
-              <ChemicalFilters
-                searchQuery={chemicalSearch}
-                onSearchChange={setChemicalSearch}
-                availabilityFilter={availabilityFilter}
-                onAvailabilityChange={setAvailabilityFilter}
-              />
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-                <PublicChemicalsList searchQuery={chemicalSearch} availabilityFilter={availabilityFilter} />
-              </div>
-            </>
-          ) : (
-            <>
-              <LocationFilters searchQuery={locationSearch} onSearchChange={setLocationSearch} />
-              <div className="grid grid-cols-1 gap-4">
-                <PublicLocationTree searchQuery={locationSearch} />
-              </div>
-            </>
-          )}
+          <ChemicalFilters
+            searchQuery={chemicalSearch}
+            onSearchChange={setChemicalSearch}
+            availabilityFilter={availabilityFilter}
+            onAvailabilityChange={setAvailabilityFilter}
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+            <PublicChemicalsList searchQuery={chemicalSearch} availabilityFilter={availabilityFilter} />
+          </div>
         </div>
       </main>
 
@@ -460,7 +267,8 @@ const Home = () => {
 
           <div className="mt-4 flex flex-col gap-1 border-t border-[rgba(246,244,236,0.12)] pt-3 text-[11px] text-[var(--color-primary-tint)] sm:flex-row sm:items-center sm:justify-between">
             <p>© 2026 FOTCMS · Faculty Laboratory Chemical Management System</p>
-            <p>Faculty Of Technology</p>
+            <a href="https://www.tec.ruh.ac.lk/" target="_blank" className="hover:text-[var(--color-accent-light)] color-transition"><p>Faculty Of Technology</p></a>
+            <a href="https://ruh.ac.lk/" target="_blank" className="hover:text-[var(--color-accent-light)] color-transition"><p>University of Ruhuna</p></a>
           </div>
         </div>
       </footer>
