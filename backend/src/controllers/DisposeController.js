@@ -14,6 +14,7 @@ const createreleaserecord = async (req, res) => {
     dateReleased,
     purpose,
     remark,
+    supervisorName,
   } = req.body;
   if (
     !chemicalCode ||
@@ -21,7 +22,8 @@ const createreleaserecord = async (req, res) => {
     !dateReleased ||
     !purpose ||
     !stuRegisterNum ||
-    !userName
+    !userName ||
+    !supervisorName
   ) {
     return res.status(400).json({ message: "All fields are required" });
   }
@@ -46,6 +48,7 @@ const createreleaserecord = async (req, res) => {
       purpose: purpose,
       stuRegisterNum: stuRegisterNum,
       userName: userName,
+      supervisorName: supervisorName,
       remark: remark,
     });
 

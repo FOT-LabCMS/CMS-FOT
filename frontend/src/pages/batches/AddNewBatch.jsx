@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -130,7 +130,11 @@ const ErrorMessage = ({ message }) => {
 
 const AddNewBatch = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState(INITIAL_FORM);
+  const location = useLocation();
+  const [formData, setFormData] = useState(() => ({
+    ...INITIAL_FORM,
+    chemicalId: location.state?.chemicalId || "",
+  }));
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successBatch, setSuccessBatch] = useState(null);
