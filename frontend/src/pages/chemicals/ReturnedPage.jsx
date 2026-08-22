@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock,
+  History,
   Info,
   Loader2,
   PackageCheck,
@@ -428,15 +429,25 @@ const ReturnedPage = () => {
               <div className="pointer-events-none absolute -bottom-20 right-32 h-40 w-40 rounded-full bg-[var(--color-accent)] opacity-10" />
 
               <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => navigate(-1)}
-                  className="mb-5 inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
-                >
-                  <ArrowLeft size={17} />
-                  Back
-                </button>
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
+                  >
+                    <ArrowLeft size={17} />
+                    Back
+                  </button>
 
+                  <button
+                    type="button"
+                    onClick={() => navigate("/reports/usage")}
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-4 py-2 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
+                  >
+                    <History size={15} />
+                    Return History
+                  </button>
+                </div>
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                   <div className="max-w-3xl">
                     <div className="mb-3 flex items-center gap-2">
