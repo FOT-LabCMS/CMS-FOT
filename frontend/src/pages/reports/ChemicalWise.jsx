@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  Eye,
   FileDown,
   FlaskConical,
   Info,
@@ -179,8 +180,14 @@ const ChemicalWise = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
 
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+
   const [isDownloadingFull, setIsDownloadingFull] = useState(false);
   const [fullDownloadError, setFullDownloadError] = useState("");
+
+  const [isPreviewingFull, setIsPreviewingFull] = useState(false);
+  const [fullPreviewError, setFullPreviewError] = useState("");
 
   const fetchChemicals = async () => {
     try {
@@ -223,6 +230,32 @@ const ChemicalWise = () => {
     }
   };
 
+  const handlePreview = async () => {
+    if (!selectedCode) return;
+    try {
+      setIsPreviewing(true);
+      setPreviewError("");
+      const response = await api.get(
+        `/reports/chemical/${encodeURIComponent(selectedCode)}/download`,
+        { responseType: "blob" },
+      );
+      const blobUrl = window.URL.createObjectURL(
+        new Blob([response.data], { type: "application/pdf" }),
+      );
+      const newTab = window.open(blobUrl, "_blank");
+      // Revoke the object URL after the tab has had time to load it
+      if (newTab) {
+        newTab.addEventListener("load", () =>
+          window.URL.revokeObjectURL(blobUrl),
+        );
+      }
+    } catch (error) {
+      setPreviewError("Unable to generate the PDF preview. Please try again.");
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
   const handleDownload = async () => {
     if (!selectedCode) return;
     try {
@@ -246,6 +279,29 @@ const ChemicalWise = () => {
       setDownloadError("Unable to generate the PDF report. Please try again.");
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handlePreviewFullReport = async () => {
+    try {
+      setIsPreviewingFull(true);
+      setFullPreviewError("");
+      const response = await api.get("/reports/inventory/download", {
+        responseType: "blob",
+      });
+      const blobUrl = window.URL.createObjectURL(
+        new Blob([response.data], { type: "application/pdf" }),
+      );
+      const newTab = window.open(blobUrl, "_blank");
+      if (newTab) {
+        newTab.addEventListener("load", () =>
+          window.URL.revokeObjectURL(blobUrl),
+        );
+      }
+    } catch (error) {
+      setFullPreviewError("Unable to generate the full status report preview. Please try again.");
+    } finally {
+      setIsPreviewingFull(false);
     }
   };
 
@@ -321,24 +377,45 @@ const ChemicalWise = () => {
                     Back
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleDownloadFullReport}
-                    disabled={isDownloadingFull}
-                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-4 py-2 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isDownloadingFull ? (
-                      <>
-                        <Loader2 size={15} className="animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Download size={15} />
-                        Full Status Report
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePreviewFullReport}
+                      disabled={isPreviewingFull || isDownloadingFull}
+                      className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-primary-light)] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isPreviewingFull ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" />
+                          Previewing...
+                        </>
+                      ) : (
+                        <>
+                          <Eye size={15} />
+                          Preview Report
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDownloadFullReport}
+                      disabled={isDownloadingFull || isPreviewingFull}
+                      className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-4 py-2 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isDownloadingFull ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Download size={15} />
+                          Full Status Report
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -378,10 +455,10 @@ const ChemicalWise = () => {
             </div>
           </header>
 
-          {fullDownloadError && (
+          {(fullDownloadError || fullPreviewError) && (
             <div className="mb-6 flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
               <AlertTriangle size={18} className="mt-0.5 shrink-0 text-[var(--color-danger)]" />
-              <p className="text-sm font-semibold text-[var(--color-danger)]">{fullDownloadError}</p>
+              <p className="text-sm font-semibold text-[var(--color-danger)]">{fullDownloadError || fullPreviewError}</p>
             </div>
           )}
 
@@ -548,24 +625,45 @@ const ChemicalWise = () => {
                           </p>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={handleDownload}
-                          disabled={isDownloading}
-                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] px-5 py-3 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {isDownloading ? (
-                            <>
-                              <Loader2 size={17} className="animate-spin" />
-                              Generating...
-                            </>
-                          ) : (
-                            <>
-                              <Download size={17} />
-                              Download report
-                            </>
-                          )}
-                        </button>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handlePreview}
+                            disabled={isPreviewing || isDownloading}
+                            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-5 py-3 text-sm font-bold text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-primary-light)] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isPreviewing ? (
+                              <>
+                                <Loader2 size={17} className="animate-spin" />
+                                Previewing...
+                              </>
+                            ) : (
+                              <>
+                                <Eye size={17} />
+                                Preview report
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleDownload}
+                            disabled={isDownloading || isPreviewing}
+                            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] px-5 py-3 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isDownloading ? (
+                              <>
+                                <Loader2 size={17} className="animate-spin" />
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <Download size={17} />
+                                Download report
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Quick stats */}
@@ -601,14 +699,14 @@ const ChemicalWise = () => {
                     </div>
                   </div>
 
-                  {downloadError && (
+                  {(downloadError || previewError) && (
                     <div className="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-[var(--color-surface)] p-4">
                       <AlertTriangle
                         size={18}
                         className="mt-0.5 shrink-0 text-[var(--color-danger)]"
                       />
                       <p className="text-sm font-semibold text-[var(--color-danger)]">
-                        {downloadError}
+                        {downloadError || previewError}
                       </p>
                     </div>
                   )}
