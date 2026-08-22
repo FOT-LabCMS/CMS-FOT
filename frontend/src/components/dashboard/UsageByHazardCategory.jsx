@@ -64,7 +64,7 @@ const DonutChart = ({ categories, totalQuantity }) => {
   let consumed = 0;
 
   return (
-    <div className="grid gap-5 sm:grid-cols-[170px_minmax(0,1fr)] sm:items-center">
+    <div className="flex flex-col items-center gap-6">
       <div className="relative mx-auto h-44 w-44">
         <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
           <circle
