@@ -121,7 +121,7 @@ const AddLocation = () => {
         parentLocationId: formData.parentLocationId || null,
       };
 
-      const response = await api.post("/locations", payload);
+      const response = await api.post("/locations/add", payload);
 
       if (!response.data?.success) {
         throw new Error(response.data?.message || "Failed to add new location.");
@@ -186,9 +186,6 @@ const AddLocation = () => {
                   <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                     Add New Location
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Define a new physical location where chemicals can be stored, such as a lab, cabinet, or shelf.
-                  </p>
                 </div>
               </div>
             </div>

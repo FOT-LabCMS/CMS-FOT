@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ClipboardList,
   FileText,
+  History,
   Info,
   Loader2,
   RotateCcw,
@@ -22,11 +23,12 @@ import api from "../../api/axiosInstance";
 
 const INITIAL_FORM = {
   chemicalCode: "",
-  batchCode: "",
+  batchNumber: "",
   dateReleased: "",
   purpose: "",
-  userId: "",
+  stuRegisterNum: "",
   userName: "",
+  supervisorName: "",
   remark: "",
 };
 
@@ -264,15 +266,23 @@ const DisplosaReq = () => {
         );
         const data = response.data;
 
+        // Sort batches: earliest expiry date first (soonest to expire).
+        // Batches without an expiry date are pushed to the end.
+        const sortedBatches = [...(data.batches || [])].sort((a, b) => {
+          if (!a.expiryDate && !b.expiryDate) return 0;
+          if (!a.expiryDate) return 1;
+          if (!b.expiryDate) return -1;
+          return new Date(a.expiryDate) - new Date(b.expiryDate);
+        });
+
         setBatchOptions(
-          data.batches.map((b) => ({
+          sortedBatches.map((b) => ({
             value: b.batchNumber,
             label: b.batchNumber,
             sublabel: (() => {
               const qty = parseFloat(b.currentQuantity);
               const unit = b.chemical?.baseUnit ?? "";
-              const formatted =
-                qty % 1 === 0 ? `${qty.toFixed(0)}` : `${qty}`;
+              const formatted = qty % 1 === 0 ? `${qty.toFixed(0)}` : `${qty}`;
               return `${formatted}${unit ? ` ${unit}` : ""} available${b.expiryDate ? ` · Expires ${b.expiryDate}` : ""}`;
             })(),
           })),
@@ -281,7 +291,7 @@ const DisplosaReq = () => {
         setBatchOptions([]);
         setErrors((prev) => ({
           ...prev,
-          batchCode: "Unable to load batches for this chemical.",
+          batchNumber: "Unable to load batches for this chemical.",
         }));
       } finally {
         setIsBatchLoading(false);
@@ -292,14 +302,14 @@ const DisplosaReq = () => {
   }, [form.chemicalCode]);
 
   const handleChemicalChange = (value) => {
-    setForm((prev) => ({ ...prev, chemicalCode: value, batchCode: "" }));
-    setErrors((prev) => ({ ...prev, chemicalCode: "", batchCode: "" }));
+    setForm((prev) => ({ ...prev, chemicalCode: value, batchNumber: "" }));
+    setErrors((prev) => ({ ...prev, chemicalCode: "", batchNumber: "" }));
     setSubmitMessage(null);
   };
 
   const handleBatchChange = (value) => {
-    setForm((prev) => ({ ...prev, batchCode: value }));
-    setErrors((prev) => ({ ...prev, batchCode: "" }));
+    setForm((prev) => ({ ...prev, batchNumber: value }));
+    setErrors((prev) => ({ ...prev, batchNumber: "" }));
     setSubmitMessage(null);
   };
 
@@ -313,13 +323,16 @@ const DisplosaReq = () => {
     const nextErrors = {};
 
     if (!form.chemicalCode) nextErrors.chemicalCode = "Select a chemical.";
-    if (!form.batchCode) nextErrors.batchCode = "Select a batch.";
+    if (!form.batchNumber) nextErrors.batchNumber = "Select a bin card number.";
     if (!form.dateReleased)
       nextErrors.dateReleased = "Release date is required.";
     if (!form.purpose.trim())
       nextErrors.purpose = "Purpose of release is required.";
-    if (!form.userId.trim()) nextErrors.userId = "User ID is required.";
+    if (!form.stuRegisterNum.trim())
+      nextErrors.stuRegisterNum = "Student registration number is required.";
     if (!form.userName.trim()) nextErrors.userName = "User name is required.";
+    if (!form.supervisorName.trim())
+      nextErrors.supervisorName = "Supervisor name is required.";
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -389,32 +402,38 @@ const DisplosaReq = () => {
               <div className="pointer-events-none absolute -bottom-20 right-32 h-40 w-40 rounded-full bg-[var(--color-accent)] opacity-10" />
 
               <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => navigate(-1)}
-                  className="mb-5 inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
-                >
-                  <ArrowLeft size={17} />
-                  Back
-                </button>
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
+                  >
+                    <ArrowLeft size={17} />
+                    Back
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/reports/usage")}
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-4 py-2 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
+                  >
+                    <History size={15} />
+                    Release History
+                  </button>
+                </div>
 
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                   <div className="max-w-3xl">
                     <div className="mb-3 flex items-center gap-2">
                       <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-accent-light)]">
                         <Boxes size={14} />
-                        Disposals
+                        Release Records
                       </span>
                     </div>
 
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                       Create Release Record
                     </h1>
-
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                      Log a chemical release for a student request. Staff use
-                      only.
-                    </p>
                   </div>
 
                   <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] p-4">
@@ -485,28 +504,28 @@ const DisplosaReq = () => {
 
                     <div>
                       <InputLabel
-                        htmlFor="batchCode"
+                        htmlFor="binCardNumber"
                         required
                         description={
                           form.chemicalCode
-                            ? "Batches available for the selected chemical."
+                            ? "Bin card numbers available for the selected chemical."
                             : "Select a chemical first."
                         }
                       >
-                        Batch
+                        Bin Card Number
                       </InputLabel>
                       <SearchableSelect
                         icon={Boxes}
                         options={batchOptions}
-                        value={form.batchCode}
+                        value={form.batchNumber}
                         onChange={handleBatchChange}
-                        placeholder="Select a batch"
+                        placeholder="Select a bin card number"
                         disabled={!form.chemicalCode}
                         loading={isBatchLoading}
-                        error={errors.batchCode}
+                        error={errors.batchNumber}
                         emptyText="No batches available for this chemical."
                       />
-                      <ErrorMessage message={errors.batchCode} />
+                      <ErrorMessage message={errors.batchNumber} />
                     </div>
 
                     <div>
@@ -539,11 +558,11 @@ const DisplosaReq = () => {
 
                     <div>
                       <InputLabel
-                        htmlFor="userId"
+                        htmlFor="stuRegisterNum"
                         required
-                        description="The ID of the student this release is issued to."
+                        description="The registration number of the student this release is issued to."
                       >
-                        User ID
+                        Student Registration Number
                       </InputLabel>
                       <div className="relative">
                         <User
@@ -551,19 +570,19 @@ const DisplosaReq = () => {
                           className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
                         />
                         <input
-                          id="userId"
+                          id="stuRegisterNum  "
                           type="text"
-                          value={form.userId}
-                          onChange={handleFieldChange("userId")}
-                          placeholder="Enter user ID"
+                          value={form.stuRegisterNum}
+                          onChange={handleFieldChange("stuRegisterNum")}
+                          placeholder="Enter student registration number"
                           className={`w-full rounded-[var(--radius-md)] border bg-[var(--color-surface)] py-3 pl-10 pr-4 text-sm font-medium text-[var(--color-text-primary)] color-transition placeholder:text-[var(--color-text-muted)] ${
-                            errors.userId
+                            errors.stuRegisterNum
                               ? "border-[var(--color-danger)]"
                               : "border-[var(--color-border)] focus:border-[var(--color-primary)]"
                           }`}
                         />
                       </div>
-                      <ErrorMessage message={errors.userId} />
+                      <ErrorMessage message={errors.stuRegisterNum} />
                     </div>
 
                     <div>
@@ -593,6 +612,35 @@ const DisplosaReq = () => {
                         />
                       </div>
                       <ErrorMessage message={errors.userName} />
+                    </div>
+
+                    <div>
+                      <InputLabel
+                        htmlFor="supervisorName"
+                        required
+                        description="The name of the supervisor authorising this release."
+                      >
+                        Supervisor Name
+                      </InputLabel>
+                      <div className="relative">
+                        <User
+                          size={18}
+                          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+                        />
+                        <input
+                          id="supervisorName"
+                          type="text"
+                          value={form.supervisorName}
+                          onChange={handleFieldChange("supervisorName")}
+                          placeholder="Enter supervisor name"
+                          className={`w-full rounded-[var(--radius-md)] border bg-[var(--color-surface)] py-3 pl-10 pr-4 text-sm font-medium text-[var(--color-text-primary)] color-transition placeholder:text-[var(--color-text-muted)] ${
+                            errors.supervisorName
+                              ? "border-[var(--color-danger)]"
+                              : "border-[var(--color-border)] focus:border-[var(--color-primary)]"
+                          }`}
+                        />
+                      </div>
+                      <ErrorMessage message={errors.supervisorName} />
                     </div>
                   </div>
                 </section>
@@ -674,7 +722,7 @@ const DisplosaReq = () => {
 
                   <div className="rounded-[var(--radius-md)] bg-[var(--color-primary-dark)] p-4">
                     <span className="inline-flex rounded-full bg-[var(--color-accent)] px-2.5 py-1 text-xs font-bold text-[var(--color-primary-dark)]">
-                      {form.batchCode || "NO BATCH"}
+                      {form.batchNumber || "NO BATCH"}
                     </span>
 
                     <h3 className="mt-4 text-lg font-bold text-[var(--color-text-inverse)]">

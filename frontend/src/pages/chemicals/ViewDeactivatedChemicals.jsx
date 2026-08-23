@@ -157,9 +157,6 @@ const ViewDeactivatedChemicals = () => {
                   <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                     Deactivated Chemicals
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    These chemicals have been soft-deleted and are hidden from the main inventory. They can be reactivated if needed.
-                  </p>
                 </div>
               </div>
             </div>

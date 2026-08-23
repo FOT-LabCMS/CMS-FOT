@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Truck, Plus, Loader2, ServerCrash, Search, Eye, Pencil, QrCode, X, Printer, Download } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Truck, Plus, Loader2, ServerCrash, Search, Pencil, QrCode, X, Printer, Download, Save, AlertTriangle, Box, Calendar, MapPin, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../../api/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
@@ -8,22 +8,38 @@ import { QRCodeSVG } from 'qrcode.react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-const getStatus = (expiryDate) => {
-  if (!expiryDate) {
-    return { text: 'No Expiry', color: 'bg-gray-100 text-gray-800' };
+const getStatus = (batch) => {
+  const { expiryDate, currentQuantity, lowStockThresholdQuantity } = batch;
+  const currentQty = Number(currentQuantity);
+  const thresholdQty = Number(lowStockThresholdQuantity);
+
+  if (currentQty <= 0) {
+    return { text: 'Out of Stock', color: 'bg-zinc-200 text-zinc-800' };
   }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const expiry = new Date(expiryDate);
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(today.getDate() + 30);
 
-  if (expiry < today) {
-    return { text: 'Expired', color: 'bg-red-100 text-red-800' };
+  if (expiryDate) {
+    const expiry = new Date(expiryDate);
+    if (expiry < today) {
+      return { text: 'Expired', color: 'bg-red-100 text-red-800' };
+    }
   }
-  if (expiry <= thirtyDaysFromNow) {
-    return { text: 'Expiring Soon', color: 'bg-yellow-100 text-yellow-800' };
+
+  if (Number.isFinite(thresholdQty) && thresholdQty >= 0 && currentQty <= thresholdQty) {
+    return { text: 'Low Stock', color: 'bg-orange-100 text-orange-800' };
   }
+
+  if (expiryDate) {
+    const expiry = new Date(expiryDate);
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(today.getDate() + 30);
+    if (expiry <= thirtyDaysFromNow) {
+      return { text: 'Expiring Soon', color: 'bg-yellow-100 text-yellow-800' };
+    }
+  }
+
   return { text: 'Good', color: 'bg-green-100 text-green-800' };
 };
 
@@ -102,7 +118,7 @@ const QrCodeModal = ({ batch, onClose }) => {
         </button>
         <div id="qr-print-area-modal" className="flex flex-col items-center rounded-md bg-white p-4">
           <h1 className="text-lg font-bold text-[var(--color-text-primary)]">{batch.chemical?.canonicalName}</h1>
-          <p className="mb-4 text-sm text-[var(--color-text-secondary)]">Batch: {batch.batchNumber}</p>
+          <p className="mb-4 text-sm text-[var(--color-text-secondary)]">Bin Card Number: {batch.batchNumber}</p>
           <QRCodeSVG value={qrValue} size={200} includeMargin={true} />
         </div>
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -119,18 +135,274 @@ const QrCodeModal = ({ batch, onClose }) => {
   );
 };
 
+const EditBatchModal = ({ batch, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    supplier: batch.supplier || '',
+    batchNumber: batch.batchNumber || '',
+    quantityReceived: batch.quantityReceived || '',
+    currentQuantity: batch.currentQuantity || '',
+    lowStockThresholdQuantity: batch.lowStockThresholdQuantity || '',
+    expiryDate: batch.expiryDate || '',
+    receivedDate: batch.receivedDate || '',
+    locationId: batch.locationId || '',
+  });
+  const [locations, setLocations] = useState([]);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      const buildLocationPaths = (items) => {
+        const locationMap = new Map(items.map((loc) => [loc.id, loc]));
+
+        const getPath = (locationId) => {
+          const path = [];
+          let currentLocation = locationMap.get(locationId);
+
+          while (currentLocation) {
+            path.unshift(currentLocation.name);
+            currentLocation = locationMap.get(currentLocation.parentLocationId);
+          }
+
+          return path.join(' > ');
+        };
+
+        return items
+          .map((loc) => ({ ...loc, pathName: getPath(loc.id) }))
+          .sort((a, b) => a.pathName.localeCompare(b.pathName));
+      };
+
+      try {
+        setIsLoadingLocations(true);
+        const response = await api.get('/locations');
+
+        if (response.data?.success) {
+          setLocations(buildLocationPaths(response.data.locations));
+        }
+      } catch (error) {
+        setSubmitError(error.response?.data?.message || 'Could not load locations.');
+      } finally {
+        setIsLoadingLocations(false);
+      }
+    };
+
+    fetchLocations();
+  }, []);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: '' }));
+    setSubmitError('');
+  };
+
+  const validateForm = () => {
+    const nextErrors = {};
+    const quantityReceived = Number(formData.quantityReceived);
+    const currentQuantity = Number(formData.currentQuantity);
+    const thresholdQuantity = Number(formData.lowStockThresholdQuantity);
+
+    if (!formData.batchNumber.trim()) {
+      nextErrors.batchNumber = 'Bin Card Number is required.';
+    }
+
+    if (!formData.quantityReceived) {
+      nextErrors.quantityReceived = 'Quantity received is required.';
+    } else if (Number.isNaN(quantityReceived) || quantityReceived <= 0) {
+      nextErrors.quantityReceived = 'Quantity received must be greater than zero.';
+    }
+
+    if (formData.currentQuantity === '') {
+      nextErrors.currentQuantity = 'Current quantity is required.';
+    } else if (Number.isNaN(currentQuantity) || currentQuantity < 0) {
+      nextErrors.currentQuantity = 'Current quantity must be zero or greater.';
+    } else if (!Number.isNaN(quantityReceived) && currentQuantity > quantityReceived) {
+      nextErrors.currentQuantity = 'Current quantity cannot be greater than quantity received.';
+    }
+
+    if (formData.lowStockThresholdQuantity === '') {
+      nextErrors.lowStockThresholdQuantity = 'Low stock threshold is required.';
+    } else if (Number.isNaN(thresholdQuantity) || thresholdQuantity < 0) {
+      nextErrors.lowStockThresholdQuantity = 'Threshold must be zero or greater.';
+    } else if (!Number.isNaN(quantityReceived) && thresholdQuantity > quantityReceived) {
+      nextErrors.lowStockThresholdQuantity = 'Threshold cannot be greater than quantity received.';
+    }
+
+    if (!formData.receivedDate) {
+      nextErrors.receivedDate = 'Received date is required.';
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!validateForm()) {
+      setSubmitError('Please correct the highlighted fields.');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSubmitError('');
+      const response = await api.put(`/batches/${batch.id}`, {
+        ...formData,
+        quantityReceived: Number(formData.quantityReceived),
+        currentQuantity: Number(formData.currentQuantity),
+        lowStockThresholdQuantity: Number(formData.lowStockThresholdQuantity),
+        expiryDate: formData.expiryDate || null,
+        locationId: formData.locationId || null,
+      });
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Failed to update batch.');
+      }
+
+      onSuccess(response.data.batch);
+      onClose();
+    } catch (error) {
+      setSubmitError(error.response?.data?.message || error.message || 'Failed to update batch.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const fieldClass = (fieldName) =>
+    `w-full rounded-[var(--radius-md)] border bg-[var(--color-surface)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] color-transition ${
+      errors[fieldName] ? 'border-[var(--color-danger)]' : 'border-[var(--color-border)] focus:border-[var(--color-primary)]'
+    }`;
+
+  const unit = batch.chemical?.baseUnit || '';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-surface)] shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-accent-dark)]">Edit Batch</p>
+            <h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">{batch.chemical?.canonicalName || 'Stock Batch'}</h2>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{batch.chemical?.chemicalCode}</p>
+          </div>
+          <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="batchNumber" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Bin Card Number</label>
+              <input id="batchNumber" name="batchNumber" type="text" value={formData.batchNumber} onChange={handleChange} className={fieldClass('batchNumber')} />
+              {errors.batchNumber && <p className="mt-2 text-xs font-medium text-[var(--color-danger)]">{errors.batchNumber}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="supplier" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Supplier</label>
+              <input id="supplier" name="supplier" type="text" value={formData.supplier} onChange={handleChange} placeholder="Optional" className={fieldClass('supplier')} />
+            </div>
+
+            <div>
+              <label htmlFor="quantityReceived" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Quantity Received</label>
+              <div className="relative">
+                <Box size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                <input id="quantityReceived" name="quantityReceived" type="number" min="0" step="0.01" value={formData.quantityReceived} onChange={handleChange} className={`${fieldClass('quantityReceived')} pl-11 pr-20`} />
+                {unit && <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[var(--color-text-secondary)]">{unit}</span>}
+              </div>
+              {errors.quantityReceived && <p className="mt-2 text-xs font-medium text-[var(--color-danger)]">{errors.quantityReceived}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="currentQuantity" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Current Quantity</label>
+              <div className="relative">
+                <Box size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                <input id="currentQuantity" name="currentQuantity" type="number" min="0" step="0.01" value={formData.currentQuantity} onChange={handleChange} className={`${fieldClass('currentQuantity')} pl-11 pr-20`} />
+                {unit && <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[var(--color-text-secondary)]">{unit}</span>}
+              </div>
+              {errors.currentQuantity && <p className="mt-2 text-xs font-medium text-[var(--color-danger)]">{errors.currentQuantity}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="lowStockThresholdQuantity" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Low Stock Alert Threshold</label>
+              <div className="relative">
+                <AlertTriangle size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                <input id="lowStockThresholdQuantity" name="lowStockThresholdQuantity" type="number" min="0" step="0.01" value={formData.lowStockThresholdQuantity} onChange={handleChange} className={`${fieldClass('lowStockThresholdQuantity')} pl-11 pr-20`} />
+                {unit && <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[var(--color-text-secondary)]">{unit}</span>}
+              </div>
+              {errors.lowStockThresholdQuantity && <p className="mt-2 text-xs font-medium text-[var(--color-danger)]">{errors.lowStockThresholdQuantity}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="locationId" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Storage Location</label>
+              <div className="relative">
+                <MapPin size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                <select id="locationId" name="locationId" value={formData.locationId} onChange={handleChange} disabled={isLoadingLocations} className={`${fieldClass('locationId')} appearance-none pl-11 pr-10 disabled:cursor-not-allowed disabled:bg-[var(--color-surface-muted)]`}>
+                  <option value="">{isLoadingLocations ? 'Loading...' : 'Assign later'}</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>{location.pathName}</option>
+                  ))}
+                </select>
+                <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="receivedDate" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Received Date</label>
+              <div className="relative">
+                <Calendar size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                <input id="receivedDate" name="receivedDate" type="date" value={formData.receivedDate} onChange={handleChange} className={`${fieldClass('receivedDate')} pl-11`} />
+              </div>
+              {errors.receivedDate && <p className="mt-2 text-xs font-medium text-[var(--color-danger)]">{errors.receivedDate}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="expiryDate" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Expiry Date</label>
+              <div className="relative">
+                <Calendar size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                <input id="expiryDate" name="expiryDate" type="date" value={formData.expiryDate || ''} onChange={handleChange} className={`${fieldClass('expiryDate')} pl-11`} />
+              </div>
+            </div>
+          </div>
+
+          {submitError && (
+            <div className="mt-5 flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-red-50 p-3 text-sm font-medium text-[var(--color-danger)]">
+              <AlertTriangle size={17} />
+              {submitError}
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button type="button" onClick={onClose} disabled={isSaving} className="inline-flex items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)] disabled:opacity-60">
+              Cancel
+            </button>
+            <button type="submit" disabled={isSaving} className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-5 py-3 text-sm font-bold text-white hover:bg-[var(--color-primary-light)] disabled:cursor-not-allowed disabled:opacity-70">
+              {isSaving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const ViewAllBatches = () => {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [qrModalBatch, setQrModalBatch] = useState(null);
+  const [editingBatch, setEditingBatch] = useState(null);
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchBatches = async () => {
       try {
-        setLoading(true);
+        setLoading((previous) => previous || batches.length === 0);
         setError(null);
         const response = await api.get('/batches');
         if (response.data?.success) {
@@ -147,7 +419,10 @@ const ViewAllBatches = () => {
     };
 
     fetchBatches();
-  }, []);
+    const refreshTimer = window.setInterval(fetchBatches, 30000);
+
+    return () => window.clearInterval(refreshTimer);
+  }, [batches.length]);
 
   const filteredBatches = useMemo(() =>
     batches.filter(batch =>
@@ -157,6 +432,11 @@ const ViewAllBatches = () => {
     ), [batches, searchTerm]);
 
   const canViewQrCode = user && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER');
+  const canEditBatch = canViewQrCode;
+
+  const handleBatchUpdated = (updatedBatch) => {
+    setBatches((prev) => prev.map((batch) => (batch.id === updatedBatch.id ? updatedBatch : batch)));
+  };
 
   const renderContent = () => {
     if (loading) {
@@ -196,7 +476,7 @@ const ViewAllBatches = () => {
             <thead className="bg-[var(--color-surface-muted)]">
               <tr>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Chemical</th>
-                <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Batch No.</th>
+                <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Bin Card No.</th>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Quantity</th>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Supplier</th>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Received</th>
@@ -207,9 +487,13 @@ const ViewAllBatches = () => {
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
               {filteredBatches.map(batch => {
-                const status = getStatus(batch.expiryDate);
+                const status = getStatus(batch);
                 return (
-                  <tr key={batch.id} className="hover:bg-[var(--color-surface-muted)]">
+                  <tr
+                    key={batch.id}
+                    className="cursor-pointer hover:bg-[var(--color-surface-muted)]"
+                    onClick={() => navigate(`/stock/batches/${batch.id}`)}
+                  >
                     <td className="whitespace-nowrap px-4 py-4 font-medium text-[var(--color-text-primary)]">
                       <div className="font-bold">{batch.chemical?.canonicalName || 'N/A'}</div>
                       <div className="text-xs text-[var(--color-text-muted)]">{batch.chemical?.chemicalCode}</div>
@@ -230,21 +514,24 @@ const ViewAllBatches = () => {
                       <div className="flex items-center justify-end gap-2">
                         {canViewQrCode && (
                           <button
-                            onClick={() => setQrModalBatch(batch)}
+                            onClick={(e) => { e.stopPropagation(); setQrModalBatch(batch); }}
                             className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] hover:bg-white hover:text-[var(--color-text-primary)]"
                             title="Show QR Code"
                           ><QrCode size={16} /></button>
                         )}
-                        <Link
-                          to={`/stock/batches/${batch.id}`}
-                          className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] hover:bg-white hover:text-[var(--color-text-primary)]"
-                          title="View Details"
-                        >
-                          <Eye size={16} />
-                        </Link>
-                        <button className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] hover:bg-white hover:text-[var(--color-text-primary)]">
-                          <Pencil size={16} />
-                        </button>
+                        {canEditBatch && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingBatch(batch);
+                            }}
+                            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] hover:bg-white hover:text-[var(--color-text-primary)]"
+                            title="Edit Batch"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -260,6 +547,13 @@ const ViewAllBatches = () => {
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
       {qrModalBatch && <QrCodeModal batch={qrModalBatch} onClose={() => setQrModalBatch(null)} />}
+      {editingBatch && (
+        <EditBatchModal
+          batch={editingBatch}
+          onClose={() => setEditingBatch(null)}
+          onSuccess={handleBatchUpdated}
+        />
+      )}
     <main
       className="
         min-h-screen
@@ -286,9 +580,6 @@ const ViewAllBatches = () => {
                   <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                     All Stock Batches
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Browse and manage all individual chemical batches in the inventory.
-                  </p>
                 </div>
                 <div className="shrink-0">
                   <Link

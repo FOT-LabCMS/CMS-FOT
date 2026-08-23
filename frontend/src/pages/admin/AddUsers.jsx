@@ -12,12 +12,15 @@ import {
   Lock,
   Mail,
   RotateCcw,
+  Shield,
   ShieldAlert,
   ShieldCheck,
   User,
   UserPlus,
+  Wrench,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "../../api/axiosInstance";
 
 const INITIAL_FORM = {
@@ -79,6 +82,7 @@ const ErrorMessage = ({ message }) => {
 
 const AddUsers = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [form, setForm] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
@@ -151,6 +155,8 @@ const AddUsers = () => {
         type: "success",
         text: "User created successfully! Redirecting shortly.",
       });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notificationCount"] });
 
       setTimeout(() => {
         navigate("/admin/users/view");
@@ -208,12 +214,6 @@ const AddUsers = () => {
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                       Add New User
                     </h1>
-
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                      Create a system account for staff. They'll
-                      sign in with the temporary password below and set their
-                      own on first login.
-                    </p>
                   </div>
 
                   <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] p-4">
@@ -379,6 +379,12 @@ const AddUsers = () => {
                           className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
                         />
                       </div>
+                      <div className="mt-2">
+                        <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--color-accent-dark)] bg-amber-50/70 dark:bg-amber-950/15 px-2 py-1 rounded border border-amber-200/50 text-[11px]">
+                          <Info size={12} className="shrink-0" />
+                          Refer the Access Privileges Guide before select a role.
+                        </span>
+                      </div>
                       <ErrorMessage message={errors.role} />
                     </div>
                   </div>
@@ -488,6 +494,83 @@ const AddUsers = () => {
                       </dd>
                     </div>
                   </dl>
+                </section>
+
+                {/* Access Privileges Guide */}
+                <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-sm)]">
+                  <div className="mb-4 flex items-center gap-3 border-b border-[var(--color-border)] pb-4">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
+                      <ShieldCheck size={18} className="stroke-[2.25]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
+                        Access Privileges Guide
+                      </h3>
+                      <p className="text-[11px] text-[var(--color-text-muted)]">
+                        System access overview for roles
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Admin */}
+                    <div className="group flex flex-col gap-1.5 rounded-[var(--radius-md)] border border-emerald-100 bg-emerald-50/20 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-emerald-800">
+                          <Shield size={13} className="stroke-[2.5] shrink-0" />
+                          <span className="text-[11px] font-bold tracking-wide uppercase">
+                            Admin
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-800 uppercase tracking-wider">
+                          Full Control
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)] font-medium">
+                        All functional privileges. Complete control over user
+                        management, inventory audits, and system configuration.
+                      </p>
+                    </div>
+
+                    {/* Technical Officer */}
+                    <div className="group flex flex-col gap-1.5 rounded-[var(--radius-md)] border border-amber-100 bg-amber-50/20 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-200 hover:bg-amber-50/40 hover:shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-amber-800">
+                          <Wrench size={13} className="stroke-[2.5] shrink-0" />
+                          <span className="text-[11px] font-bold tracking-wide uppercase">
+                            Technical Officer
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-100/80 text-amber-800 uppercase tracking-wider">
+                          Operations
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)] font-medium">
+                        Full operational privileges (inventory management,
+                        storage updates). Excludes system user account
+                        management.
+                      </p>
+                    </div>
+
+                    {/* Lecturer */}
+                    <div className="group flex flex-col gap-1.5 rounded-[var(--radius-md)] border border-slate-200 bg-slate-50/30 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50/60 hover:shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-slate-600">
+                          <Eye size={13} className="stroke-[2.5] shrink-0" />
+                          <span className="text-[11px] font-bold tracking-wide uppercase">
+                            Lecturer
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 uppercase tracking-wider">
+                          View Only
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)] font-medium">
+                        Restricted to checking chemical availability and stock
+                        quantities. No other system permissions.
+                      </p>
+                    </div>
+                  </div>
                 </section>
 
                 <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5">

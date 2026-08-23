@@ -1,6 +1,7 @@
 import React from 'react';
-import { Beaker, FileText, MoreHorizontal, Pencil, Eye, Undo2 } from 'lucide-react';
+import { Beaker, FileText, MoreHorizontal, Pencil, Eye, Undo2, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const PHYSICAL_STATE_BADGE = {
   LIQUID: 'bg-blue-100 text-blue-800 border-blue-300',
@@ -9,7 +10,10 @@ const PHYSICAL_STATE_BADGE = {
   OTHER: 'bg-gray-100 text-gray-800 border-gray-300',
 };
 
-const ChemicalCard = ({ chemical, onEdit, onReactivate, isDeactivated = false }) => {
+const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated = false, isPublicView = false }) => {
+  const { user } = useAuth();
+  const canModify = user?.role === 'ADMIN' || user?.role === 'TECHNICAL_OFFICER';
+
   const {
     id,
     chemicalCode,
@@ -19,6 +23,7 @@ const ChemicalCard = ({ chemical, onEdit, onReactivate, isDeactivated = false })
     stockDimension,
     baseUnit,
     sdsStorageKey,
+    totalStock,
   } = chemical;
 
   return (
@@ -89,6 +94,17 @@ const ChemicalCard = ({ chemical, onEdit, onReactivate, isDeactivated = false })
               SDS Attached
             </span>
           )}
+          {isPublicView && totalStock !== undefined && (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                Number(totalStock) > 0
+                  ? "border-green-300 bg-green-100 text-green-800"
+                  : "border-red-300 bg-red-100 text-red-800"
+              }`}
+            >
+              {Number(totalStock) > 0 ? "Available" : "Unavailable"}
+            </span>
+          )}
         </div>
       </div>
 
@@ -101,24 +117,34 @@ const ChemicalCard = ({ chemical, onEdit, onReactivate, isDeactivated = false })
           <Eye size={14} />
           View
         </Link>
-        {isDeactivated ? (
+        {isDeactivated && !isPublicView && canModify && (
           <button
             type="button"
             onClick={() => onReactivate(chemical)}
-            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-success)] px-3 py-2 text-xs font-semibold text-white color-transition hover:bg-green-700"
+            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-green-600 px-3 py-2 text-xs font-semibold text-white color-transition hover:bg-green-700"
           >
             <Undo2 size={14} />
             Reactivate
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onEdit(chemical)}
-            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
-          >
-            <Pencil size={14} />
-            Edit
-          </button>
+        )}
+        {!isDeactivated && !isPublicView && canModify && (
+          <>
+            <button
+              type="button"
+              onClick={() => onEdit(chemical)}
+              className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
+            >
+              <Pencil size={14} />
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(chemical)}
+              className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-red-600/10 px-3 py-2 text-xs font-semibold text-red-600 color-transition hover:bg-red-600 hover:text-white"
+            >
+              <Trash2 size={14} />
+            </button>
+          </>
         )}
       </div>
     </div>

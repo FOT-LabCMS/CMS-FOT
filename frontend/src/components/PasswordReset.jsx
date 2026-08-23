@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Lock, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Lock, Eye, EyeOff, KeyRound, X } from "lucide-react";
 import api from "../api/axiosInstance";
+import { useNavigate } from "react-router-dom";
 
-const PasswordReset = () => {
+const PasswordReset = ({ onClose }) => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [showCurrent, setShowCurrent] = useState(false);
@@ -10,6 +11,16 @@ const PasswordReset = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const navigate = useNavigate();
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      // Fallback for when used as a standalone page
+      navigate(-1);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,9 +40,10 @@ const PasswordReset = () => {
         currentPassword,
         newPassword,
       });
-      setSuccess("Password updated successfully.");
+      setSuccess("Password updated successfully. Closing...");
       setCurrentPassword("");
       setNewPassword("");
+      setTimeout(handleClose, 1500);
     } catch (err) {
       setError(err.response?.data?.error || "Password update failed");
     } finally {
@@ -39,8 +51,25 @@ const PasswordReset = () => {
     }
   };
   return (
-    <div className="w-full max-w-md mx-auto px-4 sm:px-0">
-      <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] border border-[var(--color-border)] p-6 sm:p-8">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={handleClose}
+      aria-modal="true"
+      role="dialog"
+    >
+      <div
+        className="relative w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-lg sm:p-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={handleClose}
+          disabled={loading}
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+          aria-label="Close"
+        >
+          <X size={20} />
+        </button>
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-11 h-11 shrink-0 rounded-full bg-[var(--color-primary-tint)] flex items-center justify-center">
@@ -141,13 +170,23 @@ const PasswordReset = () => {
           </div>
 
           {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 rounded-[var(--radius-sm)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-light)] text-[var(--color-text-inverse)] text-sm font-medium shadow-[var(--shadow-sm)] transition-colors"
-          >
-            {loading ? "Updating..." : "Update Password"}
-          </button>
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={loading}
+              className="inline-flex items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] color-transition hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)] transition-colors hover:bg-[var(--color-primary-light)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? "Updating..." : "Update Password"}
+            </button>
+          </div>
         </form>
       </div>
     </div>

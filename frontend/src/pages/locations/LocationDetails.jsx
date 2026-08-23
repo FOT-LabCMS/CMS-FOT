@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Loader2,
   ServerCrash,
@@ -58,15 +58,20 @@ const LocationHierarchyNode = ({ node }) => {
             {hasBatches && (
               <div className="space-y-1.5 pt-1">
                 {node.batches.map(batch => (
-                  <div key={batch.id} className="relative flex items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--color-surface)] p-2 pl-3 shadow-[var(--shadow-xs)]">
+                  <Link
+                    key={batch.id}
+                    to={`/chemicals/${batch.chemical.id}`}
+                    className="relative flex items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--color-surface)] p-2 pl-3 shadow-[var(--shadow-xs)] color-transition hover:bg-[var(--color-surface-muted)]"
+                  >
                     <FlaskConical size={16} className="shrink-0 text-[var(--color-primary)]" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-[var(--color-text-primary)]">{batch.chemical.canonicalName}</p>
-                      <p className="text-xs text-[var(--color-text-secondary)]">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">{batch.chemical.canonicalName}</p>
+                      <p className="truncate text-xs text-[var(--color-text-secondary)]">
                         Batch: {batch.batchNumber} | Qty: {batch.currentQuantity} {batch.chemical.baseUnit}
                       </p>
                     </div>
-                  </div>
+                    <ChevronRight size={16} className="shrink-0 text-[var(--color-text-muted)]" />
+                  </Link>
                 ))}
               </div>
             )}

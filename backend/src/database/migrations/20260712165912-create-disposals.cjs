@@ -32,9 +32,8 @@ module.exports = {
         allowNull: false,
       },
 
-      batch_code: {
+      batch_number: {
         type: Sequelize.STRING(100),
-
         allowNull: false,
       },
 
@@ -62,7 +61,7 @@ module.exports = {
         allowNull: false,
       },
 
-      user_id: {
+      stu_register_num: {
         type: Sequelize.STRING(50),
         allowNull: false,
       },

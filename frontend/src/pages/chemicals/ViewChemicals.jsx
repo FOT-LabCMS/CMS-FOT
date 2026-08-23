@@ -1,38 +1,43 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FlaskConical, Plus, Loader2, ServerCrash, Search } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import ChemicalCard from '../../components/Common/ChemicalCard';
 import EditChemicalModal from '../../components/chemicals/EditChemicalModal';
+import DeleteConfirmationModal from '../../components/Common/DeleteConfirmationModal';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 
 const ViewChemicals = () => {
-  const [chemicals, setChemicals] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingChemical, setEditingChemical] = useState(null);
+  const [deletingChemical, setDeletingChemical] = useState(null);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchChemicals = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await api.get('/chemicals');
-        if (response.data?.success) {
-          setChemicals(response.data.chemicals);
-        } else {
-          throw new Error('Failed to fetch chemicals from the server.');
-        }
-      } catch (err) {
-        setError(err.response?.data?.message || err.message || 'An unknown error occurred.');
-        console.error("Error fetching chemicals:", err);
-      } finally {
-        setLoading(false);
+  const { data: chemicals = [], isLoading: loading, isError, error } = useQuery({
+    queryKey: ['chemicals'],
+    queryFn: async () => {
+      const response = await api.get('/chemicals');
+      if (response.data?.success) {
+        return response.data.chemicals;
       }
-    };
+      throw new Error(response.data?.message || 'Failed to fetch chemicals from the server.');
+    },
+  });
 
-    fetchChemicals();
-  }, []);
+  const deleteMutation = useMutation({
+    mutationFn: (chemicalId) => api.delete(`/chemicals/${chemicalId}`),
+    onSuccess: () => {
+      // Refetch the list of active chemicals
+      queryClient.invalidateQueries({ queryKey: ['chemicals'] });
+      // Also refetch the list of deactivated chemicals for the other page
+      queryClient.invalidateQueries({ queryKey: ['deactivatedChemicals'] });
+      setDeletingChemical(null);
+    },
+    onError: (error) => {
+      // You can add a toast notification here to show the error
+      console.error("Failed to deactivate chemical:", error);
+    }
+  });
 
   const filteredChemicals = chemicals.filter(
     (chemical) =>
@@ -45,12 +50,16 @@ const ViewChemicals = () => {
     setEditingChemical(chemical);
   };
 
+  const handleDeleteClick = (chemical) => {
+    setDeletingChemical(chemical);
+  };
+
   const handleCloseModal = () => {
     setEditingChemical(null);
   };
 
   const handleUpdateSuccess = (updatedChemical) => {
-    setChemicals(prev => prev.map(c => c.id === updatedChemical.id ? updatedChemical : c));
+    queryClient.invalidateQueries({ queryKey: ['chemicals'] });
     handleCloseModal();
   };
 
@@ -65,12 +74,12 @@ const ViewChemicals = () => {
       );
     }
 
-    if (error) {
+    if (isError) {
       return (
         <div className="flex flex-col items-center justify-center gap-4 text-center text-[var(--color-danger)] py-20 rounded-[var(--radius-lg)] bg-[var(--color-surface)] border border-[var(--color-danger)]">
           <ServerCrash size={40} />
           <h3 className="text-lg font-semibold">Failed to Load Chemicals</h3>
-          <p className="max-w-md">{error}</p>
+          <p className="max-w-md">{error.message}</p>
         </div>
       );
     }
@@ -88,7 +97,12 @@ const ViewChemicals = () => {
     return (
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredChemicals.map((chemical) => (
-          <ChemicalCard key={chemical.id} chemical={chemical} onEdit={handleEditClick} />
+          <ChemicalCard
+            key={chemical.id}
+            chemical={chemical}
+            onEdit={handleEditClick}
+            onDelete={handleDeleteClick}
+          />
         ))}
       </div>
     );
@@ -113,11 +127,8 @@ const ViewChemicals = () => {
                     </span>
                   </div>
                   <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
-                    Master Chemical List
+                    Laboratory Chemical List
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Browse, search, and manage all chemicals in the master database.
-                  </p>
                 </div>
                 <div className="shrink-0">
                   <Link
@@ -157,6 +168,17 @@ const ViewChemicals = () => {
               chemical={editingChemical}
               onClose={handleCloseModal}
               onSuccess={handleUpdateSuccess}
+            />
+          )}
+          {deletingChemical && (
+            <DeleteConfirmationModal
+              isOpen={!!deletingChemical}
+              onClose={() => setDeletingChemical(null)}
+              onConfirm={() => deleteMutation.mutate(deletingChemical.id)}
+              isProcessing={deleteMutation.isPending}
+              title="Deactivate Chemical"
+              message={`Are you sure you want to deactivate "${deletingChemical.canonicalName}"? This action will hide it from the main inventory list but will not remove historical data.`}
+              confirmText="Yes, Deactivate"
             />
           )}
         </div>

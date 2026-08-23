@@ -1,6 +1,29 @@
-const { Chemical } = require('../models/index.js');
+const { Chemical, Batch, Location, sequelize } = require('../models/index.js');
 const { Op } = require('sequelize');
+const { logAction } = require("../services/auditLogService.js");
+const { createNotification } = require("../services/notificationService.js");
 const axios = require('axios');
+const crypto = require('crypto');
+const fs = require('fs/promises');
+const jwt = require('jsonwebtoken');
+
+const calculateFileChecksum = async (filePath) => {
+  const fileBuffer = await fs.readFile(filePath);
+  return crypto.createHash('sha256').update(fileBuffer).digest('hex');
+};
+
+const normalizeOptionalDate = (value) => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  const normalizedValue = String(value).trim();
+  return normalizedValue ? normalizedValue : null;
+};
 
 const getNextChemicalCode = async (req, res) => {
   try {
@@ -36,6 +59,8 @@ const addChemical = async (req, res) => {
       }
     }
 
+    payload.sdsRevisionDate = normalizeOptionalDate(payload.sdsRevisionDate);
+
     // Basic validation for required fields based on the model
     if (!payload.chemicalCode || !payload.canonicalName || !payload.stockDimension || !payload.baseUnit) {
       return res.status(400).json({ 
@@ -68,12 +93,46 @@ const addChemical = async (req, res) => {
       payload.sdsOriginalFilename = req.file.originalname;
       payload.sdsMimeType = req.file.mimetype;
       payload.sdsFileSize = req.file.size;
+      payload.sdsChecksum = await calculateFileChecksum(req.file.path);
       payload.sdsUploadedAt = new Date();
       payload.sdsUploadedById = req.user.id; // From verifyToken middleware
     }
 
     // Create the new chemical in the database
     const chemical = await Chemical.create(payload);
+
+    await createNotification({
+      actor: {
+        id: req.user.id,
+        fullName: req.user.fullName,
+      },
+      entity: chemical,
+      entityType: 'Chemical',
+      type: 'NEW_CHEMICAL_ADDED',
+      severity: 'INFO',
+      messageBuilder: {
+        actor: (createdChemical) =>
+          `You added a new chemical: ${createdChemical.canonicalName} (${createdChemical.chemicalCode}).`,
+        others: (actorName, createdChemical) =>
+          `${actorName} added a new chemical: ${createdChemical.canonicalName} (${createdChemical.chemicalCode}).`,
+      },
+    });
+
+    // Audit Log: Chemical Creation
+    await logAction({
+      userId: req.user?.id,
+      userName: req.user?.fullName,
+      actionType: "CREATE_CHEMICAL",
+      entityType: "Chemical",
+      entityId: chemical.id,
+      details: {
+        chemicalCode: chemical.chemicalCode,
+        canonicalName: chemical.canonicalName,
+        stockDimension: chemical.stockDimension,
+        baseUnit: chemical.baseUnit,
+      },
+      ipAddress: req.ip,
+    });
 
     res.status(201).json({
       success: true,
@@ -92,7 +151,9 @@ const addChemical = async (req, res) => {
 
 const getAllChemicals = async (req, res) => {
   try {
-    const chemicals = await Chemical.findAll({ // Only fetch active chemicals by default
+    // Only fetch active chemicals for the main list view
+    const chemicals = await Chemical.findAll({
+      where: { isActive: true },
       order: [['createdAt', 'DESC']],
     });
     res.status(200).json({
@@ -121,19 +182,102 @@ const getInactiveChemicals = async (req, res) => {
   }
 };
 
+const getPublicChemicals = async (req, res) => {
+  try {
+    const chemicals = await Chemical.findAll({
+      where: { isActive: true },
+      order: [['canonicalName', 'ASC']],
+      attributes: [
+        "id",
+        "chemicalCode",
+        "canonicalName",
+        "formula",
+        "physicalState",
+        "hazardCategory",
+        "stockDimension",
+        "baseUnit",
+        "sdsStorageKey",
+        [
+          sequelize.literal(`(
+            SELECT COALESCE(SUM(b.current_quantity), 0)
+            FROM batches AS b
+            WHERE b.chemical_id = "Chemical"."id"
+          )`),
+          "totalStock",
+        ],
+      ],
+    });
+    res.status(200).json({
+      success: true,
+      chemicals,
+    });
+  } catch (error) {
+    console.error('Error fetching public chemicals:', error);
+    res.status(500).json({ success: false, message: 'Internal server error while fetching chemicals.' });
+  }
+};
+
+// Helper to build the location path
+const getLocationPath = async (locationId) => {
+  const path = [];
+  let currentLocation = await Location.findByPk(locationId, { attributes: ['id', 'name', 'parentLocationId'] });
+  while (currentLocation) {
+    path.unshift({ id: currentLocation.id, name: currentLocation.name });
+    currentLocation = currentLocation.parentLocationId
+      ? await Location.findByPk(currentLocation.parentLocationId, { attributes: ['id', 'name', 'parentLocationId'] })
+      : null;
+  }
+  return path;
+};
+
 const getChemicalById = async (req, res) => {
   try {
     const { id } = req.params;
-    const chemical = await Chemical.findByPk(id);
+    
+    // Optional JWT verification to check role for batch display
+    const authHeader = req.headers.authorization;
+    let user = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      try {
+        user = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (err) {
+        // Ignore expired or invalid tokens for optional access checks
+      }
+    }
+
+    const showBatches = user && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER' || user.role === 'LECTURER');
+
+    let chemical;
+    if (showBatches) {
+      chemical = await Chemical.findByPk(id, {
+        include: [{
+          model: Batch,
+          as: 'batches',
+          include: [{ model: Location, as: 'location', attributes: ['id', 'name'] }]
+        }],
+        order: [[{ model: Batch, as: 'batches' }, 'receivedDate', 'DESC']]
+      });
+    } else {
+      chemical = await Chemical.findByPk(id);
+    }
 
     if (!chemical) {
       return res.status(404).json({ success: false, message: 'Chemical not found.' });
     }
 
-    res.status(200).json({
-      success: true,
-      chemical,
-    });
+    const chemicalJson = chemical.toJSON();
+    if (showBatches && chemicalJson.batches) {
+      for (const batch of chemicalJson.batches) {
+        if (batch.locationId) {
+          batch.locationPath = await getLocationPath(batch.locationId);
+        }
+      }
+    } else {
+      delete chemicalJson.batches;
+    }
+
+    res.status(200).json({ success: true, chemical: chemicalJson });
   } catch (error) {
     console.error(`Error fetching chemical with ID ${req.params.id}:`, error);
     res.status(500).json({ success: false, message: 'Internal server error while fetching chemical details.' });
@@ -144,9 +288,18 @@ const updateChemical = async (req, res) => {
   const { id } = req.params;
   try {
     const chemical = await Chemical.findByPk(id);
+
     if (!chemical) {
       return res.status(404).json({ success: false, message: 'Chemical not found.' });
     }
+
+    // Store the state *before* the update for the audit log
+    const beforeUpdate = {
+      canonicalName: chemical.canonicalName,
+      casNumber: chemical.casNumber,
+      hazardCategory: chemical.hazardCategory,
+      isActive: chemical.isActive,
+    };
 
     const payload = { ...req.body };
 
@@ -157,6 +310,10 @@ const updateChemical = async (req, res) => {
         console.warn("Could not parse synonyms on update, keeping original.", payload.synonyms);
         payload.synonyms = chemical.synonyms;
       }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'sdsRevisionDate')) {
+      payload.sdsRevisionDate = normalizeOptionalDate(payload.sdsRevisionDate);
     }
 
     if (payload.canonicalName && payload.canonicalName.trim().toLowerCase() !== chemical.canonicalName.toLowerCase()) {
@@ -180,11 +337,26 @@ const updateChemical = async (req, res) => {
       payload.sdsOriginalFilename = req.file.originalname;
       payload.sdsMimeType = req.file.mimetype;
       payload.sdsFileSize = req.file.size;
+      payload.sdsChecksum = await calculateFileChecksum(req.file.path);
       payload.sdsUploadedAt = new Date();
       payload.sdsUploadedById = req.user.id;
     }
 
     await chemical.update(payload);
+
+    // Audit Log: Chemical Update
+    await logAction({
+      userId: req.user?.id,
+      userName: req.user?.fullName,
+      actionType: "UPDATE_CHEMICAL",
+      entityType: "Chemical",
+      entityId: chemical.id,
+      details: {
+        before: beforeUpdate,
+        after: payload, // Log the changes that were sent
+      },
+      ipAddress: req.ip,
+    });
 
     res.status(200).json({
       success: true,
@@ -213,6 +385,20 @@ const softDeleteChemical = async (req, res) => {
     chemical.isActive = false;
     await chemical.save();
 
+    // Audit Log: Deactivate Chemical
+    await logAction({
+      userId: req.user?.id,
+      userName: req.user?.fullName,
+      actionType: "DEACTIVATE_CHEMICAL",
+      entityType: "Chemical",
+      entityId: chemical.id,
+      details: {
+        chemicalCode: chemical.chemicalCode,
+        canonicalName: chemical.canonicalName,
+      },
+      ipAddress: req.ip,
+    });
+
     res.status(200).json({
       success: true,
       message: 'Chemical has been deactivated successfully.',
@@ -235,6 +421,20 @@ const reactivateChemical = async (req, res) => {
     chemical.isActive = true;
     await chemical.save();
 
+    // Audit Log: Reactivate Chemical
+    await logAction({
+      userId: req.user?.id,
+      userName: req.user?.fullName,
+      actionType: "REACTIVATE_CHEMICAL",
+      entityType: "Chemical",
+      entityId: chemical.id,
+      details: {
+        chemicalCode: chemical.chemicalCode,
+        canonicalName: chemical.canonicalName,
+      },
+      ipAddress: req.ip,
+    });
+
     res.status(200).json({
       success: true,
       message: 'Chemical has been reactivated successfully.',
@@ -243,6 +443,38 @@ const reactivateChemical = async (req, res) => {
   } catch (error) {
     console.error(`Error reactivating chemical with ID ${id}:`, error);
     res.status(500).json({ success: false, message: 'Internal server error while reactivating chemical.' });
+  }
+};
+
+const getChemicalsWithSds = async (req, res) => {
+  try {
+    const chemicals = await Chemical.findAll({
+      where: {
+        sdsStorageKey: { [Op.ne]: null },
+        isActive: true,
+      },
+      order: [['canonicalName', 'ASC']],
+      attributes: [
+        'id',
+        'chemicalCode',
+        'canonicalName',
+        'formula',
+        'sdsStorageKey',
+        'sdsOriginalFilename',
+        'sdsMimeType',
+        'sdsFileSize',
+        'sdsChecksum',
+        'sdsRevisionDate',
+        'sdsUploadedAt',
+      ],
+    });
+    res.status(200).json({
+      success: true,
+      chemicals,
+    });
+  } catch (error) {
+    console.error('Error fetching chemicals with SDS:', error);
+    res.status(500).json({ success: false, message: 'Internal server error while fetching chemicals with SDS.' });
   }
 };
 
@@ -561,6 +793,32 @@ const getChemicalDataByCas = async (req, res) => {
   }
 };
 
+const getChemicalStats = async (req, res) => {
+  try {
+    const activeCount = await Chemical.count({ where: { isActive: true } });
+    const inactiveCount = await Chemical.count({ where: { isActive: false } });
+    const sdsCount = await Chemical.count({
+      where: {
+        isActive: true,
+        sdsStorageKey: { [Op.ne]: null },
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        active: activeCount,
+        inactive: inactiveCount,
+        total: activeCount + inactiveCount,
+        sdsCount: sdsCount,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching chemical stats:', error);
+    res.status(500).json({ success: false, message: 'Internal server error while fetching chemical stats.' });
+  }
+};
+
 module.exports = {
   addChemical,
   getNextChemicalCode,
@@ -571,4 +829,7 @@ module.exports = {
   getInactiveChemicals,
   reactivateChemical,
   getChemicalDataByCas,
+  getChemicalsWithSds,
+  getPublicChemicals,
+  getChemicalStats,
 };

@@ -8,6 +8,15 @@ const api = axios.create({
   baseURL: `${API_SERVER_URL}/api`,
 });
 
+export const INVENTORY_REFRESH_EVENT = 'flcms:inventory-refresh';
+
+const INVENTORY_MUTATION_PATHS = [
+  '/batches',
+  '/chemicals',
+  '/dispose',
+  '/locations',
+];
+
 // Add a request interceptor to include the token in headers
 api.interceptors.request.use(
   (config) => {
@@ -17,6 +26,22 @@ api.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+api.interceptors.response.use(
+  (response) => {
+    const method = response.config?.method?.toUpperCase();
+    const url = response.config?.url || '';
+    const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+    const touchesInventory = INVENTORY_MUTATION_PATHS.some((path) => url.startsWith(path));
+
+    if (isMutation && touchesInventory && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(INVENTORY_REFRESH_EVENT));
+    }
+
+    return response;
   },
   (error) => Promise.reject(error)
 );

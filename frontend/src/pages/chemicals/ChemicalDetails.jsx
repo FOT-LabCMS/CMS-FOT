@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from 'react-router-dom';
+import { differenceInCalendarDays, differenceInYears, format, parseISO, startOfDay } from 'date-fns';
 import {
+  AlertCircle,
   Loader2,
   ServerCrash,
   ArrowLeft,
@@ -9,15 +11,23 @@ import {
   ShieldAlert,
   FileText,
   Download,
+  Eye,
   Pencil,
   Trash2,
   Tag,
+  Boxes,
+  CalendarClock,
+  MapPin,
+  PackageX,
+  TrendingDown,
+  ChevronRight as ChevronRightIcon,
+  Plus,
 } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import EditChemicalModal from '../../components/chemicals/EditChemicalModal';
 import DeleteConfirmationModal from '../../components/Common/DeleteConfirmationModal';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import { useAuth } from '../../context/AuthContext';
+import { getSdsFilename, getSdsUrl } from '../../utils/sds';
 
 const DetailItem = ({ label, value, children }) => {
   if (!value && !children) {
@@ -33,6 +43,216 @@ const DetailItem = ({ label, value, children }) => {
   );
 };
 
+const formatDisplayDate = (value) => {
+  if (!value) {
+    return "N/A";
+  }
+
+  try {
+    return format(parseISO(value), "MMM dd, yyyy");
+  } catch {
+    return "N/A";
+  }
+};
+
+const isSdsOutdated = (revisionDate) => {
+  if (!revisionDate) {
+    return false;
+  }
+
+  try {
+    return differenceInYears(new Date(), parseISO(revisionDate)) >= 3;
+  } catch {
+    return false;
+  }
+};
+
+const getBatchStatus = (batch) => {
+  const statuses = [];
+  const currentQuantity = Number(batch.currentQuantity || 0);
+  const thresholdQuantity = Number(batch.lowStockThresholdQuantity);
+
+  if (currentQuantity <= 0) {
+    statuses.push({
+      label: "Out of stock",
+      description: "No usable stock remains in this batch.",
+      tone: "danger",
+      icon: PackageX,
+    });
+  } else if (
+    Number.isFinite(thresholdQuantity) &&
+    thresholdQuantity >= 0 &&
+    currentQuantity <= thresholdQuantity
+  ) {
+    statuses.push({
+      label: "Low stock",
+      description: `At or below the alert threshold (${thresholdQuantity} ${batch.baseUnit || ""}).`.trim(),
+      tone: "warning",
+      icon: TrendingDown,
+    });
+  }
+
+  if (batch.expiryDate) {
+    try {
+      const daysRemaining = differenceInCalendarDays(
+        startOfDay(parseISO(batch.expiryDate)),
+        startOfDay(new Date()),
+      );
+
+      if (daysRemaining < 0) {
+        statuses.push({
+          label: "Expired",
+          description: `Expired ${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) === 1 ? "" : "s"} ago.`,
+          tone: "danger",
+          icon: AlertCircle,
+        });
+      } else if (daysRemaining <= 30) {
+        statuses.push({
+          label: "Expiring soon",
+          description:
+            daysRemaining === 0
+              ? "Expires today."
+              : `Expires in ${daysRemaining} day${daysRemaining === 1 ? "" : "s"}.`,
+          tone: "warning",
+          icon: CalendarClock,
+        });
+      }
+    } catch {
+      // Ignore invalid dates from old data and keep the card usable.
+    }
+  }
+
+  return statuses;
+};
+
+const getBatchCardClass = (statuses) => {
+  const hasDanger = statuses.some((status) => status.tone === "danger");
+  const hasWarning = statuses.some((status) => status.tone === "warning");
+
+  if (hasDanger) {
+    return "border-[var(--color-danger)] bg-[var(--color-danger)]/5";
+  }
+
+  if (hasWarning) {
+    return "border-[var(--color-warning)] bg-[var(--color-warning)]/5";
+  }
+
+  return "border-[var(--color-border)] bg-[var(--color-surface-muted)]";
+};
+
+const getStatusChipClass = (tone) => {
+  if (tone === "danger") {
+    return "border-[var(--color-danger)] bg-[var(--color-danger)]/10 text-[var(--color-danger)]";
+  }
+
+  if (tone === "warning") {
+    return "border-[var(--color-warning)] bg-[var(--color-warning)]/10 text-[var(--color-warning)]";
+  }
+
+  return "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]";
+};
+
+const BatchList = ({ batches, baseUnit, isAuthenticated }) => {
+  if (!batches || batches.length === 0) {
+    return (
+      <div className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+        No batches are currently in stock for this chemical.
+      </div>
+    );
+  }
+
+  const shouldScroll = batches.length > 3;
+
+  return (
+    <div
+      className={`space-y-2.5 ${
+        shouldScroll
+          ? "max-h-[430px] overflow-y-auto pr-1"
+          : ""
+      }`}
+    >
+      {batches.map(batch => {
+        const statusItems = getBatchStatus({ ...batch, baseUnit });
+        const currentQuantity = Number(batch.currentQuantity || 0);
+        const thresholdQuantity = Number(batch.lowStockThresholdQuantity);
+
+        return (
+          <div
+            key={batch.id}
+            className={`rounded-[var(--radius-md)] border p-3 shadow-[var(--shadow-sm)] ${getBatchCardClass(statusItems)}`}
+          >
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-[var(--color-text-primary)]">Bin Card Number: {batch.batchNumber}</p>
+                {isAuthenticated && (
+                  <p className="text-xs text-[var(--color-text-secondary)]">Received: {formatDisplayDate(batch.receivedDate)}</p>
+                )}
+              </div>
+
+              {isAuthenticated && (
+                <div className="grid grid-cols-2 gap-2 sm:min-w-56">
+                  <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-right">
+                    <p className={`text-base font-bold ${currentQuantity <= 0 ? "text-[var(--color-danger)]" : "text-[var(--color-primary)]"}`}>
+                      {Number.isFinite(currentQuantity) ? currentQuantity : batch.currentQuantity}
+                    </p>
+                    <p className="text-[11px] font-semibold text-[var(--color-text-muted)]">{baseUnit}</p>
+                  </div>
+                  <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-right">
+                    <p className="text-xs font-semibold text-[var(--color-text-primary)]">{formatDisplayDate(batch.expiryDate)}</p>
+                    <p className="text-[11px] text-[var(--color-text-muted)]">Expiry Date</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {isAuthenticated && statusItems.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {statusItems.map((status) => {
+                  const Icon = status.icon;
+
+                  return (
+                    <div
+                      key={`${batch.id}-${status.label}`}
+                      className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${getStatusChipClass(status.tone)}`}
+                      title={status.description}
+                    >
+                      <Icon size={13} className="shrink-0" />
+                      <span className="font-bold uppercase">{status.label}</span>
+                      <span className="hidden max-w-44 truncate opacity-85 sm:inline">
+                        {status.description}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {isAuthenticated && Number.isFinite(thresholdQuantity) && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[var(--color-text-secondary)]">
+                <span className="rounded-full bg-[var(--color-surface)] px-2 py-0.5 font-semibold">
+                  Low stock threshold: {thresholdQuantity} {baseUnit}
+                </span>
+              </div>
+            )}
+
+            {batch.locationPath && batch.locationPath.length > 0 && (
+              <div className={`flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-secondary)] ${isAuthenticated ? 'mt-2 border-t border-[var(--color-border)] pt-2' : 'mt-2'}`}>
+                <MapPin size={13} className="shrink-0" />
+                {batch.locationPath.map((loc, index) => (
+                  <React.Fragment key={loc.id}>
+                    <span>{loc.name}</span>
+                    {index < batch.locationPath.length - 1 && <ChevronRightIcon size={13} />}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const ChemicalDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -42,6 +262,7 @@ const ChemicalDetails = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleteProcessing, setIsDeleteProcessing] = useState(false);
+  const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
     const fetchChemical = async () => {
@@ -104,11 +325,11 @@ const ChemicalDetails = () => {
         <h3 className="text-xl font-semibold">Failed to Load Data</h3>
         <p className="max-w-md">{error}</p>
         <button
-          onClick={() => navigate('/chemicals/list')}
+          onClick={() => navigate(-1)}
           className="mt-4 inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-5 py-3 text-sm font-bold text-[var(--color-text-inverse)]"
         >
           <ArrowLeft size={18} />
-          Back to Inventory
+          Back
         </button>
       </div>
     );
@@ -116,7 +337,9 @@ const ChemicalDetails = () => {
 
   if (!chemical) return null;
 
-  const sdsUrl = chemical.sdsStorageKey ? `${API_BASE_URL}/uploads/sds/${chemical.sdsStorageKey}` : null;
+  const sdsUrl = getSdsUrl(chemical.sdsStorageKey);
+  const sdsFilename = chemical.sdsOriginalFilename || getSdsFilename(chemical.sdsStorageKey);
+  const sdsNeedsReview = isSdsOutdated(chemical.sdsRevisionDate);
 
   return (
     <>
@@ -132,11 +355,11 @@ const ChemicalDetails = () => {
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => navigate('/chemicals/list')}
+                    onClick={() => navigate(-1)}
                     className="mb-5 inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
                   >
                     <ArrowLeft size={17} />
-                    Back to List
+                    Back
                   </button>
 
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -155,24 +378,34 @@ const ChemicalDetails = () => {
                         <strong className="font-bold text-[var(--color-accent-light)]">{chemical.chemicalCode}</strong>
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setIsConfirmingDelete(true)}
-                        className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-[var(--color-danger)]/10 px-4 py-2.5 text-sm font-semibold text-[var(--color-danger)] color-transition hover:bg-[var(--color-danger)] hover:text-[var(--color-text-inverse)]"
-                      >
-                        <Trash2 size={16} />
-                        Delete
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsEditing(true)}
-                        className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] px-5 py-2.5 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
-                      >
-                        <Pencil size={16} />
-                        Edit Chemical
-                      </button>
-                    </div>
+                    {isAuthenticated && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER') && (
+                      <div className="flex shrink-0 items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setIsConfirmingDelete(true)}
+                          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-[var(--color-danger)]/10 px-4 py-2.5 text-sm font-semibold text-[var(--color-danger)] color-transition hover:bg-[var(--color-danger)] hover:text-[var(--color-text-inverse)]"
+                        >
+                          <Trash2 size={16} />
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditing(true)}
+                          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] px-5 py-2.5 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
+                        >
+                          <Pencil size={16} />
+                          Edit Chemical
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/stock/add', { state: { chemicalId: chemical.id } })}
+                          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-5 py-2.5 text-sm font-bold text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-primary-light)]"
+                        >
+                          <Plus size={16} />
+                          Add Batch
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -218,6 +451,30 @@ const ChemicalDetails = () => {
                     </p>
                   </div>
                 </section>
+
+                {isAuthenticated && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER' || user.role === 'LECTURER') && (
+                  <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+                  <header className="flex items-center justify-between border-b border-[var(--color-border)] p-4 sm:p-5">
+                    <div className="flex items-center gap-3">
+                      <Boxes size={20} className="text-[var(--color-primary)]" />
+                      <h2 className="text-base font-bold text-[var(--color-text-primary)]">In-Stock Batches</h2>
+                    </div>
+                    {isAuthenticated && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER') && (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/stock/add', { state: { chemicalId: chemical.id } })}
+                        className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--color-primary-tint)] px-3 py-1.5 text-xs font-bold text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white color-transition"
+                      >
+                        <Plus size={14} />
+                        Add Batch
+                      </button>
+                    )}
+                  </header>
+                  <div className="p-4 sm:p-5">
+                    <BatchList batches={chemical.batches} baseUnit={chemical.baseUnit} isAuthenticated={isAuthenticated} />
+                  </div>
+                </section>
+                )}
               </div>
 
               <div className="space-y-6">
@@ -244,11 +501,65 @@ const ChemicalDetails = () => {
                   <div className="p-4 sm:p-5">
                     {sdsUrl ? (
                       <div>
-                        <a href={sdsUrl} download={chemical.sdsOriginalFilename} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-primary)] bg-[var(--color-primary-tint)] px-4 py-3 text-sm font-bold text-[var(--color-primary)] color-transition hover:bg-[var(--color-primary)] hover:text-[var(--color-text-inverse)]">
-                          <Download size={18} />
-                          Download SDS ({ (chemical.sdsFileSize / 1024 / 1024).toFixed(2) } MB)
-                        </a>
-                        <p className="mt-2 truncate text-center text-xs text-[var(--color-text-muted)]">{chemical.sdsOriginalFilename}</p>
+                        <div className="mb-4 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold uppercase text-[var(--color-text-muted)]">
+                                Current document
+                              </p>
+                              <p className="mt-1 truncate text-sm font-bold text-[var(--color-text-primary)]">
+                                {sdsFilename || "SDS document"}
+                              </p>
+                            </div>
+                            {sdsNeedsReview && (
+                              <span className="shrink-0 rounded-full bg-[var(--color-warning)]/15 px-2.5 py-1 text-xs font-bold text-[var(--color-warning)]">
+                                Review due
+                              </span>
+                            )}
+                          </div>
+
+                          <dl className="grid gap-2 text-xs sm:grid-cols-2">
+                            <div>
+                              <dt className="text-[var(--color-text-muted)]">Revision date</dt>
+                              <dd className="font-semibold text-[var(--color-text-primary)]">
+                                {formatDisplayDate(chemical.sdsRevisionDate)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-[var(--color-text-muted)]">Uploaded on</dt>
+                              <dd className="font-semibold text-[var(--color-text-primary)]">
+                                {formatDisplayDate(chemical.sdsUploadedAt)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-[var(--color-text-muted)]">File size</dt>
+                              <dd className="font-semibold text-[var(--color-text-primary)]">
+                                {chemical.sdsFileSize
+                                  ? `${(chemical.sdsFileSize / 1024 / 1024).toFixed(2)} MB`
+                                  : "N/A"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-[var(--color-text-muted)]">SHA-256</dt>
+                              <dd className="truncate font-mono text-[11px] font-semibold text-[var(--color-text-primary)]">
+                                {chemical.sdsChecksum
+                                  ? `${chemical.sdsChecksum.slice(0, 16)}...`
+                                  : "N/A"}
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
+
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <a href={sdsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-primary)] bg-[var(--color-primary-tint)] px-4 py-3 text-sm font-bold text-[var(--color-primary)] color-transition hover:bg-[var(--color-primary)] hover:text-[var(--color-text-inverse)]">
+                            <Eye size={18} />
+                            Preview SDS
+                          </a>
+                          <a href={sdsUrl} download={sdsFilename} className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-3 text-sm font-bold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]">
+                            <Download size={18} />
+                            Download
+                          </a>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-2 text-center text-[var(--color-text-muted)]">

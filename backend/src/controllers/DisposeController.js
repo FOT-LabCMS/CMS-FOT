@@ -2,18 +2,29 @@ const { Dispose } = require("../models/index.js");
 const { Chemical } = require("../models/index.js");
 const { Batch } = require("../models/index.js");
 const { Op } = require("sequelize");
+const { logAction } = require("../services/auditLogService.js");
+const { notifyLowStockBatch } = require("../services/notificationService.js");
 
 const createreleaserecord = async (req, res) => {
   const {
     chemicalCode,
-    batchCode,
+    stuRegisterNum,
+    userName,
+    batchNumber,
     dateReleased,
     purpose,
-    userId,
-    userName,
     remark,
+    supervisorName,
   } = req.body;
-  if (!chemicalCode || !batchCode || !dateReleased || !purpose || !userId) {
+  if (
+    !chemicalCode ||
+    !batchNumber ||
+    !dateReleased ||
+    !purpose ||
+    !stuRegisterNum ||
+    !userName ||
+    !supervisorName
+  ) {
     return res.status(400).json({ message: "All fields are required" });
   }
   try {
@@ -24,7 +35,7 @@ const createreleaserecord = async (req, res) => {
       return res.status(404).json({ message: "Chemical not found" });
     }
     const batch = await Batch.findOne({
-      where: { batchNumber: batchCode },
+      where: { batchNumber: batchNumber },
     });
     if (!batch) {
       return res.status(404).json({ message: "Batch not found" });
@@ -32,12 +43,28 @@ const createreleaserecord = async (req, res) => {
     const dispose = await Dispose.create({
       chemicalCode: chemicalCode,
       chemicalName: chemical.canonicalName,
-      batchNumber: batchCode,
+      batchNumber: batchNumber,
       dateReleased: dateReleased,
       purpose: purpose,
-      userId: userId,
+      stuRegisterNum: stuRegisterNum,
       userName: userName,
+      supervisorName: supervisorName,
       remark: remark,
+    });
+
+    // Audit Log: Chemical Released
+    await logAction({
+      userId: req.user.id,
+      userName: req.user.fullName,
+      actionType: "RELEASE_CHEMICAL",
+      entityType: "Dispose",
+      entityId: dispose.id,
+      details: {
+        chemicalCode: dispose.chemicalCode,
+        batchNumber: dispose.batchNumber,
+        purpose: dispose.purpose,
+      },
+      ipAddress: req.ip,
     });
     res
       .status(201)
@@ -110,6 +137,24 @@ const updateqty = async (req, res) => {
       (Number(batch.currentQuantity) - volumeToDeduct).toFixed(4),
     );
     await batch.save();
+    await notifyLowStockBatch(batch.id);
+
+    // Audit Log: Chemical Returned
+    await logAction({
+      userId: req.user.id,
+      userName: req.user.fullName,
+      actionType: "RETURN_CHEMICAL",
+      entityType: "Dispose",
+      entityId: dispose.id,
+      details: {
+        chemicalCode: dispose.chemicalCode,
+        batchNumber: dispose.batchNumber,
+        quantityUsed: dispose.quantityUsed,
+        stockDeducted: volumeToDeduct.toFixed(4),
+        conversionNote: conversionNote,
+      },
+      ipAddress: req.ip,
+    });
 
     res.json({
       message: "Quantity updated and stock deducted successfully",
@@ -193,10 +238,7 @@ const getbatchbychemicalid = async (req, res) => {
     const batches = await Batch.findAll({
       where: {
         chemicalId: chemical.id,
-        [Op.or]: [
-          { expiryDate: null }, 
-          { expiryDate: { [Op.gte]: today } },
-        ],
+        [Op.or]: [{ expiryDate: null }, { expiryDate: { [Op.gte]: today } }],
       },
       attributes: ["batchNumber", "expiryDate", "currentQuantity"],
       include: [

@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Beaker,
+  CheckCircle2,
   ChevronDown,
   FlaskConical,
   Info,
@@ -21,6 +22,7 @@ import { useNavigate } from "react-router-dom";
 
 // Import the configured Axios instance
 import api from "../../api/axiosInstance";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 
 const INITIAL_FORM = {
@@ -31,10 +33,12 @@ const INITIAL_FORM = {
   casNumber: "",
   formula: "",
   physicalState: "LIQUID",
+  hazardCategory: "NONE",
   synonyms: [""],
   densityValue: "",
   densityUnit: "g/cm³",
   safetySummary: "",
+  sdsRevisionDate: "",
 };
 
 const STOCK_DIMENSION_OPTIONS = [
@@ -63,6 +67,20 @@ const PHYSICAL_STATE_OPTIONS = [
   { value: "LIQUID", label: "Liquid" },
   { value: "GAS", label: "Gas" },
   { value: "OTHER", label: "Other" },
+];
+
+const HAZARD_CATEGORY_OPTIONS = [
+  { value: "NONE", label: "None / Not classified" },
+  { value: "FLAMMABLE", label: "Flammable" },
+  { value: "CORROSIVE", label: "Corrosive" },
+  { value: "TOXIC", label: "Toxic" },
+  { value: "OXIDIZER", label: "Oxidizer" },
+  { value: "EXPLOSIVE", label: "Explosive" },
+  { value: "IRRITANT", label: "Irritant" },
+  { value: "ENVIRONMENTAL", label: "Environmental hazard" },
+  { value: "COMPRESSED_GAS", label: "Compressed gas" },
+  { value: "HEALTH_HAZARD", label: "Health hazard" },
+  { value: "OTHER", label: "Other hazard" },
 ];
 
 const BASE_UNIT_OPTIONS = {
@@ -150,16 +168,39 @@ const isValidCasNumber = (casNumber) => {
 
 const AddChemical = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState(null);
   const [isCodeLoading, setIsCodeLoading] = useState(true);
   const [sdsFile, setSdsFile] = useState(null);
 
   const [isCasLoading, setIsCasLoading] = useState(false);
   const [casLookupMessage, setCasLookupMessage] = useState(null);
+
+  const addChemicalMutation = useMutation({
+    mutationFn: (payload) => api.post("/chemicals/add-chemical", payload),
+    onSuccess: () => {
+      // Invalidate the query so ViewChemicals refetches fresh data
+      queryClient.invalidateQueries({ queryKey: ['chemicals'] });
+
+      setSubmitMessage({
+        type: "success",
+        text: "Chemical created successfully! You will be redirected shortly.",
+      });
+
+      setTimeout(() => {
+        navigate('/chemicals/list');
+      }, 1500);
+    },
+    onError: (error) => {
+      setSubmitMessage({
+        type: "error",
+        text: error.response?.data?.message || error.message || "Unable to add the chemical. Please try again.",
+      });
+    },
+  });
 
   useEffect(() => {
     const fetchNextCode = async () => {
@@ -433,6 +474,7 @@ const AddChemical = () => {
     casNumber: formData.casNumber.trim() ? formData.casNumber.trim() : null,
     formula: formData.formula.trim() ? formData.formula.trim() : null,
     physicalState: formData.physicalState,
+    hazardCategory: formData.hazardCategory,
 
     synonyms: formData.synonyms
       .map((s) => s.trim())
@@ -445,6 +487,7 @@ const AddChemical = () => {
       formData.densityValue === "" ? null : formData.densityUnit.trim(),
 
     safetySummary: formData.safetySummary.trim() ? formData.safetySummary.trim() : null,
+    sdsRevisionDate: formData.sdsRevisionDate || null,
   });
 
   const handleSubmit = async (event) => {
@@ -459,9 +502,7 @@ const AddChemical = () => {
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      setSubmitMessage(null);
+    setSubmitMessage(null);
 
       const formPayload = new FormData();
       const payload = buildPayload();
@@ -481,33 +522,7 @@ const AddChemical = () => {
       if (sdsFile) {
         formPayload.append("sdsFile", sdsFile);
       }
-      const response = await api.post("/chemicals/add-chemical", formPayload);
-
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || "Unable to add chemical.");
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      setSubmitMessage({
-        type: "success",
-        text: "Chemical created successfully! You will be redirected shortly.",
-      });
-
-      setTimeout(() => {
-        navigate('/chemicals/list'); // Redirect to the list page after success
-      }, 2000);
-    } catch (error) {
-      setSubmitMessage({
-        type: "error",
-        text:
-          error.response?.data?.message ||
-          error.message ||
-          "Unable to add the chemical. Please try again.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    addChemicalMutation.mutate(formPayload);
   };
 
   const handleReset = () => {
@@ -516,6 +531,8 @@ const AddChemical = () => {
     setSubmitMessage(null);
     setSdsFile(null);
   };
+
+  const isSubmitting = addChemicalMutation.isPending;
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
@@ -595,12 +612,6 @@ const AddChemical = () => {
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                       Add New Chemical
                     </h1>
-
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                      Create the main chemical identity record. Batch, supplier,
-                      expiry and physical stock-unit details will be managed
-                      separately.
-                    </p>
                   </div>
 
                   <div
@@ -1223,6 +1234,51 @@ const AddChemical = () => {
                     description="Add a short warning for quick reference. This does not replace the official SDS."
                   />
 
+                  <div className="mb-6">
+                    <InputLabel
+                      htmlFor="hazardCategory"
+                      description="Select the primary hazard category for storage and safety visibility."
+                    >
+                      Hazard category
+                    </InputLabel>
+
+                    <div className="relative">
+                      <select
+                        id="hazardCategory"
+                        name="hazardCategory"
+                        value={formData.hazardCategory}
+                        onChange={handleChange}
+                        className="
+                          w-full appearance-none
+                          rounded-[var(--radius-md)]
+                          border border-[var(--color-border)]
+                          bg-[var(--color-surface)]
+                          px-4 py-3 pr-10
+                          text-sm font-medium
+                          text-[var(--color-text-primary)]
+                          color-transition
+                          focus:border-[var(--color-primary)]
+                        "
+                      >
+                        {HAZARD_CATEGORY_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <ChevronDown
+                        size={18}
+                        className="
+                          pointer-events-none
+                          absolute right-3 top-1/2
+                          -translate-y-1/2
+                          text-[var(--color-text-muted)]
+                        "
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <InputLabel
                       htmlFor="safetySummary"
@@ -1266,6 +1322,34 @@ const AddChemical = () => {
                   </div>
 
                   <div className="mt-6">
+                    <div className="mb-5">
+                      <InputLabel
+                        htmlFor="sdsRevisionDate"
+                        description="Use the revision or issue date printed on the SDS document."
+                      >
+                        SDS revision date
+                      </InputLabel>
+
+                      <input
+                        id="sdsRevisionDate"
+                        name="sdsRevisionDate"
+                        type="date"
+                        value={formData.sdsRevisionDate}
+                        onChange={handleChange}
+                        className="
+                          w-full
+                          rounded-[var(--radius-md)]
+                          border border-[var(--color-border)]
+                          bg-[var(--color-surface)]
+                          px-4 py-3
+                          text-sm font-medium
+                          text-[var(--color-text-primary)]
+                          color-transition
+                          focus:border-[var(--color-primary)]
+                        "
+                      />
+                    </div>
+
                     <InputLabel
                       htmlFor="sdsFile"
                       description="Upload the Safety Data Sheet (PDF or Word, max 10MB)."
@@ -1427,7 +1511,7 @@ const AddChemical = () => {
                       </h3>
 
                       <p className="mt-2 text-xs leading-5 text-[var(--color-text-secondary)]">
-                        Supplier, batch number, expiry date, storage location
+                        Supplier, Bin Card Number, expiry date, storage location
                         and current quantity should not be saved in this form.
                       </p>
                     </div>

@@ -51,10 +51,11 @@ module.exports = function DisposeModel(sequelize) {
         allowNull: false,
       },
 
-      userId: {
+      stuRegisterNum: {
         type: DataTypes.STRING(50),
         allowNull: false,
-        field: "user_id",
+        field: "stu_register_num",
+        comment: "Student registration number",
       },
 
       userName: {
@@ -63,13 +64,19 @@ module.exports = function DisposeModel(sequelize) {
         field: "user_name",
       },
 
+      supervisorName: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: "supervisor_name",
+      },
+
       remark: {
         type: DataTypes.TEXT,
         allowNull: true,
       },
 
       returnedStatus: {
-        type: DataTypes.ENUM("RELEASED", "RETURNED", "DISPOSED"),
+        type: DataTypes.ENUM("RELEASED", "RETURNED"),
         allowNull: false,
         defaultValue: "RELEASED",
         field: "returned_status",

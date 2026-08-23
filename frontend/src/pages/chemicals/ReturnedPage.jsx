@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock,
+  History,
   Info,
   Loader2,
   PackageCheck,
@@ -34,12 +35,18 @@ const daysSince = (value) => {
   // Parse as local date to avoid UTC offset shifting the date
   const parts = String(value).slice(0, 10).split("-");
   if (parts.length !== 3) return null;
-  const released = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  const released = new Date(
+    Number(parts[0]),
+    Number(parts[1]) - 1,
+    Number(parts[2]),
+  );
   if (Number.isNaN(released.getTime())) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   released.setHours(0, 0, 0, 0);
-  return Math.floor((today.getTime() - released.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.floor(
+    (today.getTime() - released.getTime()) / (1000 * 60 * 60 * 24),
+  );
 };
 
 const OverdueBadge = ({ dateReleased }) => {
@@ -79,7 +86,8 @@ const ReturnModal = ({ record, onClose, onSuccess }) => {
   const densityUnit = chemicalInfo.densityUnit || null;
   const stockDimension = chemicalInfo.stockDimension || null;
   const physicalState = chemicalInfo.physicalState || null;
-  const baseUnit = chemicalInfo.baseUnit || record.unit || record.baseUnit || "";
+  const baseUnit =
+    chemicalInfo.baseUnit || record.unit || record.baseUnit || "";
 
   const canUseMassInput =
     physicalState === "LIQUID" && densityValue && densityValue > 0;
@@ -142,7 +150,7 @@ const ReturnModal = ({ record, onClose, onSuccess }) => {
             type="button"
             onClick={() => !isSubmitting && onClose()}
             aria-label="Close"
-            className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-[var(--color-text-inverse)] color-transition hover:bg-white/20"
+            className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-[var(--color-text-inverse)] color-transition hover:bg-white/20"
           >
             <X size={16} />
           </button>
@@ -159,7 +167,7 @@ const ReturnModal = ({ record, onClose, onSuccess }) => {
                 {record.chemicalName || record.chemicalCode}
               </h3>
               <p className="text-xs text-[var(--color-text-inverse)]/70">
-                Batch {record.batchNumber}
+                Bin Card No : {record.batchNumber}
               </p>
             </div>
           </div>
@@ -173,7 +181,7 @@ const ReturnModal = ({ record, onClose, onSuccess }) => {
               <User size={13} />
               {record.userName}
               <span className="text-[var(--color-text-muted)]">
-                ({record.userId})
+                ({record.stuRegisterNum})
               </span>
             </span>
             {baseUnit && (
@@ -245,26 +253,36 @@ const ReturnModal = ({ record, onClose, onSuccess }) => {
               </div>
 
               {/* Live conversion preview */}
-              {inputUnit === "g" && canUseMassInput && computedVolume !== null && (
-                <div className="mt-2 flex items-start gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary)]/30 bg-[var(--color-primary-tint)] px-3 py-2 text-xs">
-                  <Info size={13} className="mt-0.5 shrink-0 text-[var(--color-primary)]" />
-                  <div className="text-[var(--color-text-secondary)]">
-                    <span className="font-semibold text-[var(--color-text-primary)]">
-                      {computedVolume.toFixed(4)} {baseUnit}
-                    </span>{" "}
-                    will be deducted from stock
-                    <span className="block text-[10px] text-[var(--color-text-muted)]">
-                      {usageQty} g ÷ {densityValue} ({densityUnit || "density"}) = {computedVolume.toFixed(4)} {baseUnit}
-                    </span>
+              {inputUnit === "g" &&
+                canUseMassInput &&
+                computedVolume !== null && (
+                  <div className="mt-2 flex items-start gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary)]/30 bg-[var(--color-primary-tint)] px-3 py-2 text-xs">
+                    <Info
+                      size={13}
+                      className="mt-0.5 shrink-0 text-[var(--color-primary)]"
+                    />
+                    <div className="text-[var(--color-text-secondary)]">
+                      <span className="font-semibold text-[var(--color-text-primary)]">
+                        {computedVolume.toFixed(4)} {baseUnit}
+                      </span>{" "}
+                      will be deducted from stock
+                      <span className="block text-[10px] text-[var(--color-text-muted)]">
+                        {usageQty} g ÷ {densityValue} (
+                        {densityUnit || "density"}) ={" "}
+                        {computedVolume.toFixed(4)} {baseUnit}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {inputUnit === "native" && usageQty !== "" && computedVolume !== null && (
-                <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
-                  {computedVolume.toFixed(4)} {baseUnit} will be deducted from stock.
-                </p>
-              )}
+              {inputUnit === "native" &&
+                usageQty !== "" &&
+                computedVolume !== null && (
+                  <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
+                    {computedVolume.toFixed(4)} {baseUnit} will be deducted from
+                    stock.
+                  </p>
+                )}
             </div>
 
             {/* Return Date */}
@@ -411,32 +429,37 @@ const ReturnedPage = () => {
               <div className="pointer-events-none absolute -bottom-20 right-32 h-40 w-40 rounded-full bg-[var(--color-accent)] opacity-10" />
 
               <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => navigate(-1)}
-                  className="mb-5 inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
-                >
-                  <ArrowLeft size={17} />
-                  Back
-                </button>
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
+                  >
+                    <ArrowLeft size={17} />
+                    Back
+                  </button>
 
+                  <button
+                    type="button"
+                    onClick={() => navigate("/reports/usage")}
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-4 py-2 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
+                  >
+                    <History size={15} />
+                    Return History
+                  </button>
+                </div>
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                   <div className="max-w-3xl">
                     <div className="mb-3 flex items-center gap-2">
                       <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-accent-light)]">
                         <Boxes size={14} />
-                        Disposals
+                        Return Records
                       </span>
                     </div>
 
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                       Pending Returns
                     </h1>
-
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                      Chemical bottles still out with students. Enter the
-                      quantity used and return date to close each one out.
-                    </p>
                   </div>
 
                   <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] p-4">
@@ -545,7 +568,7 @@ const ReturnedPage = () => {
                               size={13}
                               className="text-[var(--color-text-muted)]"
                             />
-                            {record.userName} ({record.userId})
+                            {record.userName} ({record.stuRegisterNum})
                           </span>
                           <span className="flex items-center gap-1.5">
                             <Calendar

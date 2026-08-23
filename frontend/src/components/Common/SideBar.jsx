@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import api from "../../api/axiosInstance";
+import PasswordReset from "../PasswordReset";
 import {
   LayoutDashboard,
   FlaskConical,
@@ -8,7 +11,7 @@ import {
   Warehouse,
   MapPin,
   FileText,
-  Bell,
+  Bell as BellIcon,
   ChartNoAxesCombined,
   Truck,
   Users,
@@ -19,7 +22,9 @@ import {
   ChevronRight,
   LogOut,
   ShieldCheck,
-  Recycle,
+  Pencil,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 const ROLE_LABELS = {
@@ -34,18 +39,18 @@ const MAIN_MENU_ITEMS = [
     label: "Dashboard",
     path: "/dashboard",
     icon: LayoutDashboard,
-    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER", "STUDENT"],
+    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
   },
   {
     label: "Chemicals",
     icon: FlaskConical,
     pathPrefix: "/chemicals",
-    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER", "STUDENT"],
+    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
     children: [
       {
         label: "View All Chemicals",
         path: "/chemicals/list",
-        roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER", "STUDENT"],
+        roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
       },
       {
         label: "Add New Chemical",
@@ -60,7 +65,7 @@ const MAIN_MENU_ITEMS = [
     ],
   },
   {
-    label: "Usage",
+    label: "Usage Status",
     icon: Activity,
     pathPrefix: "/usage",
     roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
@@ -78,8 +83,8 @@ const MAIN_MENU_ITEMS = [
     ],
   },
   {
-    label: "Disposals",
-    icon: Recycle,
+    label: "Update Usage",
+    icon: Pencil,
     pathPrefix: "/disposals",
     roles: ["ADMIN", "TECHNICAL_OFFICER"],
     children: [
@@ -89,7 +94,7 @@ const MAIN_MENU_ITEMS = [
         roles: ["ADMIN", "TECHNICAL_OFFICER"],
       },
       {
-        label: "Return and Disposal",
+        label: "Return Chemicals",
         path: "/disposal/return",
         roles: ["ADMIN", "TECHNICAL_OFFICER"],
       },
@@ -115,9 +120,16 @@ const MAIN_MENU_ITEMS = [
   },
   {
     label: "SDS Library",
-    path: "/sds-library",
+    pathPrefix: "/sds",
     icon: FileText,
-    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER", "STUDENT"],
+    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+    children: [
+      {
+        label: "View SDS",
+        path: "/sds/library",
+        roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+      },
+    ],
   },
   {
     label: "Procurement & Stock",
@@ -126,7 +138,7 @@ const MAIN_MENU_ITEMS = [
     roles: ["ADMIN", "TECHNICAL_OFFICER"],
     children: [
       {
-        label: "Add New Stock",
+        label: "Add New Batch",
         path: "/stock/add",
         roles: ["ADMIN", "TECHNICAL_OFFICER"],
       },
@@ -139,15 +151,27 @@ const MAIN_MENU_ITEMS = [
   },
   {
     label: "Alerts & Notifications",
-    path: "/alerts",
-    icon: Bell,
+    path: "/notifications",
+    icon: BellIcon,
     roles: ["ADMIN", "TECHNICAL_OFFICER"],
   },
   {
     label: "Reports",
-    path: "/reports",
     icon: ChartNoAxesCombined,
+    pathPrefix: "/reports",
     roles: ["ADMIN", "TECHNICAL_OFFICER"],
+    children: [
+      {
+        label: "Chemical Report",
+        path: "/reports/chemicalwise",
+        roles: ["ADMIN", "TECHNICAL_OFFICER"],
+      },
+      {
+        label: "Usage Report",
+        path: "/reports/usage",
+        roles: ["ADMIN", "TECHNICAL_OFFICER"],
+      },
+    ],
   },
 ];
 
@@ -171,14 +195,8 @@ const ADMIN_MENU_ITEMS = [
     ],
   },
   {
-    label: "Settings",
-    path: "/settings",
-    icon: Settings,
-    roles: ["ADMIN", "TECHNICAL_OFFICER"],
-  },
-  {
     label: "Audit Logs",
-    path: "/audit-logs",
+    path: "/admin/audit-logs",
     icon: ClipboardList,
     roles: ["ADMIN", "TECHNICAL_OFFICER"],
   },
@@ -196,8 +214,10 @@ const getInitials = (name = "") => {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 };
 
-const SidebarLink = ({ item, closeMobileMenu }) => {
+const SidebarLink = ({ item, closeMobileMenu, notificationCount = 0, isCollapsed = false }) => {
   const Icon = item.icon;
+  const showNotificationBadge =
+    item.path === "/notifications" && notificationCount > 0;
 
   return (
     <NavLink
@@ -205,7 +225,8 @@ const SidebarLink = ({ item, closeMobileMenu }) => {
       onClick={closeMobileMenu}
       className={({ isActive }) =>
         [
-          "group flex items-center gap-3 rounded-[var(--radius-sm)] px-3.5 py-3",
+          "group relative flex items-center rounded-[var(--radius-sm)] py-3 transition-all duration-300",
+          isCollapsed ? "justify-center px-1" : "gap-3 px-3.5",
           "text-sm font-semibold color-transition",
           isActive
             ? "bg-[var(--color-primary-light)] text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)]"
@@ -217,22 +238,41 @@ const SidebarLink = ({ item, closeMobileMenu }) => {
         <>
           <span
             className={[
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] color-transition",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] color-transition relative",
               isActive
                 ? "bg-[var(--color-primary-dark)] text-[var(--color-accent-light)]"
                 : "bg-[var(--color-text-inverse)]/5 text-[var(--color-text-inverse)] group-hover:bg-[var(--color-primary-dark)] group-hover:text-[var(--color-accent-light)]",
             ].join(" ")}
           >
             <Icon size={18} strokeWidth={2} />
+            {isCollapsed && showNotificationBadge && (
+              <span className="absolute -top-1 -right-1 flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)] text-[9px] font-bold text-[var(--color-primary-dark)] ring-1 ring-[var(--color-primary-dark)]">
+                {notificationCount > 9 ? "9+" : notificationCount}
+              </span>
+            )}
           </span>
 
-          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+          {!isCollapsed && (
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+          )}
 
-          {isActive && (
+          {!isCollapsed && showNotificationBadge && (
+            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)] px-1.5 text-[10px] font-bold text-[var(--color-primary-dark)]">
+              {notificationCount > 99 ? "99+" : notificationCount}
+            </span>
+          )}
+
+          {!isCollapsed && isActive && (
             <ChevronRight
               size={16}
               className="shrink-0 text-[var(--color-accent-light)]"
             />
+          )}
+
+          {isCollapsed && (
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-semibold rounded shadow-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50">
+              {item.label}
+            </div>
           )}
         </>
       )}
@@ -240,10 +280,11 @@ const SidebarLink = ({ item, closeMobileMenu }) => {
   );
 };
 
-const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole }) => {
+const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole, isCollapsed = false }) => {
   const { pathname } = useLocation();
   const isParentActive = pathname.startsWith(item.pathPrefix);
   const [isOpen, setIsOpen] = useState(isParentActive);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     if (isParentActive) {
@@ -263,13 +304,24 @@ const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole }) => {
   }
 
   return (
-    <div>
+    <div
+      className="relative"
+      onMouseEnter={() => isCollapsed && setIsHovered(true)}
+      onMouseLeave={() => isCollapsed && setIsHovered(false)}
+    >
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => {
+          if (!isCollapsed) {
+            setIsOpen((prev) => !prev);
+          } else {
+            setIsHovered((prev) => !prev);
+          }
+        }}
         className={[
-          "group flex w-full items-center gap-3 rounded-[var(--radius-sm)] px-3.5 py-3",
-          "text-sm font-semibold color-transition text-left",
+          "group flex w-full items-center rounded-[var(--radius-sm)] py-3 transition-all duration-300 text-left",
+          isCollapsed ? "justify-center px-1" : "gap-3 px-3.5",
+          "text-sm font-semibold color-transition",
           isParentActive
             ? "text-[var(--color-text-inverse)]"
             : "text-[var(--color-text-inverse)]/80 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-text-inverse)]",
@@ -285,16 +337,23 @@ const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole }) => {
         >
           <Icon size={18} strokeWidth={2} />
         </span>
-        <span className="min-w-0 flex-1 truncate">{item.label}</span>
-        <ChevronRight
-          size={16}
-          className={[
-            "shrink-0 text-[var(--color-text-inverse)]/60 transition-transform",
-            isOpen && "rotate-90",
-          ].join(" ")}
-        />
+        
+        {!isCollapsed && (
+          <>
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            <ChevronRight
+              size={16}
+              className={[
+                "shrink-0 text-[var(--color-text-inverse)]/60 transition-transform",
+                isOpen && "rotate-90",
+              ].join(" ")}
+            />
+          </>
+        )}
       </button>
-      {isOpen && (
+
+      {/* Inline Submenu (for expanded state) */}
+      {!isCollapsed && isOpen && (
         <div className="mt-1.5 space-y-1.5 pl-8">
           {filteredChildren.map((child) => (
             <NavLink
@@ -318,6 +377,40 @@ const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole }) => {
           ))}
         </div>
       )}
+
+      {/* Flyout Submenu (for collapsed state) */}
+      {isCollapsed && isHovered && (
+        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 min-w-[220px] rounded-[var(--radius-md)] bg-[var(--color-primary-dark)] border border-white/10 p-2 shadow-[var(--shadow-lg)] transition-all duration-150 ease-out">
+          <p className="px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-[var(--color-accent-light)] border-b border-white/5 mb-1.5">
+            {item.label}
+          </p>
+          <div className="space-y-1">
+            {filteredChildren.map((child) => (
+              <NavLink
+                key={child.path}
+                to={child.path}
+                end
+                onClick={() => {
+                  closeMobileMenu();
+                  setIsHovered(false);
+                }}
+                className={({ isActive }) =>
+                  [
+                    "group flex items-center gap-3 rounded-[var(--radius-sm)] px-3.5 py-2.5",
+                    "text-sm font-medium color-transition",
+                    isActive
+                      ? "bg-[var(--color-primary-light)] text-[var(--color-text-inverse)]"
+                      : "text-[var(--color-text-inverse)]/70 hover:bg-[var(--color-primary-light)]/50 hover:text-[var(--color-text-inverse)]",
+                  ].join(" ")
+                }
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                <span className="min-w-0 flex-1 truncate">{child.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -328,49 +421,77 @@ const SidebarContent = ({
   adminItems,
   closeMobileMenu,
   handleLogout,
+  notificationCount,
+  openPasswordReset,
+  isCollapsed = false,
+  toggleSidebar,
+  isMobile = false,
 }) => {
   const navigate = useNavigate();
 
-  const userName = user?.fullName || "FLCMS User";
+  const userName = user?.fullName || "FOTCMS User";
   const userRole = user?.role || "STUDENT";
-  const department = user?.department || "Chemistry Department";
+  const department = user?.department || "Department of Biosystem Technology";
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Logo */}
-      <div className="border-b border-[var(--color-text-inverse)]/10 px-5 py-5">
+      <div className={`border-b border-[var(--color-text-inverse)]/10 py-5 transition-all duration-300 flex ${isCollapsed ? "px-2 flex-col items-center gap-3" : "px-5 flex-row items-center justify-between"}`}>
         <button
           type="button"
           onClick={() => {
             navigate("/dashboard");
             closeMobileMenu();
           }}
-          className="flex w-full items-center gap-3 text-left"
+          className={`flex items-center text-left min-w-0 ${isCollapsed ? "justify-center" : "gap-3 flex-1"}`}
         >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-accent)] bg-[var(--color-primary-dark)] text-[var(--color-accent-light)] shadow-[var(--shadow-sm)]">
-            <FlaskConical size={26} strokeWidth={2} />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-md)] border shadow-[var(--shadow-sm)]">
+            <img
+              src="/faculty_logo.png"
+              alt="Faculty Logo"
+              className="h-full w-full rounded-[var(--radius-md)] object-cover"
+            />
           </div>
 
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-extrabold tracking-wide text-[var(--color-text-inverse)]">
-              FLCMS
-            </h1>
+          {!isCollapsed && (
+            <div className="min-w-0 transition-opacity duration-300">
+              <h1 className="truncate text-xl font-extrabold tracking-wide text-[var(--color-text-inverse)]">
+                FOTCMS
+              </h1>
 
-            <p className="mt-0.5 text-[10px] leading-4 text-[var(--color-text-inverse)]/65">
-              Faculty Laboratory
-              <br />
-              Chemical Management System
-            </p>
-          </div>
+              <p className="mt-0.5 text-[10px] leading-4 text-[var(--color-text-inverse)]/65">
+                Faculty Laboratory
+                <br />
+                Chemical Management System
+              </p>
+            </div>
+          )}
         </button>
+
+        {/* Toggle Button for Desktop */}
+        {!isMobile && (
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="hidden lg:flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-inverse)]/80 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-text-inverse)] transition-colors duration-200"
+          >
+            {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto px-4 py-5">
+      <div className={`flex-1 py-5 transition-all duration-300 ${isCollapsed ? "px-2 lg:overflow-y-visible overflow-y-auto" : "px-4 overflow-y-auto"}`}>
         <div>
-          <p className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-accent-light)]">
-            Main Navigation
-          </p>
+          {!isCollapsed ? (
+            <p className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-accent-light)]">
+              Main Navigation
+            </p>
+          ) : (
+            <div className="h-4 border-b border-[var(--color-text-inverse)]/10 mb-4 mx-2" />
+          )}
 
           <nav className="space-y-1.5">
             {mainItems.map((item) =>
@@ -380,12 +501,15 @@ const SidebarContent = ({
                   item={item}
                   closeMobileMenu={closeMobileMenu}
                   userRole={userRole}
+                  isCollapsed={isCollapsed}
                 />
               ) : (
                 <SidebarLink
                   key={item.path}
                   item={item}
                   closeMobileMenu={closeMobileMenu}
+                  notificationCount={notificationCount}
+                  isCollapsed={isCollapsed}
                 />
               ),
             )}
@@ -393,10 +517,14 @@ const SidebarContent = ({
         </div>
 
         {adminItems.length > 0 && (
-          <div className="mt-6 border-t border-[var(--color-text-inverse)]/10 pt-5">
-            <p className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-accent-light)]">
-              Administration
-            </p>
+          <div className={`mt-6 border-t border-[var(--color-text-inverse)]/10 ${isCollapsed ? "pt-4" : "pt-5"}`}>
+            {!isCollapsed ? (
+              <p className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-accent-light)]">
+                Administration
+              </p>
+            ) : (
+              <div className="h-4 border-b border-[var(--color-text-inverse)]/10 mb-4 mx-2" />
+            )}
 
             <nav className="space-y-1.5">
               {adminItems.map((item) =>
@@ -406,12 +534,15 @@ const SidebarContent = ({
                     item={item}
                     closeMobileMenu={closeMobileMenu}
                     userRole={userRole}
+                    isCollapsed={isCollapsed}
                   />
                 ) : (
                   <SidebarLink
                     key={item.path}
                     item={item}
                     closeMobileMenu={closeMobileMenu}
+                    notificationCount={notificationCount}
+                    isCollapsed={isCollapsed}
                   />
                 ),
               )}
@@ -421,47 +552,61 @@ const SidebarContent = ({
       </div>
 
       {/* User panel */}
-      <div className="border-t border-[var(--color-text-inverse)]/10 p-4">
-        <div className="rounded-[var(--radius-md)] bg-[var(--color-text-inverse)]/5 p-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-sm font-extrabold text-[var(--color-text-inverse)]">
+      <div className={`border-t border-[var(--color-text-inverse)]/10 transition-all duration-300 ${isCollapsed ? "p-2" : "p-4"}`}>
+        <div className={`rounded-[var(--radius-md)] bg-[var(--color-text-inverse)]/5 transition-all duration-300 ${isCollapsed ? "p-2 flex flex-col items-center gap-2" : "p-3"}`}>
+          <div className={`flex items-center ${isCollapsed ? "flex-col justify-center gap-2" : "gap-3"}`}>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-sm font-extrabold text-[var(--color-text-inverse)]" title={userName}>
               {getInitials(userName)}
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                navigate("/profile");
-                closeMobileMenu();
-              }}
-              className="min-w-0 flex-1 text-left"
-            >
-              <p className="truncate text-sm font-bold text-[var(--color-text-inverse)]">
-                {userName}
-              </p>
+            {!isCollapsed ? (
+              <>
+                <div className="min-w-0 flex-1 text-left">
+                  <p className="truncate text-sm font-bold text-[var(--color-text-inverse)]">
+                    {userName}
+                  </p>
 
-              <p className="mt-0.5 truncate text-xs text-[var(--color-text-inverse)]/60">
-                {department}
-              </p>
+                  <p className="mt-0.5 truncate text-xs text-[var(--color-text-inverse)]/60">
+                    {department}
+                  </p>
 
-              <span className="mt-2 inline-flex rounded-full border border-[var(--color-accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent-light)]">
-                {ROLE_LABELS[userRole] || userRole}
-              </span>
-            </button>
-
-            <ChevronRight
-              size={18}
-              className="shrink-0 text-[var(--color-accent-light)]"
-            />
+                  <span className="mt-2 inline-flex rounded-full border border-[var(--color-accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent-light)]">
+                    {ROLE_LABELS[userRole] || userRole}
+                  </span>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={openPasswordReset}
+                  aria-label="Open password reset"
+                  title="Open password reset"
+                  className="shrink-0 rounded-full p-1 text-[var(--color-accent-light)] transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-light)]"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={openPasswordReset}
+                aria-label="Open password reset"
+                title="Open password reset"
+                className="rounded-full p-1 text-[var(--color-accent-light)] transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-light)]"
+              >
+                <ChevronRight size={18} className="rotate-95" />
+              </button>
+            )}
           </div>
 
           <button
             type="button"
             onClick={handleLogout}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-text-inverse)]/10 px-3 py-2.5 text-sm font-semibold text-[var(--color-text-inverse)]/80 color-transition hover:border-[var(--color-danger)] hover:bg-[var(--color-danger)] hover:text-[var(--color-text-inverse)]"
+            aria-label="Logout"
+            title="Logout"
+            className={`flex items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-text-inverse)]/10 py-2.5 text-sm font-semibold text-[var(--color-text-inverse)]/80 color-transition hover:border-[var(--color-danger)] hover:bg-[var(--color-danger)] hover:text-[var(--color-text-inverse)] ${isCollapsed ? "w-11 h-11 shrink-0" : "mt-3 w-full px-3"}`}
           >
             <LogOut size={17} />
-            Logout
+            {!isCollapsed && "Logout"}
           </button>
         </div>
       </div>
@@ -469,11 +614,21 @@ const SidebarContent = ({
   );
 };
 
-const Sidebar = () => {
+const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
+  const { data: countData } = useQuery({
+    queryKey: ["notificationCount"],
+    queryFn: () => api.get("/notifications/count"),
+    select: (res) => res.data.count,
+    enabled:
+      !!user && (user.role === "ADMIN" || user.role === "TECHNICAL_OFFICER"),
+    refetchInterval: 15000,
+  });
+
+  const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const role = user?.role || "STUDENT";
@@ -490,6 +645,15 @@ const Sidebar = () => {
 
   const closeMobileMenu = () => {
     setMobileOpen(false);
+  };
+
+  const openPasswordReset = () => {
+    closeMobileMenu();
+    setIsPasswordResetOpen(true);
+  };
+
+  const closePasswordReset = () => {
+    setIsPasswordResetOpen(false);
   };
 
   useEffect(() => {
@@ -518,8 +682,8 @@ const Sidebar = () => {
 
   const handleLogout = () => {
     closeMobileMenu();
+    navigate("/", { replace: true });
     logout();
-    navigate("/login", { replace: true });
   };
 
   return (
@@ -553,28 +717,32 @@ const Sidebar = () => {
 
         <button
           type="button"
-          onClick={() => navigate("/alerts")}
+          onClick={() => navigate("/notifications")}
           className="relative flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-primary)] color-transition hover:bg-[var(--color-primary-tint)]"
           aria-label="Open notifications"
         >
-          <Bell size={21} />
-
-          {(role === "ADMIN" || role === "TECHNICAL_OFFICER") && (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-accent)] px-1 text-[9px] font-bold text-[var(--color-primary-dark)]">
-              3
+          <BellIcon size={21} />
+          {countData > 0 && (
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-accent)] px-1 text-[9px] font-bold text-[var(--color-primary-dark)] ring-1 ring-[var(--color-surface)]">
+              {countData > 9 ? "9+" : countData}
             </span>
           )}
         </button>
       </header>
 
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-white/10 bg-[var(--color-primary-dark)] shadow-[var(--shadow-lg)] lg:block">
+      <aside className={`fixed inset-y-0 left-0 z-40 hidden border-r border-white/10 bg-[var(--color-primary-dark)] shadow-[var(--shadow-lg)] lg:block transition-[width] duration-300 ease-in-out ${isCollapsed ? "w-20" : "w-72"}`}>
         <SidebarContent
           user={user}
           mainItems={mainItems}
           adminItems={adminItems}
           closeMobileMenu={closeMobileMenu}
           handleLogout={handleLogout}
+          notificationCount={countData || 0}
+          openPasswordReset={openPasswordReset}
+          isCollapsed={isCollapsed}
+          toggleSidebar={toggleSidebar}
+          isMobile={false}
         />
       </aside>
 
@@ -585,6 +753,7 @@ const Sidebar = () => {
           mobileOpen ? "pointer-events-auto" : "pointer-events-none",
         ].join(" ")}
         aria-hidden={!mobileOpen}
+        inert={!mobileOpen}
       >
         <button
           type="button"
@@ -623,9 +792,14 @@ const Sidebar = () => {
             adminItems={adminItems}
             closeMobileMenu={closeMobileMenu}
             handleLogout={handleLogout}
+            notificationCount={countData || 0}
+            openPasswordReset={openPasswordReset}
+            isCollapsed={false}
+            isMobile={true}
           />
         </aside>
       </div>
+      {isPasswordResetOpen && <PasswordReset onClose={closePasswordReset} />}
     </>
   );
 };

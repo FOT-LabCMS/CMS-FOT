@@ -45,6 +45,23 @@ module.exports = function ChemicalModel(sequelize) {
         allowNull: true,
         field: "physical_state",
       },
+      hazardCategory: {
+        type: DataTypes.ENUM(
+          "FLAMMABLE",
+          "CORROSIVE",
+          "TOXIC",
+          "OXIDIZER",
+          "EXPLOSIVE",
+          "IRRITANT",
+          "ENVIRONMENTAL",
+          "COMPRESSED_GAS",
+          "HEALTH_HAZARD",
+          "NONE",
+          "OTHER",
+        ),
+        allowNull: true,
+        field: "hazard_category",
+      },
       synonyms: {
         type: DataTypes.JSONB,
         allowNull: true,

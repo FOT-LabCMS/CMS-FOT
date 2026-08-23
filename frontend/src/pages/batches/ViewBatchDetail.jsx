@@ -15,6 +15,10 @@ import {
   QrCode,
   Printer,
   Download,
+  ClipboardList,
+  User,
+  Hash,
+  AlertTriangle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../../api/axiosInstance';
@@ -27,14 +31,18 @@ const DetailItem = ({ label, value, children, icon: Icon }) => {
   if (!value && !children) {
     return null;
   }
+
   return (
-    <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-5">
-      <dt className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
+    <div className="py-4 sm:grid sm:grid-cols-[minmax(140px,0.9fr)_minmax(0,1.6fr)] sm:items-start sm:gap-5 sm:py-5">
+      <dt className="flex min-w-0 items-center gap-2 text-sm font-medium leading-5 text-[var(--color-text-secondary)]">
         {Icon && <Icon size={16} className="shrink-0" />}
-        {label}
+        <span className="min-w-0">{label}</span>
       </dt>
-      <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)] sm:col-span-2 sm:mt-0">
-        {children || value || <span className="text-[var(--color-text-muted)]">N/A</span>}
+
+      <dd className="mt-1 min-w-0 break-words text-sm font-semibold leading-6 text-[var(--color-text-primary)] sm:mt-0">
+        {children || value || (
+          <span className="text-[var(--color-text-muted)]">N/A</span>
+        )}
       </dd>
     </div>
   );
@@ -42,8 +50,12 @@ const DetailItem = ({ label, value, children, icon: Icon }) => {
 
 const getStatus = (expiryDate) => {
   if (!expiryDate) {
-    return { text: 'No Expiry', color: 'bg-gray-100 text-gray-800 border-gray-300' };
+    return {
+      text: 'No Expiry',
+      color: 'bg-gray-100 text-gray-800 border-gray-300',
+    };
   }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const expiry = new Date(expiryDate);
@@ -51,12 +63,36 @@ const getStatus = (expiryDate) => {
   thirtyDaysFromNow.setDate(today.getDate() + 30);
 
   if (expiry < today) {
-    return { text: 'Expired', color: 'bg-red-100 text-red-800 border-red-400' };
+    return {
+      text: 'Expired',
+      color: 'bg-red-100 text-red-800 border-red-400',
+    };
   }
+
   if (expiry <= thirtyDaysFromNow) {
-    return { text: 'Expiring Soon', color: 'bg-yellow-100 text-yellow-800 border-yellow-400' };
+    return {
+      text: 'Expiring Soon',
+      color: 'bg-yellow-100 text-yellow-800 border-yellow-400',
+    };
   }
-  return { text: 'Good', color: 'bg-green-100 text-green-800 border-green-400' };
+
+  return {
+    text: 'Good',
+    color: 'bg-green-100 text-green-800 border-green-400',
+  };
+};
+
+const formatDateTime = (value) => {
+  if (!value) return 'N/A';
+  return format(new Date(value), 'MMM dd, yyyy p');
+};
+
+const getUsageStatusStyle = (status) => {
+  if (status === 'RETURNED') {
+    return 'border-green-300 bg-green-100 text-green-800';
+  }
+
+  return 'border-yellow-300 bg-yellow-100 text-yellow-800';
 };
 
 const ViewBatchDetail = () => {
@@ -68,7 +104,9 @@ const ViewBatchDetail = () => {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const { user } = useAuth();
-  const canViewQrCode = user && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER');
+  const canViewQrCode =
+    user &&
+    (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER');
 
   const handlePrint = () => {
     const printContent = document.getElementById('qr-print-area')?.innerHTML;
@@ -84,10 +122,16 @@ const ViewBatchDetail = () => {
         svg { width: 150px; height: 150px; }
       </style>
     `);
-    printWindow.document.write('</head><body>' + printContent + '</body></html>');
+    printWindow.document.write(
+      '</head><body>' + printContent + '</body></html>',
+    );
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   const handleDownloadPdf = async () => {
@@ -98,70 +142,93 @@ const ViewBatchDetail = () => {
 
     try {
       const canvas = await html2canvas(qrElement, {
-        scale: 3, // Higher scale for better resolution
+        scale: 3,
         useCORS: true,
-        backgroundColor: '#ffffff', // Explicitly set background to white
+        backgroundColor: '#ffffff',
       });
 
       const imgData = canvas.toDataURL('image/png');
-      
-      // Using a common label size, e.g., 2.25 x 1.25 inches -> ~57x32 mm
+
       const pdfWidth = 57;
       const pdfHeight = 32;
       const pdf = new jsPDF({
-        orientation: 'landscape', // Label is wider than tall
+        orientation: 'landscape',
         unit: 'mm',
-        format: [pdfWidth, pdfHeight]
+        format: [pdfWidth, pdfHeight],
       });
 
-      // Center the image inside the PDF, maintaining aspect ratio
       const imgProps = pdf.getImageProperties(imgData);
       const pdfAspectRatio = pdfWidth / pdfHeight;
       const imgAspectRatio = imgProps.width / imgProps.height;
 
       let finalImgWidth = pdfWidth;
       let finalImgHeight = pdfWidth / imgAspectRatio;
+
       if (finalImgHeight > pdfHeight) {
         finalImgHeight = pdfHeight;
         finalImgWidth = finalImgHeight * imgAspectRatio;
       }
+
       const x = (pdfWidth - finalImgWidth) / 2;
       const y = (pdfHeight - finalImgHeight) / 2;
 
-      pdf.addImage(imgData, 'PNG', x, y, finalImgWidth, finalImgHeight);
-      pdf.save(`QR-Label-${batch.chemical?.chemicalCode || 'CHEM'}-${batch.batchNumber}.pdf`);
+      pdf.addImage(
+        imgData,
+        'PNG',
+        x,
+        y,
+        finalImgWidth,
+        finalImgHeight,
+      );
+      pdf.save(
+        `QR-Label-${batch.chemical?.chemicalCode || 'CHEM'}-${batch.batchNumber}.pdf`,
+      );
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      console.error('Error generating PDF:', error);
     } finally {
       setIsDownloading(false);
     }
   };
 
   useEffect(() => {
-    const fetchBatch = async () => {
+    const fetchBatch = async ({ silent = false } = {}) => {
       try {
-        setLoading(true);
+        if (!silent) {
+          setLoading(true);
+        }
         setError(null);
+
         const response = await api.get(`/batches/${id}`);
+
         if (response.data?.success) {
           setBatch(response.data.batch);
         } else {
           throw new Error('Failed to fetch batch details.');
         }
       } catch (err) {
-        setError(err.response?.data?.message || err.message || 'Could not find the requested batch.');
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            'Could not find the requested batch.',
+        );
       } finally {
         setLoading(false);
       }
     };
 
     fetchBatch();
+    const refreshTimer = window.setInterval(() => fetchBatch({ silent: true }), 30000);
+
+    return () => window.clearInterval(refreshTimer);
   }, [id]);
 
   if (loading) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[var(--color-bg)] text-center text-[var(--color-text-secondary)]">
-        <Loader2 size={48} className="animate-spin text-[var(--color-primary)]" />
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--color-bg)] px-4 text-center text-[var(--color-text-secondary)]">
+        <Loader2
+          size={48}
+          className="animate-spin text-[var(--color-primary)]"
+        />
         <h3 className="text-xl font-semibold">Loading Batch Details...</h3>
         <p>Please wait a moment.</p>
       </div>
@@ -170,11 +237,12 @@ const ViewBatchDetail = () => {
 
   if (error) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[var(--color-bg)] text-center text-[var(--color-danger)]">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--color-bg)] px-4 text-center text-[var(--color-danger)]">
         <ServerCrash size={48} />
         <h3 className="text-xl font-semibold">Failed to Load Data</h3>
         <p className="max-w-md">{error}</p>
         <button
+          type="button"
           onClick={() => navigate('/stock/batches')}
           className="mt-4 inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-5 py-3 text-sm font-bold text-[var(--color-text-inverse)]"
         >
@@ -188,16 +256,22 @@ const ViewBatchDetail = () => {
   if (!batch) return null;
 
   const status = getStatus(batch.expiryDate);
+  const usageRecords = batch.usages || [];
+  const totalUsed = usageRecords.reduce(
+    (sum, usage) => sum + Number(usage.quantityUsed || 0),
+    0,
+  );
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
-      <main className="px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-        <div className="mx-auto max-w-7xl">
+      <main className="px-3 py-4 sm:px-5 sm:py-6 lg:px-7 xl:px-8 xl:py-8">
+        <div className="mx-auto w-full max-w-[1400px]">
           {/* Header */}
           <header className="mb-6 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-primary-dark)] shadow-[var(--shadow-md)]">
             <div className="relative p-5 sm:p-7 lg:p-8">
               <div className="pointer-events-none absolute -right-12 -top-16 h-52 w-52 rounded-full bg-[var(--color-primary-light)] opacity-30" />
               <div className="pointer-events-none absolute -bottom-20 right-32 h-40 w-40 rounded-full bg-[var(--color-accent)] opacity-10" />
+
               <div className="relative">
                 <button
                   type="button"
@@ -207,6 +281,7 @@ const ViewBatchDetail = () => {
                   <ArrowLeft size={17} />
                   Back to List
                 </button>
+
                 <div className="max-w-3xl">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-accent-light)]">
@@ -214,12 +289,16 @@ const ViewBatchDetail = () => {
                       Batch Details
                     </span>
                   </div>
-                  <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
+
+                  <h1 className="break-words text-2xl font-extrabold leading-tight text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                     {batch.chemical?.canonicalName || 'N/A'}
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Viewing details for batch number:{" "}
-                    <strong className="font-bold text-[var(--color-accent-light)]">{batch.batchNumber}</strong>
+
+                  <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
+                    Viewing details for Bin card number:{' '}
+                    <strong className="font-bold text-[var(--color-accent-light)]">
+                      {batch.batchNumber}
+                    </strong>
                   </p>
                 </div>
               </div>
@@ -227,111 +306,324 @@ const ViewBatchDetail = () => {
           </header>
 
           {/* Main Content */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
-              <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+          <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(330px,0.85fr)]">
+            {/* Left Column */}
+            <div className="min-w-0 space-y-6">
+              <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
                 <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
                   <Info size={20} className="text-[var(--color-primary)]" />
-                  <h2 className="text-base font-bold text-[var(--color-text-primary)]">Batch Information</h2>
+                  <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+                    Batch Information
+                  </h2>
                 </header>
+
                 <div className="px-4 sm:px-5">
                   <dl className="divide-y divide-[var(--color-border)]">
                     <DetailItem label="Chemical" icon={FlaskConical}>
-                      <Link to={`/chemicals/${batch.chemical.id}`} className="text-[var(--color-primary)] hover:underline">
-                        {batch.chemical.canonicalName} ({batch.chemical.chemicalCode})
+                      <Link
+                        to={`/chemicals/${batch.chemical.id}`}
+                        className="break-words text-[var(--color-primary)] hover:underline"
+                      >
+                        {batch.chemical.canonicalName} (
+                        {batch.chemical.chemicalCode})
                       </Link>
                     </DetailItem>
-                    <DetailItem label="Supplier" value={batch.supplier} icon={Truck} />
-                    <DetailItem label="Batch Number" value={batch.batchNumber} icon={Box} />
-                    <DetailItem label="Received Date" value={format(new Date(batch.receivedDate), 'MMMM dd, yyyy')} icon={Calendar} />
-                    <DetailItem label="Expiry Date" value={batch.expiryDate ? format(new Date(batch.expiryDate), 'MMMM dd, yyyy') : 'N/A'} icon={Calendar} />
+
+                    <DetailItem
+                      label="Supplier"
+                      value={batch.supplier}
+                      icon={Truck}
+                    />
+                    <DetailItem
+                      label="Bin Card Number"
+                      value={batch.batchNumber}
+                      icon={Box}
+                    />
+                    <DetailItem
+                      label="Received Date"
+                      value={format(
+                        new Date(batch.receivedDate),
+                        'MMMM dd, yyyy',
+                      )}
+                      icon={Calendar}
+                    />
+                    <DetailItem
+                      label="Expiry Date"
+                      value={
+                        batch.expiryDate
+                          ? format(
+                              new Date(batch.expiryDate),
+                              'MMMM dd, yyyy',
+                            )
+                          : 'N/A'
+                      }
+                      icon={Calendar}
+                    />
                   </dl>
+                </div>
+              </section>
+
+              <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+                <header className="flex flex-col gap-2 border-b border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                  <div className="flex items-center gap-3">
+                    <ClipboardList
+                      size={20}
+                      className="text-[var(--color-primary)]"
+                    />
+                    <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+                      Usage History
+                    </h2>
+                  </div>
+
+                  <span className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                    {usageRecords.length} record
+                    {usageRecords.length === 1 ? '' : 's'}
+                  </span>
+                </header>
+
+                <div className="p-4 sm:p-5">
+                  {usageRecords.length === 0 ? (
+                    <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface-muted)] px-4 py-8 text-center">
+                      <ClipboardList
+                        size={34}
+                        className="mx-auto text-[var(--color-text-muted)]"
+                      />
+                      <p className="mt-3 text-sm font-semibold text-[var(--color-text-secondary)]">
+                        No usage records have been recorded for this batch yet.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={`space-y-4 ${usageRecords.length > 3 ? 'max-h-[520px] overflow-y-auto pr-2' : ''}`}>
+                      {usageRecords.map((usage) => (
+                        <article
+                          key={usage.id}
+                          className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 sm:p-5"
+                        >
+                          <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(210px,0.38fr)] md:items-start lg:gap-5">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${getUsageStatusStyle(
+                                    usage.returnedStatus,
+                                  )}`}
+                                >
+                                  {usage.returnedStatus}
+                                </span>
+
+                                <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)]">
+                                  <Hash size={12} className="shrink-0" />
+                                  <span className="min-w-0 break-all">
+                                    {usage.stuRegisterNum}
+                                  </span>
+                                </span>
+                              </div>
+
+                              <p className="mt-3 flex min-w-0 items-start gap-2 break-words text-sm font-bold leading-6 text-[var(--color-text-primary)]">
+                                <User
+                                  size={16}
+                                  className="mt-1 shrink-0 text-[var(--color-primary)]"
+                                />
+                                <span className="min-w-0 break-words">
+                                  {usage.userName}
+                                </span>
+                              </p>
+
+                              <p className="mt-2 break-words text-sm leading-6 text-[var(--color-text-secondary)]">
+                                {usage.purpose}
+                              </p>
+
+                              {usage.remark && (
+                                <p className="mt-3 break-words rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-xs font-medium leading-5 text-[var(--color-text-secondary)]">
+                                  <span className="font-bold">Remark:</span>{' '}
+                                  {usage.remark}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left shadow-[var(--shadow-sm)]">
+                              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                                Quantity Used
+                              </p>
+
+                              <p className="mt-1 break-words text-xl font-extrabold text-[var(--color-primary)]">
+                                {usage.quantityUsed
+                                  ? `${parseFloat(usage.quantityUsed)} ${batch.chemical?.baseUnit}`
+                                  : 'Pending'}
+                              </p>
+
+                              <div className="mt-3 space-y-2 border-t border-[var(--color-border)] pt-3 text-xs leading-5 text-[var(--color-text-secondary)]">
+                                <p className="break-words">
+                                  <span className="font-semibold">Released:</span>{' '}
+                                  {formatDateTime(usage.dateReleased)}
+                                </p>
+                                <p className="break-words">
+                                  <span className="font-semibold">Returned:</span>{' '}
+                                  {formatDateTime(usage.dateReturned)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </section>
             </div>
 
-            <div className="space-y-6">
-              <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+            {/* Right Column */}
+            <aside className="min-w-0 space-y-6 xl:sticky xl:top-6">
+              <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
                 <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
                   <Scale size={20} className="text-[var(--color-primary)]" />
-                  <h2 className="text-base font-bold text-[var(--color-text-primary)]">Quantity & Status</h2>
+                  <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+                    Quantity & Status
+                  </h2>
                 </header>
-                <div className="px-4 sm:p-5">
-                  <div className="mb-4">
-                    <p className="text-sm font-medium text-[var(--color-text-secondary)]">Current Status</p>
-                    <span className={`mt-1 inline-flex items-center rounded-full border px-3 py-1 text-sm font-bold ${status.color}`}>
+
+                <div className="p-4 sm:p-5">
+                  <div className="mb-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                      Current Status
+                    </p>
+                    <span
+                      className={`mt-2 inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-bold ${status.color}`}
+                    >
                       {status.text}
                     </span>
                   </div>
+
                   <dl className="divide-y divide-[var(--color-border)]">
                     <DetailItem label="Quantity Received">
                       {`${parseFloat(batch.quantityReceived)} ${batch.chemical?.baseUnit}`}
                     </DetailItem>
+
                     <DetailItem label="Current Quantity">
                       {`${parseFloat(batch.currentQuantity)} ${batch.chemical?.baseUnit}`}
+                    </DetailItem>
+
+                    <DetailItem label="Low Stock Threshold">
+                      <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-yellow-300 bg-yellow-50 px-3 py-1.5 text-sm font-bold text-yellow-800">
+                        <AlertTriangle size={15} className="shrink-0" />
+                        <span className="break-words">
+                          {`${parseFloat(batch.lowStockThresholdQuantity)} ${batch.chemical?.baseUnit}`}
+                        </span>
+                      </span>
+                    </DetailItem>
+
+                    <DetailItem label="Recorded Usage">
+                      {`${totalUsed
+                        .toFixed(2)
+                        .replace(/\.?0+$/, '')} ${batch.chemical?.baseUnit}`}
                     </DetailItem>
                   </dl>
                 </div>
               </section>
-
-              {canViewQrCode && (
-                <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-                  <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
-                    <QrCode size={20} className="text-[var(--color-primary)]" />
-                    <h2 className="text-base font-bold text-[var(--color-text-primary)]">QR Code & Label</h2>
-                  </header>
-                  <div className="p-4 sm:p-5 text-center">
-                    <div id="qr-print-area" className="inline-block rounded-md border border-[var(--color-border)] bg-white p-4">
-                      <QRCodeSVG value={window.location.href} size={150} includeMargin={true} />
-                      <h1 className="mt-3 font-bold text-[var(--color-text-primary)]">{batch.chemical?.canonicalName}</h1>
-                      <p className="text-sm text-[var(--color-text-secondary)]">Batch: {batch.batchNumber}</p>
-                    </div>
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                      <button onClick={handlePrint} className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] color-transition hover:bg-[var(--color-surface-muted)] sm:w-auto">
-                          <Printer size={16} /> Print Label
-                      </button>
-                      <button 
-                          onClick={handleDownloadPdf} 
-                          disabled={isDownloading}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-bold text-white color-transition hover:bg-[var(--color-primary-light)] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-                      >
-                          {isDownloading ? (
-                              <Loader2 size={16} className="animate-spin" />
-                          ) : (
-                              <Download size={16} />
-                          )}
-                          {isDownloading ? 'Downloading...' : 'Download PDF'}
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+              <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
                 <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
                   <MapPin size={20} className="text-[var(--color-primary)]" />
-                  <h2 className="text-base font-bold text-[var(--color-text-primary)]">Storage Location</h2>
+                  <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+                    Storage Location
+                  </h2>
                 </header>
+
                 <div className="p-4 sm:p-5">
                   {batch.location?.path && batch.location.path.length > 0 ? (
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm font-semibold">
                       {batch.location.path.map((loc, index) => (
                         <React.Fragment key={loc.id}>
-                          {index > 0 && <ChevronRight size={16} className="shrink-0 text-[var(--color-text-muted)]" />}
-                          <Link to={`/locations/${loc.id}`} className="text-[var(--color-primary)] hover:underline">
+                          {index > 0 && (
+                            <ChevronRight
+                              size={16}
+                              className="shrink-0 text-[var(--color-text-muted)]"
+                            />
+                          )}
+                          <Link
+                            to={`/locations/${loc.id}`}
+                            className="break-words text-[var(--color-primary)] hover:underline"
+                          >
                             {loc.name}
                           </Link>
                         </React.Fragment>
                       ))}
                     </div>
                   ) : batch.location ? (
-                    <Link to={`/locations/${batch.location.id}`} className="text-[var(--color-primary)] hover:underline font-semibold">{batch.location.name}</Link>
+                    <Link
+                      to={`/locations/${batch.location.id}`}
+                      className="break-words font-semibold text-[var(--color-primary)] hover:underline"
+                    >
+                      {batch.location.name}
+                    </Link>
                   ) : (
-                    <p className="text-sm font-semibold text-[var(--color-text-muted)]">No location assigned</p>
+                    <p className="text-sm font-semibold text-[var(--color-text-muted)]">
+                      No location assigned
+                    </p>
                   )}
                 </div>
               </section>
-            </div>
+
+              {canViewQrCode && (
+                <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+                  <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
+                    <QrCode
+                      size={20}
+                      className="text-[var(--color-primary)]"
+                    />
+                    <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+                      QR Code & Label
+                    </h2>
+                  </header>
+
+                  <div className="p-4 text-center sm:p-5">
+                    <div className="flex justify-center overflow-x-auto pb-1">
+                      <div
+                        id="qr-print-area"
+                        className="inline-flex max-w-full flex-col items-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-white p-4 shadow-[var(--shadow-sm)]"
+                      >
+                        <QRCodeSVG
+                          value={window.location.href}
+                          size={150}
+                          includeMargin={true}
+                        />
+                        <h1 className="mt-3 max-w-[220px] break-words text-center font-bold leading-5 text-[var(--color-text-primary)]">
+                          {batch.chemical?.canonicalName}
+                        </h1>
+                        <p className="mt-1 max-w-[220px] break-all text-center text-sm text-[var(--color-text-secondary)]">
+                          Batch: {batch.batchNumber}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={handlePrint}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] color-transition hover:bg-[var(--color-surface-muted)]"
+                      >
+                        <Printer size={16} />
+                        Print Label
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleDownloadPdf}
+                        disabled={isDownloading}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-bold text-white color-transition hover:bg-[var(--color-primary-light)] disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {isDownloading ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Download size={16} />
+                        )}
+                        {isDownloading ? 'Downloading...' : 'Download PDF'}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              
+            </aside>
           </div>
         </div>
       </main>

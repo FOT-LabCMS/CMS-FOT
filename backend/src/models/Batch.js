@@ -34,6 +34,11 @@ module.exports = function BatchModel(sequelize) {
         allowNull: false,
         field: "current_quantity",
       },
+      lowStockThresholdQuantity: {
+        type: DataTypes.DECIMAL(12, 4),
+        allowNull: false,
+        field: "low_stock_threshold_quantity",
+      },
       expiryDate: {
         type: DataTypes.DATEONLY,
         allowNull: true,
