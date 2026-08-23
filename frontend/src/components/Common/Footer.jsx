@@ -4,11 +4,11 @@ import { Sparkles, GitBranch } from "lucide-react";
 const DEVELOPER_PROFILES = [
   {
     name: "Hasala Perera",
-    href: "https://github.com/Hasalapera",
+    href: "https://cms-fot-developer-static-page.vercel.app/",
   },
   {
     name: "Sadeepa Dinakara",
-    href: "https://github.com/Sadeepa-D",
+    href: "https://cms-fot-developer-static-page.vercel.app/",
   },
 ];
 
