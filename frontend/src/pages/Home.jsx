@@ -81,28 +81,40 @@ const PublicChemicalsList = ({ searchQuery, availabilityFilter }) => {
 const SearchField = ({ value, onChange, placeholder }) => (
   <div className="relative w-full">
     <Search
-      size={18}
-      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+      size={20}
+      className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
     />
+
     <input
       type="search"
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="min-h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] pl-11 pr-4 text-sm font-medium text-[var(--color-text-primary)] shadow-[var(--shadow-sm)] color-transition placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-tint)]"
+      className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] pl-12 pr-4 text-sm font-medium text-[var(--color-text-primary)] shadow-[var(--shadow-sm)] color-transition placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-tint)] sm:text-base"
     />
   </div>
 );
 
-const ChemicalFilters = ({ searchQuery, onSearchChange, availabilityFilter, onAvailabilityChange }) => (
-  <div className="mb-6 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)] sm:p-4">
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-      <SearchField
-        value={searchQuery}
-        onChange={onSearchChange}
-        placeholder="Search chemicals by name, code, formula, state..."
-      />
-      <div className="grid grid-cols-3 gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-muted)] p-1 lg:w-[360px]">
+const ChemicalFilters = ({
+  searchQuery,
+  onSearchChange,
+  availabilityFilter,
+  onAvailabilityChange,
+}) => (
+  <div className="mb-6 w-full rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)] sm:p-4">
+    <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center">
+      
+      {/* Search Bar */}
+      <div className="min-w-0 flex-1">
+        <SearchField
+          value={searchQuery}
+          onChange={onSearchChange}
+          placeholder="Search chemicals by name, code, formula, state..."
+        />
+      </div>
+
+      {/* Availability Tabs */}
+      <div className="grid h-12 w-full shrink-0 grid-cols-3 gap-1 rounded-[var(--radius-md)] bg-[var(--color-surface-muted)] p-1 sm:gap-2 lg:w-[360px]">
         {AVAILABILITY_FILTERS.map((filter) => {
           const isActive = availabilityFilter === filter.id;
 
@@ -111,7 +123,7 @@ const ChemicalFilters = ({ searchQuery, onSearchChange, availabilityFilter, onAv
               key={filter.id}
               type="button"
               onClick={() => onAvailabilityChange(filter.id)}
-              className={`min-h-10 rounded-[var(--radius-sm)] px-2 text-xs font-bold color-transition sm:text-sm ${
+              className={`h-full min-w-0 rounded-[var(--radius-sm)] px-2 text-xs font-bold color-transition sm:text-sm ${
                 isActive
                   ? "bg-[var(--color-primary-dark)] text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)]"
                   : "text-[var(--color-text-secondary)] hover:bg-[var(--color-primary-tint)] hover:text-[var(--color-primary-dark)]"
@@ -122,6 +134,7 @@ const ChemicalFilters = ({ searchQuery, onSearchChange, availabilityFilter, onAv
           );
         })}
       </div>
+
     </div>
   </div>
 );
