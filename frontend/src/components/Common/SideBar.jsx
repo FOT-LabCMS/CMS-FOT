@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   FlaskConical,
   Activity,
-  Warehouse,
   MapPin,
   FileText,
   Bell as BellIcon,
@@ -39,7 +38,7 @@ const MAIN_MENU_ITEMS = [
     label: "Dashboard",
     path: "/dashboard",
     icon: LayoutDashboard,
-    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+    roles: ["ADMIN", "TECHNICAL_OFFICER"],
   },
   {
     label: "Chemicals",
@@ -440,7 +439,7 @@ const SidebarContent = ({
         <button
           type="button"
           onClick={() => {
-            navigate("/dashboard");
+            navigate(userRole === "LECTURER" ? "/chemicals/list" : "/dashboard");
             closeMobileMenu();
           }}
           className={`flex items-center text-left min-w-0 ${isCollapsed ? "justify-center" : "gap-3 flex-1"}`}
@@ -701,13 +700,20 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
         </button>
 
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-[var(--color-accent-light)]">
-            <FlaskConical size={20} />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)] shadow-[var(--shadow-sm)]">
+            <img
+              src="../../../public/faculty_logo.png"
+              alt="Faculty of Technology Logo"
+              className="h-full w-full object-cover"
+            />
           </div>
 
           <div>
             <p className="font-[var(--font-display)] text-base font-extrabold text-[var(--color-primary)]">
-              FLCMS
+              FOTCMS
+            </p>
+            <p className="text-[9px] text-[var(--color-text-muted)]">
+              Faculty Laboratory
             </p>
             <p className="text-[9px] text-[var(--color-text-muted)]">
               Chemical Management System

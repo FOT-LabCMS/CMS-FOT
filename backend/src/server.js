@@ -24,6 +24,10 @@ const {
   notifyExpiringBatches,
   notifyLowStockBatches,
 } = require("./services/notificationService.js");
+const {
+  getUploadsRoot,
+  getSdsUploadDir,
+} = require("./services/storageService.js");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -62,8 +66,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Serve uploaded files statically. Multer stores files in backend/uploads.
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+// Ensure upload directories exist on server startup
+getSdsUploadDir();
+
+// Serve uploaded files statically from configurable persistent storage root
+app.use("/uploads", express.static(getUploadsRoot()));
 
 app.get("/", (req, res) => {
   res.json({

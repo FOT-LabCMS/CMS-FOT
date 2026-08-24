@@ -32,6 +32,9 @@ router.post('/add-chemical', [verifyToken, uploadSds], ChemicalController.addChe
 // Route to update a chemical
 router.put('/:id', [verifyToken, uploadSds], ChemicalController.updateChemical);
 
+// Route to download chemical SDS document (authenticated)
+router.get('/:id/sds/download', verifyToken, ChemicalController.downloadSds);
+
 // Route to get a single chemical by ID
 router.get('/:id', ChemicalController.getChemicalById);
 

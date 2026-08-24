@@ -52,7 +52,7 @@ const Dashboard = () => {
 
   const invalidRange = dateFromInput(startDate) > dateFromInput(endDate);
 
-  const displayName = user?.fullName || user?.name || user?.institutionalId || "FLCMS User";
+  const displayName = user?.fullName || user?.name || user?.institutionalId || "FOTCMS User";
 
   const applyPreset = (value) => {
     const end = new Date();

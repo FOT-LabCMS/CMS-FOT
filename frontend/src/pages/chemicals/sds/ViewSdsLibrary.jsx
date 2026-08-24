@@ -4,7 +4,7 @@ import { differenceInYears, format, parseISO } from 'date-fns';
 import { FileText, Search, Loader2, ServerCrash, Download, Eye, ArrowLeft } from 'lucide-react';
 import api from '../../../api/axiosInstance';
 import { useNavigate } from 'react-router-dom';
-import { getSdsFilename, getSdsUrl } from '../../../utils/sds';
+import { getSdsFilename, getSdsUrl, downloadSdsFile } from '../../../utils/sds';
 
 const formatDisplayDate = (value) => {
   if (!value) {
@@ -64,6 +64,7 @@ const PageHeader = () => {
 
 const ViewSdsLibrary = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const { data: chemicals, isLoading, isError, error } = useQuery({
     queryKey: ['chemicalsWithSds'],
@@ -186,15 +187,30 @@ const ViewSdsLibrary = () => {
                           <Eye size={14} />
                           Preview
                         </a>
-                        <a
-                          href={sdsUrl}
-                          download={sdsFilename}
-                          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setDownloadingId(chemical.id);
+                              await downloadSdsFile(chemical.id, sdsFilename);
+                            } catch (err) {
+                              console.error('Download error:', err);
+                              alert('Failed to download SDS document: ' + (err.response?.data?.message || err.message));
+                            } finally {
+                              setDownloadingId(null);
+                            }
+                          }}
+                          disabled={downloadingId === chemical.id}
+                          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)] disabled:opacity-60"
                           title="Download SDS"
                         >
-                          <Download size={14} />
+                          {downloadingId === chemical.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Download size={14} />
+                          )}
                           Download
-                        </a>
+                        </button>
                       </div>
                     </td>
                   </tr>
