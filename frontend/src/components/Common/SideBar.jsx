@@ -41,6 +41,12 @@ const MAIN_MENU_ITEMS = [
     roles: ["ADMIN", "TECHNICAL_OFFICER"],
   },
   {
+    label: "Alerts & Notifications",
+    path: "/notifications",
+    icon: BellIcon,
+    roles: ["ADMIN", "TECHNICAL_OFFICER"],
+  },
+  {
     label: "Chemicals",
     icon: FlaskConical,
     pathPrefix: "/chemicals",
@@ -147,12 +153,6 @@ const MAIN_MENU_ITEMS = [
         roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
       },
     ],
-  },
-  {
-    label: "Alerts & Notifications",
-    path: "/notifications",
-    icon: BellIcon,
-    roles: ["ADMIN", "TECHNICAL_OFFICER"],
   },
   {
     label: "Reports",
