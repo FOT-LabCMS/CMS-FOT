@@ -434,11 +434,6 @@ const DisplosaReq = () => {
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                       Create Release Record
                     </h1>
-
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                      Log a chemical release for a student request. Staff use
-                      only.
-                    </p>
                   </div>
 
                   <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] p-4">
