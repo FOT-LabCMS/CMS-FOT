@@ -98,11 +98,6 @@ const Dashboard = () => {
                   <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                     Welcome back, {displayName}
                   </h1>
-
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Monitor chemical inventory, usage activity, stock risks and
-                    laboratory safety information from one dashboard.
-                  </p>
                 </div>
 
                 <div className="grid w-full gap-3 sm:grid-cols-2 xl:max-w-xl">

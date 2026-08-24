@@ -21,6 +21,7 @@ import {
   PackageX,
   TrendingDown,
   ChevronRight as ChevronRightIcon,
+  Plus,
 } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import EditChemicalModal from '../../components/chemicals/EditChemicalModal';
@@ -182,7 +183,7 @@ const BatchList = ({ batches, baseUnit, isAuthenticated }) => {
           >
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-sm font-bold text-[var(--color-text-primary)]">Batch: {batch.batchNumber}</p>
+                <p className="text-sm font-bold text-[var(--color-text-primary)]">Bin Card Number: {batch.batchNumber}</p>
                 {isAuthenticated && (
                   <p className="text-xs text-[var(--color-text-secondary)]">Received: {formatDisplayDate(batch.receivedDate)}</p>
                 )}
@@ -395,6 +396,14 @@ const ChemicalDetails = () => {
                           <Pencil size={16} />
                           Edit Chemical
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/stock/add', { state: { chemicalId: chemical.id } })}
+                          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-5 py-2.5 text-sm font-bold text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-primary-light)]"
+                        >
+                          <Plus size={16} />
+                          Add Batch
+                        </button>
                       </div>
                     )}
                   </div>
@@ -443,15 +452,29 @@ const ChemicalDetails = () => {
                   </div>
                 </section>
 
-                <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-                  <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
-                    <Boxes size={20} className="text-[var(--color-primary)]" />
-                    <h2 className="text-base font-bold text-[var(--color-text-primary)]">In-Stock Batches</h2>
+                {isAuthenticated && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER' || user.role === 'LECTURER') && (
+                  <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+                  <header className="flex items-center justify-between border-b border-[var(--color-border)] p-4 sm:p-5">
+                    <div className="flex items-center gap-3">
+                      <Boxes size={20} className="text-[var(--color-primary)]" />
+                      <h2 className="text-base font-bold text-[var(--color-text-primary)]">In-Stock Batches</h2>
+                    </div>
+                    {isAuthenticated && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER') && (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/stock/add', { state: { chemicalId: chemical.id } })}
+                        className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--color-primary-tint)] px-3 py-1.5 text-xs font-bold text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white color-transition"
+                      >
+                        <Plus size={14} />
+                        Add Batch
+                      </button>
+                    )}
                   </header>
                   <div className="p-4 sm:p-5">
                     <BatchList batches={chemical.batches} baseUnit={chemical.baseUnit} isAuthenticated={isAuthenticated} />
                   </div>
                 </section>
+                )}
               </div>
 
               <div className="space-y-6">

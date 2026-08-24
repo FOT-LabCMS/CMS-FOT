@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -81,7 +81,7 @@ const SuccessModal = ({ batch, onAddNew, onViewList }) => {
           <div id="qr-code-for-print" className="mt-6 flex flex-col items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
             <QRCodeSVG value={qrValue} size={150} includeMargin={true} />
             <h1 className="mt-3 font-bold text-[var(--color-text-primary)]">{batch.chemical?.canonicalName}</h1>
-            <p className="text-sm text-[var(--color-text-secondary)]">Batch: {batch.batchNumber}</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">Bin Card Number: {batch.batchNumber}</p>
           </div>
 
           <button onClick={handlePrint} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]">
@@ -130,7 +130,11 @@ const ErrorMessage = ({ message }) => {
 
 const AddNewBatch = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState(INITIAL_FORM);
+  const location = useLocation();
+  const [formData, setFormData] = useState(() => ({
+    ...INITIAL_FORM,
+    chemicalId: location.state?.chemicalId || "",
+  }));
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successBatch, setSuccessBatch] = useState(null);
@@ -211,7 +215,7 @@ const AddNewBatch = () => {
   const validateForm = () => {
     const nextErrors = {};
     if (!formData.chemicalId) nextErrors.chemicalId = "Please select a chemical.";
-    if (!formData.batchNumber.trim()) nextErrors.batchNumber = "Batch number is required.";
+    if (!formData.batchNumber.trim()) nextErrors.batchNumber = "Bin Card Number is required.";
     if (!formData.quantityReceived) {
       nextErrors.quantityReceived = "Received quantity is required.";
     } else if (Number(formData.quantityReceived) <= 0) {
@@ -317,9 +321,6 @@ const AddNewBatch = () => {
                   <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                     Add New Stock Batch
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Register a new batch of a chemical received from a supplier. This will add a new physical stock unit to the inventory.
-                  </p>
                 </div>
               </div>
             </div>
@@ -380,10 +381,10 @@ const AddNewBatch = () => {
                     <ErrorMessage message={errors.supplier} />
                   </div>
 
-                  {/* Batch Number */}
+                  {/* Bin Card Number */}
                   <div>
                     <InputLabel htmlFor="batchNumber" required description="The unique number identifying this specific batch.">
-                      Batch Number
+                      Bin Card Number
                     </InputLabel>
                     <div className="relative">
                       <Hash size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />

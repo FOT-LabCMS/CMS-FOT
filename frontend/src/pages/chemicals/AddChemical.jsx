@@ -612,12 +612,6 @@ const AddChemical = () => {
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                       Add New Chemical
                     </h1>
-
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                      Create the main chemical identity record. Batch, supplier,
-                      expiry and physical stock-unit details will be managed
-                      separately.
-                    </p>
                   </div>
 
                   <div
@@ -1517,7 +1511,7 @@ const AddChemical = () => {
                       </h3>
 
                       <p className="mt-2 text-xs leading-5 text-[var(--color-text-secondary)]">
-                        Supplier, batch number, expiry date, storage location
+                        Supplier, Bin Card Number, expiry date, storage location
                         and current quantity should not be saved in this form.
                       </p>
                     </div>

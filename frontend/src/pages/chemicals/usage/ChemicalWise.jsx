@@ -413,7 +413,7 @@ const UsageDetailPanel = ({ batch, chemicalName, chemicalCode, unit, onClose }) 
           {[
             { label: "Chemical", value: chemicalName, icon: FlaskConical },
             { label: "Chemical code", value: chemicalCode, icon: Info },
-            { label: "Batch number", value: batch.batchNumber, icon: Layers },
+            { label: "Bin Card Number", value: batch.batchNumber, icon: Layers },
             {
               label: "Supplier",
               value: batch.supplier || "—",
@@ -619,11 +619,6 @@ const chemicalwise = () => {
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                       Chemical-wise Usage
                     </h1>
-
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                      Select a chemical to explore all its batches — track stock levels,
-                      consumption, expiry status and supplier info in one view.
-                    </p>
                   </div>
 
                   <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] p-4">
@@ -808,7 +803,7 @@ const chemicalwise = () => {
                       type="text"
                       value={batchSearch}
                       onChange={(e) => setBatchSearch(e.target.value)}
-                      placeholder="Search batch number or supplier…"
+                      placeholder="Search Bin card number or supplier…"
                       className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-2.5 pl-9 pr-4 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:outline-none"
                     />
                     {batchSearch && (
@@ -851,7 +846,7 @@ const chemicalwise = () => {
                     onChange={(e) => setSortKey(e.target.value)}
                     className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-xs font-semibold text-[var(--color-text-primary)] focus:outline-none"
                   >
-                    <option value="batchNumber">Sort: Batch #</option>
+                    <option value="batchNumber">Sort: Bin Card #</option>
                     <option value="pct">Sort: Most used</option>
                     <option value="expiry">Sort: Expiry date</option>
                   </select>

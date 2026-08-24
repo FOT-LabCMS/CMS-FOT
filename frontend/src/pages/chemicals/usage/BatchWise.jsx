@@ -104,7 +104,7 @@ const SearchableSelect = ({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search chemical or batch number..."
+              placeholder="Search chemical or Bin Card Number..."
               className="w-full rounded-[var(--radius-sm)] bg-[var(--color-surface-muted)] py-2 pl-8 pr-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none"
             />
           </div>
@@ -309,12 +309,6 @@ const batchwise = () => {
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
                       Batch Usage Lookup
                     </h1>
-
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                      Select a batch to see exactly how much has been used
-                      against what was received, plus its expiry and supplier
-                      details.
-                    </p>
                   </div>
 
                   <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] p-4">
@@ -364,7 +358,7 @@ const batchwise = () => {
               Select a batch
             </label>
             <p className="mb-3 text-xs leading-5 text-[var(--color-text-muted)]">
-              Search by chemical name or batch number.
+              Search by chemical name or bin card number.
             </p>
             <SearchableSelect
               options={batchOptions}
@@ -541,7 +535,7 @@ const batchwise = () => {
                   </div>
                   <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
                     <dt className="text-sm text-[var(--color-text-secondary)]">
-                      Batch number
+                      Bin Card Number
                     </dt>
                     <dd className="text-sm font-bold text-[var(--color-text-primary)]">
                       {usageData.batchNumber}

@@ -13,7 +13,7 @@ const getNotifiableUsers = async () => {
       },
       isActive: true,
     },
-    attributes: ['id', 'fullName'],
+    attributes: ['id', 'fullName', 'email'],
   });
 };
 

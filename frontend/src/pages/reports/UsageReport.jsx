@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Clock,
   Download,
+  Eye,
   FileText,
   Filter,
   FlaskConical,
@@ -142,6 +143,9 @@ const UsageReport = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
 
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+
   const fetchRecords = useCallback(async () => {
     if (!startDate || !endDate) return;
     if (new Date(startDate) > new Date(endDate)) {
@@ -254,6 +258,31 @@ const UsageReport = () => {
     }
   };
 
+  const handlePreview = async () => {
+    if (!hasSearched) return;
+    try {
+      setIsPreviewing(true);
+      setPreviewError("");
+      const response = await api.get("/reports/usage/download", {
+        params: { startDate, endDate },
+        responseType: "blob",
+      });
+      const blobUrl = window.URL.createObjectURL(
+        new Blob([response.data], { type: "application/pdf" }),
+      );
+      const newTab = window.open(blobUrl, "_blank");
+      if (newTab) {
+        newTab.addEventListener("load", () =>
+          window.URL.revokeObjectURL(blobUrl),
+        );
+      }
+    } catch {
+      setPreviewError("Failed to generate the PDF preview. Please try again.");
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
   const handleReset = () => {
     setStartDate(toInputDate(thirtyDaysAgo));
     setEndDate(toInputDate(today));
@@ -291,12 +320,8 @@ const UsageReport = () => {
                       </span>
                     </div>
                     <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
-                      Usage Report
+                      Usage History & Report
                     </h1>
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                      View chemical usage records within a selected date range —
-                      track releases, returns, quantities used, and purpose.
-                    </p>
                   </div>
 
                   {/* quick stat chip in header */}
@@ -439,36 +464,57 @@ const UsageReport = () => {
                 </button>
 
                 {hasSearched && filtered.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleDownload}
-                    disabled={isDownloading}
-                    className="ml-auto inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-5 py-2.5 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isDownloading ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Generating PDF…
-                      </>
-                    ) : (
-                      <>
-                        <Download size={16} />
-                        Download PDF Report
-                      </>
-                    )}
-                  </button>
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePreview}
+                      disabled={isPreviewing || isDownloading}
+                      className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm font-bold text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isPreviewing ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Previewing…
+                        </>
+                      ) : (
+                        <>
+                          <Eye size={16} />
+                          Preview Usage Report
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDownload}
+                      disabled={isDownloading || isPreviewing}
+                      className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-5 py-2.5 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isDownloading ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Generating PDF…
+                        </>
+                      ) : (
+                        <>
+                          <Download size={16} />
+                          Download Usage Report
+                        </>
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
 
               {/* Download error */}
-              {downloadError && (
+              {(downloadError || previewError) && (
                 <div className="mt-3 flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-danger)] bg-[var(--color-danger)]/5 px-4 py-3">
                   <AlertTriangle
                     size={16}
                     className="shrink-0 text-[var(--color-danger)]"
                   />
                   <p className="text-sm font-semibold text-[var(--color-danger)]">
-                    {downloadError}
+                    {downloadError || previewError}
                   </p>
                 </div>
               )}
@@ -604,7 +650,7 @@ const UsageReport = () => {
                         onSort={handleSort}
                       />
                       <SortHeader
-                        label="Batch No."
+                        label="Bin Card Number"
                         field="batchNumber"
                         sortField={sortField}
                         sortDir={sortDir}
@@ -682,7 +728,7 @@ const UsageReport = () => {
                           </span>
                         </td>
 
-                        {/* Batch Number */}
+                        {/* Bin Card Number */}
                         <td className="px-3 py-3">
                           <span className="rounded-md bg-[var(--color-surface-muted)] px-2 py-1 text-[11px] font-bold text-[var(--color-text-secondary)]">
                             {record.batchNumber || "—"}
