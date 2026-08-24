@@ -700,13 +700,20 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
         </button>
 
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-[var(--color-accent-light)]">
-            <FlaskConical size={20} />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)] shadow-[var(--shadow-sm)]">
+            <img
+              src="../../../public/faculty_logo.png"
+              alt="Faculty of Technology Logo"
+              className="h-full w-full object-cover"
+            />
           </div>
 
           <div>
             <p className="font-[var(--font-display)] text-base font-extrabold text-[var(--color-primary)]">
               FOTCMS
+            </p>
+            <p className="text-[9px] text-[var(--color-text-muted)]">
+              Faculty Laboratory
             </p>
             <p className="text-[9px] text-[var(--color-text-muted)]">
               Chemical Management System
