@@ -706,7 +706,7 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
 
           <div>
             <p className="font-[var(--font-display)] text-base font-extrabold text-[var(--color-primary)]">
-              FLCMS
+              FOTCMS
             </p>
             <p className="text-[9px] text-[var(--color-text-muted)]">
               Chemical Management System

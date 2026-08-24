@@ -2,15 +2,15 @@ const { Chemical, Batch, Location, sequelize } = require('../models/index.js');
 const { Op } = require('sequelize');
 const { logAction } = require("../services/auditLogService.js");
 const { createNotification } = require("../services/notificationService.js");
+const {
+  calculateFileChecksum,
+  deleteSdsFile,
+  resolveSdsFilePath,
+  sdsFileExists,
+} = require("../services/storageService.js");
 const axios = require('axios');
-const crypto = require('crypto');
-const fs = require('fs/promises');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
-
-const calculateFileChecksum = async (filePath) => {
-  const fileBuffer = await fs.readFile(filePath);
-  return crypto.createHash('sha256').update(fileBuffer).digest('hex');
-};
 
 const normalizeOptionalDate = (value) => {
   if (value === undefined) {
@@ -63,6 +63,9 @@ const addChemical = async (req, res) => {
 
     // Basic validation for required fields based on the model
     if (!payload.chemicalCode || !payload.canonicalName || !payload.stockDimension || !payload.baseUnit) {
+      if (req.file) {
+        await deleteSdsFile(req.file.filename);
+      }
       return res.status(400).json({ 
         success: false,
         message: 'Missing required fields. Chemical code, canonical name, stock dimension, and base unit are required.' 
@@ -80,6 +83,9 @@ const addChemical = async (req, res) => {
     });
 
     if (existingChemical) {
+      if (req.file) {
+        await deleteSdsFile(req.file.filename);
+      }
       const field = existingChemical.chemicalCode.toLowerCase() === payload.chemicalCode.trim().toLowerCase() ? 'code' : 'name';
       return res.status(409).json({ 
         success: false,
@@ -95,7 +101,7 @@ const addChemical = async (req, res) => {
       payload.sdsFileSize = req.file.size;
       payload.sdsChecksum = await calculateFileChecksum(req.file.path);
       payload.sdsUploadedAt = new Date();
-      payload.sdsUploadedById = req.user.id; // From verifyToken middleware
+      payload.sdsUploadedById = req.user?.id; // From verifyToken middleware
     }
 
     // Create the new chemical in the database
@@ -140,6 +146,9 @@ const addChemical = async (req, res) => {
       chemical,
     });
   } catch (error) {
+    if (req.file) {
+      await deleteSdsFile(req.file.filename);
+    }
     console.error('Error creating chemical:', error);
     if (error.name === 'SequelizeValidationError') {
       const messages = error.errors.map(e => e.message);
@@ -290,6 +299,9 @@ const updateChemical = async (req, res) => {
     const chemical = await Chemical.findByPk(id);
 
     if (!chemical) {
+      if (req.file) {
+        await deleteSdsFile(req.file.filename);
+      }
       return res.status(404).json({ success: false, message: 'Chemical not found.' });
     }
 
@@ -301,6 +313,7 @@ const updateChemical = async (req, res) => {
       isActive: chemical.isActive,
     };
 
+    const oldSdsStorageKey = chemical.sdsStorageKey;
     const payload = { ...req.body };
 
     if (payload.synonyms && typeof payload.synonyms === 'string') {
@@ -324,6 +337,9 @@ const updateChemical = async (req, res) => {
         },
       });
       if (existingChemical) {
+        if (req.file) {
+          await deleteSdsFile(req.file.filename);
+        }
         return res.status(409).json({
           success: false,
           message: `A chemical with the name "${payload.canonicalName}" already exists.`
@@ -332,17 +348,21 @@ const updateChemical = async (req, res) => {
     }
 
     if (req.file) {
-      // Note: This doesn't delete the old file. For a production system, you'd want a cleanup job.
       payload.sdsStorageKey = req.file.filename; // Store filename only, not the full path
       payload.sdsOriginalFilename = req.file.originalname;
       payload.sdsMimeType = req.file.mimetype;
       payload.sdsFileSize = req.file.size;
       payload.sdsChecksum = await calculateFileChecksum(req.file.path);
       payload.sdsUploadedAt = new Date();
-      payload.sdsUploadedById = req.user.id;
+      payload.sdsUploadedById = req.user?.id;
     }
 
     await chemical.update(payload);
+
+    // If replacement succeeded and an old file existed, remove the old file from disk
+    if (req.file && oldSdsStorageKey && oldSdsStorageKey !== req.file.filename) {
+      await deleteSdsFile(oldSdsStorageKey);
+    }
 
     // Audit Log: Chemical Update
     await logAction({
@@ -364,6 +384,10 @@ const updateChemical = async (req, res) => {
       chemical,
     });
   } catch (error) {
+    if (req.file) {
+      // Discard newly uploaded file to avoid orphan and preserve old file
+      await deleteSdsFile(req.file.filename);
+    }
     console.error(`Error updating chemical with ID ${id}:`, error);
     if (error.name === 'SequelizeValidationError') {
       const messages = error.errors.map(e => e.message);
@@ -819,6 +843,67 @@ const getChemicalStats = async (req, res) => {
   }
 };
 
+const downloadSds = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const chemical = await Chemical.findByPk(id);
+
+    if (!chemical) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chemical not found.',
+      });
+    }
+
+    if (!chemical.sdsStorageKey) {
+      return res.status(404).json({
+        success: false,
+        message: 'No SDS document is attached to this chemical.',
+      });
+    }
+
+    let filePath;
+    try {
+      filePath = resolveSdsFilePath(chemical.sdsStorageKey);
+    } catch (secErr) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid SDS storage key or path traversal detected.',
+      });
+    }
+
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'The requested SDS document file is missing from server storage.',
+      });
+    }
+
+    const downloadFilename =
+      chemical.sdsOriginalFilename || chemical.sdsStorageKey;
+
+    res.download(filePath, downloadFilename, (err) => {
+      if (err) {
+        console.error('Error during SDS download transmission:', err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            message: 'Failed to complete SDS file download.',
+          });
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error downloading SDS:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error while downloading SDS document.',
+      });
+    }
+  }
+};
+
 module.exports = {
   addChemical,
   getNextChemicalCode,
@@ -832,4 +917,5 @@ module.exports = {
   getChemicalsWithSds,
   getPublicChemicals,
   getChemicalStats,
+  downloadSds,
 };
