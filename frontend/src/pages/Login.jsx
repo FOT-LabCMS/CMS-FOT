@@ -7,6 +7,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
@@ -20,8 +21,6 @@ const Login = () => {
   const { login } = useAuth();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || "/dashboard";
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -34,8 +33,21 @@ const Login = () => {
     }
 
     try {
-      await login(institutionalId, password);
-      navigate(from, { replace: true });
+      const response = await login(institutionalId, password);
+      let userRole = null;
+      if (response?.data?.token) {
+        try {
+          const decoded = jwtDecode(response.data.token);
+          userRole = decoded?.role;
+        } catch {
+          // Ignore decode error
+        }
+      }
+      const defaultRoute = userRole === "LECTURER" ? "/chemicals/list" : "/dashboard";
+      const fromPath = location.state?.from?.pathname;
+      const targetRoute =
+        fromPath && fromPath !== "/dashboard" ? fromPath : defaultRoute;
+      navigate(targetRoute, { replace: true });
     } catch (err) {
       if (err.response?.status === 403) {
         setError("User account is deleted");

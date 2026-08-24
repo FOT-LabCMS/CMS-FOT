@@ -27,7 +27,7 @@ import api from '../../api/axiosInstance';
 import EditChemicalModal from '../../components/chemicals/EditChemicalModal';
 import DeleteConfirmationModal from '../../components/Common/DeleteConfirmationModal';
 import { useAuth } from '../../context/AuthContext';
-import { getSdsFilename, getSdsUrl } from '../../utils/sds';
+import { getSdsFilename, getSdsUrl, downloadSdsFile } from '../../utils/sds';
 
 const DetailItem = ({ label, value, children }) => {
   if (!value && !children) {
@@ -262,6 +262,7 @@ const ChemicalDetails = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleteProcessing, setIsDeleteProcessing] = useState(false);
+  const [isDownloadingSds, setIsDownloadingSds] = useState(false);
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -555,10 +556,25 @@ const ChemicalDetails = () => {
                             <Eye size={18} />
                             Preview SDS
                           </a>
-                          <a href={sdsUrl} download={sdsFilename} className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-3 text-sm font-bold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]">
-                            <Download size={18} />
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                setIsDownloadingSds(true);
+                                await downloadSdsFile(chemical.id, sdsFilename);
+                              } catch (err) {
+                                console.error('Download error:', err);
+                                alert('Failed to download SDS document: ' + (err.response?.data?.message || err.message));
+                              } finally {
+                                setIsDownloadingSds(false);
+                              }
+                            }}
+                            disabled={isDownloadingSds}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-3 text-sm font-bold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)] disabled:opacity-60"
+                          >
+                            {isDownloadingSds ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
                             Download
-                          </a>
+                          </button>
                         </div>
                       </div>
                     ) : (

@@ -424,7 +424,7 @@ const ViewUsers = () => {
               <span className="font-semibold text-[var(--color-text-primary)]">
                 {userToDelete.fullName}
               </span>{" "}
-              ({userToDelete.institutionalId}) will lose access to FLCMS
+              ({userToDelete.institutionalId}) will lose access to FOTCMS
               immediately. This action cannot be undone.
             </p>
 

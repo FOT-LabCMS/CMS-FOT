@@ -44,7 +44,14 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute roles={["ADMIN", "TECHNICAL_OFFICER"]}>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/chemicals/add-chemical" element={<AddChemical />} />
           <Route path="/chemicals/list" element={<ViewChemicals />} />
           <Route

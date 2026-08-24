@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   FlaskConical,
   Activity,
-  Warehouse,
   MapPin,
   FileText,
   Bell as BellIcon,
@@ -39,7 +38,7 @@ const MAIN_MENU_ITEMS = [
     label: "Dashboard",
     path: "/dashboard",
     icon: LayoutDashboard,
-    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+    roles: ["ADMIN", "TECHNICAL_OFFICER"],
   },
   {
     label: "Chemicals",
@@ -440,7 +439,7 @@ const SidebarContent = ({
         <button
           type="button"
           onClick={() => {
-            navigate("/dashboard");
+            navigate(userRole === "LECTURER" ? "/chemicals/list" : "/dashboard");
             closeMobileMenu();
           }}
           className={`flex items-center text-left min-w-0 ${isCollapsed ? "justify-center" : "gap-3 flex-1"}`}
@@ -707,7 +706,7 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
 
           <div>
             <p className="font-[var(--font-display)] text-base font-extrabold text-[var(--color-primary)]">
-              FLCMS
+              FOTCMS
             </p>
             <p className="text-[9px] text-[var(--color-text-muted)]">
               Chemical Management System

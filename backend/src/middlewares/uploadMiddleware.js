@@ -1,38 +1,68 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-
-// Define the directory for SDS files
-const sdsDir = path.join(__dirname, '../../uploads/sds');
-
-// Ensure the upload directory exists
-fs.mkdirSync(sdsDir, { recursive: true });
+const { getSdsUploadDir } = require('../services/storageService.js');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, sdsDir);
+    try {
+      const sdsDir = getSdsUploadDir();
+      cb(null, sdsDir);
+    } catch (err) {
+      cb(err);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `sds-${uniqueSuffix}${path.extname(file.originalname)}`);
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `sds-${uniqueSuffix}${ext}`);
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  // Allowed file types: pdf, doc, docx
-  const allowedTypes = /pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document/;
-  const mimetype = allowedTypes.test(file.mimetype);
+  const allowedMimeTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ];
+  const allowedExts = ['.pdf', '.doc', '.docx'];
+  const ext = path.extname(file.originalname).toLowerCase();
 
-  if (mimetype) {
+  if (allowedMimeTypes.includes(file.mimetype) || allowedExts.includes(ext)) {
     return cb(null, true);
   }
-  cb(new Error('File type not supported. Only PDF and Word documents are allowed.'), false);
+
+  const err = new Error('File type not supported. Only PDF and Word documents are allowed.');
+  err.code = 'UNSUPPORTED_FILE_TYPE';
+  cb(err, false);
 };
 
-const uploadSds = multer({
+const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB file size limit
   fileFilter: fileFilter,
 }).single('sdsFile'); // 'sdsFile' is the name of the form field
+
+const uploadSds = (req, res, next) => {
+  upload(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File size exceeds the 10 MB limit.',
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Upload error: ${err.message}`,
+      });
+    } else if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'File upload failed.',
+      });
+    }
+    next();
+  });
+};
 
 module.exports = uploadSds;
