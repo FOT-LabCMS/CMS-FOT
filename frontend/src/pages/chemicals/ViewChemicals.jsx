@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FlaskConical, Plus, Loader2, ServerCrash, Search } from 'lucide-react';
 import api from '../../api/axiosInstance';
@@ -6,12 +6,14 @@ import ChemicalCard from '../../components/Common/ChemicalCard';
 import EditChemicalModal from '../../components/chemicals/EditChemicalModal';
 import DeleteConfirmationModal from '../../components/Common/DeleteConfirmationModal';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useAuth } from '../../context/AuthContext';
 
 const ViewChemicals = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingChemical, setEditingChemical] = useState(null);
   const [deletingChemical, setDeletingChemical] = useState(null);
   const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
 
   const { data: chemicals = [], isLoading: loading, isError, error } = useQuery({
     queryKey: ['chemicals'],
@@ -130,7 +132,8 @@ const ViewChemicals = () => {
                     Laboratory Chemical List
                   </h1>
                 </div>
-                <div className="shrink-0">
+                {isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'TECHNICAL_OFFICER') && (
+                  <div className="shrink-0">
                   <Link
                     to="/chemicals/add-chemical"
                     className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] px-5 py-3 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
@@ -139,6 +142,7 @@ const ViewChemicals = () => {
                     Add New Chemical
                   </Link>
                 </div>
+                )}
               </div>
             </div>
           </header>

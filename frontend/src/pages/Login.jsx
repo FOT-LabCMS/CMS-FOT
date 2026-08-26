@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Lock,
   Eye,
@@ -9,6 +9,7 @@ import {
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { useAuth } from "../context/AuthContext";
+import appConfig from "../config/appConfig";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -196,7 +197,7 @@ const Login = () => {
 
           {/* Title */}
           <h1 className="font-serif text-6xl md:text-7xl font-semibold text-transparent bg-clip-text bg-gradient-to-b from-[#f9f1d8] to-[#cba358] tracking-widest mb-2 drop-shadow-lg">
-            FOTCMS
+            {appConfig.appName}
           </h1>
           
           <p className="text-[#cba358] text-sm md:text-base font-medium tracking-[0.2em] uppercase mb-10">
@@ -251,7 +252,7 @@ const Login = () => {
               className="w-16 h-16 object-contain mb-4"
             />
           <h1 className="font-serif text-4xl font-semibold text-[#062c1e] tracking-widest">
-            FOTCMS
+            {appConfig.appName}
           </h1>
         </div>
 

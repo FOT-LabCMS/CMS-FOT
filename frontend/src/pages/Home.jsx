@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import ChemicalCard from "../components/Common/ChemicalCard";
 import Footer from "../components/Common/Footer";
+import appConfig from "../config/appConfig";
 
 const AVAILABILITY_FILTERS = [
   { id: "all", label: "All" },
@@ -192,7 +193,7 @@ const Home = () => {
                     Public Access
                   </span>
                   <h1 className="text-2xl font-extrabold leading-tight text-[var(--color-text-inverse)] sm:text-4xl lg:text-5xl">
-                    FOTCMS Public Catalogue
+                    {appConfig.appName} Public Catalogue
                   </h1>
                   <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--color-primary-tint)] sm:text-base">
                     Explore available chemicals before logging in. Staff can sign in to manage stock, batches, and safety records.
