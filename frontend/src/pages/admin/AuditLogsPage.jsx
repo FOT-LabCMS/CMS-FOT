@@ -48,11 +48,6 @@ const LogDetailsModal = ({ log, onClose }) => {
 
   let displayDetails = { ...log.details };
 
-  if (displayDetails && displayDetails.batchNumber !== undefined) {
-    displayDetails['binCardNumber'] = displayDetails.batchNumber;
-    delete displayDetails.batchNumber;
-  }
-
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"

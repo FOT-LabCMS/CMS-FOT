@@ -137,7 +137,7 @@ const downloadChemicalReport = async (req, res) => {
     const rowHeight = 22;
 
     const columns = [
-      { key: "batchNumber", label: "Bin Card Number", width: 68 },
+      { key: "batchNumber", label: "Batch Number", width: 68 },
       { key: "receivedDate", label: "Received", width: 62 },
       { key: "expiryDate", label: "Expiry", width: 62 },
       { key: "quantityReceived", label: "Start Qty", width: 60 },
@@ -567,7 +567,7 @@ const downloadUsageReport = async (req, res) => {
     const columns = [
       { key: "chemicalName", label: "Chemical", width: 110 },
       { key: "chemicalCode", label: "Code", width: 60 },
-      { key: "batchNumber", label: "Bin Card No.", width: 60 },
+      { key: "batchNumber", label: "Batch No.", width: 60 },
       { key: "stuRegisterNum", label: "Reg.No", width: 85 },
       { key: "quantityUsed", label: "Qty Used", width: 48 },
       { key: "returnedStatus", label: "Status", width: 60 },
@@ -851,7 +851,7 @@ const downloadFullInventoryReport = async (req, res) => {
     const rowHeight = 20;
 
     const columns = [
-      { key: "batchNumber", label: "Bin Card Number", width: 90 },
+      { key: "batchNumber", label: "Batch Number", width: 90 },
       { key: "receivedDate", label: "Received Date", width: 75 },
       { key: "expiryDate", label: "Expiry Date", width: 75 },
       { key: "quantityReceived", label: "Start Qty", width: 75 },

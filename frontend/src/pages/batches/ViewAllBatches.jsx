@@ -118,7 +118,7 @@ const QrCodeModal = ({ batch, onClose }) => {
         </button>
         <div id="qr-print-area-modal" className="flex flex-col items-center rounded-md bg-white p-4">
           <h1 className="text-lg font-bold text-[var(--color-text-primary)]">{batch.chemical?.canonicalName}</h1>
-          <p className="mb-4 text-sm text-[var(--color-text-secondary)]">Bin Card Number: {batch.batchNumber}</p>
+          <p className="mb-4 text-sm text-[var(--color-text-secondary)]">Batch Number: {batch.batchNumber}</p>
           <QRCodeSVG value={qrValue} size={200} includeMargin={true} />
         </div>
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -205,7 +205,7 @@ const EditBatchModal = ({ batch, onClose, onSuccess }) => {
     const thresholdQuantity = Number(formData.lowStockThresholdQuantity);
 
     if (!formData.batchNumber.trim()) {
-      nextErrors.batchNumber = 'Bin Card Number is required.';
+      nextErrors.batchNumber = 'Batch Number is required.';
     }
 
     if (!formData.quantityReceived) {
@@ -295,7 +295,7 @@ const EditBatchModal = ({ batch, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit} className="p-5">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label htmlFor="batchNumber" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Bin Card Number</label>
+              <label htmlFor="batchNumber" className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">Batch Number</label>
               <input id="batchNumber" name="batchNumber" type="text" value={formData.batchNumber} onChange={handleChange} className={fieldClass('batchNumber')} />
               {errors.batchNumber && <p className="mt-2 text-xs font-medium text-[var(--color-danger)]">{errors.batchNumber}</p>}
             </div>
@@ -476,7 +476,7 @@ const ViewAllBatches = () => {
             <thead className="bg-[var(--color-surface-muted)]">
               <tr>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Chemical</th>
-                <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Bin Card No.</th>
+                <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Batch No.</th>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Quantity</th>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Supplier</th>
                 <th scope="col" className="px-4 py-3.5 text-left font-semibold text-[var(--color-text-primary)]">Received</th>

@@ -650,7 +650,7 @@ const UsageReport = () => {
                         onSort={handleSort}
                       />
                       <SortHeader
-                        label="Bin Card Number"
+                        label="Batch Number"
                         field="batchNumber"
                         sortField={sortField}
                         sortDir={sortDir}
@@ -728,7 +728,7 @@ const UsageReport = () => {
                           </span>
                         </td>
 
-                        {/* Bin Card Number */}
+                        {/* Batch Number */}
                         <td className="px-3 py-3">
                           <span className="rounded-md bg-[var(--color-surface-muted)] px-2 py-1 text-[11px] font-bold text-[var(--color-text-secondary)]">
                             {record.batchNumber || "—"}

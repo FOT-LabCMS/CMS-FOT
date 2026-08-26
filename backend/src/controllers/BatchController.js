@@ -53,7 +53,7 @@ const addBatch = async (req, res) => {
     if (!chemicalId || !batchNumber || !quantityReceived || !receivedDate) {
       return res.status(400).json({
         success: false,
-        message: 'Chemical, Bin Card Number, Quantity, and Received Date are required.',
+        message: 'Chemical, Batch Number, Quantity, and Received Date are required.',
       });
     }
 
@@ -208,7 +208,7 @@ const updateBatch = async (req, res) => {
     if (!batchNumber || !quantityReceived || currentQuantity === undefined || !receivedDate) {
       return res.status(400).json({
         success: false,
-        message: 'Bin Card Number, Quantity Received, Current Quantity, and Received Date are required.',
+        message: 'Batch Number, Quantity Received, Current Quantity, and Received Date are required.',
       });
     }
 

@@ -323,7 +323,7 @@ const DisplosaReq = () => {
     const nextErrors = {};
 
     if (!form.chemicalCode) nextErrors.chemicalCode = "Select a chemical.";
-    if (!form.batchNumber) nextErrors.batchNumber = "Select a bin card number.";
+    if (!form.batchNumber) nextErrors.batchNumber = "Select a batch number.";
     if (!form.dateReleased)
       nextErrors.dateReleased = "Release date is required.";
     if (!form.purpose.trim())
@@ -504,22 +504,22 @@ const DisplosaReq = () => {
 
                     <div>
                       <InputLabel
-                        htmlFor="binCardNumber"
+                        htmlFor="batchNumber"
                         required
                         description={
                           form.chemicalCode
-                            ? "Bin card numbers available for the selected chemical."
+                            ? "Batch numbers available for the selected chemical."
                             : "Select a chemical first."
                         }
                       >
-                        Bin Card Number
+                        Batch Number
                       </InputLabel>
                       <SearchableSelect
                         icon={Boxes}
                         options={batchOptions}
                         value={form.batchNumber}
                         onChange={handleBatchChange}
-                        placeholder="Select a bin card number"
+                        placeholder="Select a batch number"
                         disabled={!form.chemicalCode}
                         loading={isBatchLoading}
                         error={errors.batchNumber}
