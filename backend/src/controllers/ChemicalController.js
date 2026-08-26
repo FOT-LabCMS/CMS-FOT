@@ -1010,6 +1010,143 @@ const downloadSds = async (req, res) => {
   }
 };
 
+const resolveScanCode = async (req, res) => {
+  try {
+    let rawQuery = req.query.query || req.params.code || req.query.code;
+    if (!rawQuery || typeof rawQuery !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'A search query or QR code content is required.',
+      });
+    }
+
+    rawQuery = rawQuery.trim();
+
+    // 1. Check if the scanned value is a URL and extract ID/path
+    let extractedId = null;
+    const batchUrlMatch = rawQuery.match(/\/stock\/batches\/([0-9a-fA-F-]{36}|[^\/\?\#]+)/);
+    const chemicalUrlMatch = rawQuery.match(/\/chemicals\/([0-9a-fA-F-]{36}|[^\/\?\#]+)/);
+
+    if (batchUrlMatch) {
+      extractedId = batchUrlMatch[1];
+    } else if (chemicalUrlMatch) {
+      extractedId = chemicalUrlMatch[1];
+    }
+
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const targetId = extractedId || rawQuery;
+
+    // 2. If UUID, check Batch by PK, then Chemical by PK
+    if (uuidRegex.test(targetId)) {
+      const batch = await Batch.findByPk(targetId, {
+        include: [{ model: Chemical, as: 'chemical' }, { model: Location, as: 'location' }],
+      });
+      if (batch && batch.chemical) {
+        return res.status(200).json({
+          success: true,
+          matchType: 'BATCH_ID',
+          chemicalId: batch.chemicalId,
+          batchId: batch.id,
+          batch,
+          chemical: batch.chemical,
+        });
+      }
+
+      const chemical = await Chemical.findByPk(targetId);
+      if (chemical) {
+        return res.status(200).json({
+          success: true,
+          matchType: 'CHEMICAL_ID',
+          chemicalId: chemical.id,
+          batchId: null,
+          chemical,
+        });
+      }
+    }
+
+    // 3. Try matching Batch by batchNumber
+    const batchByNumber = await Batch.findOne({
+      where: {
+        batchNumber: { [Op.iLike]: targetId },
+      },
+      include: [{ model: Chemical, as: 'chemical' }, { model: Location, as: 'location' }],
+    });
+
+    if (batchByNumber && batchByNumber.chemical) {
+      return res.status(200).json({
+        success: true,
+        matchType: 'BATCH_NUMBER',
+        chemicalId: batchByNumber.chemicalId,
+        batchId: batchByNumber.id,
+        batch: batchByNumber,
+        chemical: batchByNumber.chemical,
+      });
+    }
+
+    // 4. Try matching Chemical by chemicalCode (e.g. CHE-000001)
+    const chemicalByCode = await Chemical.findOne({
+      where: {
+        chemicalCode: { [Op.iLike]: targetId },
+      },
+    });
+
+    if (chemicalByCode) {
+      return res.status(200).json({
+        success: true,
+        matchType: 'CHEMICAL_CODE',
+        chemicalId: chemicalByCode.id,
+        batchId: null,
+        chemical: chemicalByCode,
+      });
+    }
+
+    // 5. Try matching Chemical by binCardNumber (e.g. BST001)
+    const chemicalByBin = await Chemical.findOne({
+      where: {
+        binCardNumber: { [Op.iLike]: targetId.toUpperCase() },
+      },
+    });
+
+    if (chemicalByBin) {
+      return res.status(200).json({
+        success: true,
+        matchType: 'BIN_CARD_NUMBER',
+        chemicalId: chemicalByBin.id,
+        batchId: null,
+        chemical: chemicalByBin,
+      });
+    }
+
+    // 6. Try matching Chemical by canonicalName
+    const chemicalByName = await Chemical.findOne({
+      where: {
+        canonicalName: { [Op.iLike]: `%${targetId}%` },
+      },
+    });
+
+    if (chemicalByName) {
+      return res.status(200).json({
+        success: true,
+        matchType: 'CHEMICAL_NAME',
+        chemicalId: chemicalByName.id,
+        batchId: null,
+        chemical: chemicalByName,
+      });
+    }
+
+    return res.status(404).json({
+      success: false,
+      message: `No chemical or batch found matching "${rawQuery}".`,
+    });
+  } catch (error) {
+    console.error('Error resolving scan code:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while resolving code.',
+    });
+  }
+};
+
 module.exports = {
   addChemical,
   getNextChemicalCode,
@@ -1024,4 +1161,5 @@ module.exports = {
   getPublicChemicals,
   getChemicalStats,
   downloadSds,
+  resolveScanCode,
 };

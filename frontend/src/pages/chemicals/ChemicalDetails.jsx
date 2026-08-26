@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { differenceInCalendarDays, differenceInYears, format, parseISO, startOfDay } from 'date-fns';
 import {
   AlertCircle,
@@ -156,7 +156,7 @@ const getStatusChipClass = (tone) => {
   return "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]";
 };
 
-const BatchList = ({ batches, baseUnit, isAuthenticated }) => {
+const BatchList = ({ batches, baseUnit, isAuthenticated, highlightedBatchId }) => {
   if (!batches || batches.length === 0) {
     return (
       <div className="py-8 text-center text-sm text-[var(--color-text-muted)]">
@@ -176,6 +176,7 @@ const BatchList = ({ batches, baseUnit, isAuthenticated }) => {
       }`}
     >
       {batches.map(batch => {
+        const isHighlighted = highlightedBatchId && String(batch.id) === String(highlightedBatchId);
         const statusItems = getBatchStatus({ ...batch, baseUnit });
         const currentQuantity = Number(batch.currentQuantity || 0);
         const thresholdQuantity = Number(batch.lowStockThresholdQuantity);
@@ -183,11 +184,22 @@ const BatchList = ({ batches, baseUnit, isAuthenticated }) => {
         return (
           <div
             key={batch.id}
-            className={`rounded-[var(--radius-md)] border p-3 shadow-[var(--shadow-sm)] ${getBatchCardClass(statusItems)}`}
+            className={`rounded-[var(--radius-md)] border p-3 shadow-[var(--shadow-sm)] transition-all ${
+              isHighlighted
+                ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/40 bg-[var(--color-primary-tint)]/15"
+                : getBatchCardClass(statusItems)
+            }`}
           >
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-sm font-bold text-[var(--color-text-primary)]">Batch Number: {batch.batchNumber}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-[var(--color-text-primary)]">Batch Number: {batch.batchNumber}</p>
+                  {isHighlighted && (
+                    <span className="inline-flex items-center rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider animate-pulse">
+                      Scanned Batch
+                    </span>
+                  )}
+                </div>
                 {isAuthenticated && (
                   <p className="text-xs text-[var(--color-text-secondary)]">Received: {formatDisplayDate(batch.receivedDate)}</p>
                 )}
@@ -260,6 +272,9 @@ const BatchList = ({ batches, baseUnit, isAuthenticated }) => {
 const ChemicalDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const highlightedBatchId = location.state?.highlightedBatchId || searchParams.get("batchId");
   const [chemical, setChemical] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -543,7 +558,12 @@ const ChemicalDetails = () => {
                     )}
                   </header>
                   <div className="p-4 sm:p-5">
-                    <BatchList batches={chemical.batches} baseUnit={chemical.baseUnit} isAuthenticated={isAuthenticated} />
+                    <BatchList
+                      batches={chemical.batches}
+                      baseUnit={chemical.baseUnit}
+                      isAuthenticated={isAuthenticated}
+                      highlightedBatchId={highlightedBatchId}
+                    />
                   </div>
                 </section>
                 )}

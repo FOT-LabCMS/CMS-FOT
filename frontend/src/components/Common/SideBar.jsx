@@ -23,6 +23,8 @@ import {
   Pencil,
   PanelLeftClose,
   PanelLeftOpen,
+  QrCode,
+  Scan,
 } from "lucide-react";
 
 const ROLE_LABELS = {
@@ -38,6 +40,12 @@ const MAIN_MENU_ITEMS = [
     path: "/dashboard",
     icon: LayoutDashboard,
     roles: ["ADMIN", "TECHNICAL_OFFICER"],
+  },
+  {
+    label: "QR Scanner",
+    path: "/scan",
+    icon: QrCode,
+    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
   },
   {
     label: "Alerts & Notifications",

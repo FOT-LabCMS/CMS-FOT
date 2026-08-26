@@ -52,8 +52,20 @@ const QrCodeModal = ({ batch, onClose }) => {
     if (!printContent) return;
 
     const printWindow = window.open('', '', 'height=600,width=800');
-    printWindow.document.write('<html><head><title>Print QR Code</title>');
-    printWindow.document.write('<style>body { text-align: center; padding: 20px; font-family: sans-serif; } h1 { font-size: 16px; margin: 0 0 5px 0; } p { font-size: 12px; margin: 0 0 15px 0; } svg { width: 150px; height: 150px; }</style>');
+    printWindow.document.write('<html><head><title>Print QR Label</title>');
+    printWindow.document.write(`
+      <style>
+        body { 
+          text-align: center; 
+          padding: 15px; 
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          margin: 0;
+        } 
+        h1 { font-size: 15px; margin: 0 0 4px 0; color: #111827; } 
+        p { font-size: 11px; margin: 0 0 6px 0; color: #4b5563; } 
+        svg { width: 160px; height: 160px; margin: 0 auto; }
+      </style>
+    `);
     printWindow.document.write('</head><body>');
     printWindow.document.write(printContent);
     printWindow.document.write('</body></html>');
@@ -79,29 +91,16 @@ const QrCodeModal = ({ batch, onClose }) => {
       });
 
       const imgData = canvas.toDataURL('image/png');
-      
-      const pdfWidth = 57;
-      const pdfHeight = 32;
+      const pdfWidth = 60;
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: pdfHeight > pdfWidth ? 'portrait' : 'landscape',
         unit: 'mm',
-        format: [pdfWidth, pdfHeight]
+        format: [pdfWidth, pdfHeight],
       });
 
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfAspectRatio = pdfWidth / pdfHeight;
-      const imgAspectRatio = imgProps.width / imgProps.height;
-
-      let finalImgWidth = pdfWidth;
-      let finalImgHeight = pdfWidth / imgAspectRatio;
-      if (finalImgHeight > pdfHeight) {
-        finalImgHeight = pdfHeight;
-        finalImgWidth = finalImgHeight * imgAspectRatio;
-      }
-      const x = (pdfWidth - finalImgWidth) / 2;
-      const y = (pdfHeight - finalImgHeight) / 2;
-
-      pdf.addImage(imgData, 'PNG', x, y, finalImgWidth, finalImgHeight);
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`QR-Label-${batch.chemical?.chemicalCode || 'CHEM'}-${batch.batchNumber}.pdf`);
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -116,10 +115,33 @@ const QrCodeModal = ({ batch, onClose }) => {
         <button onClick={onClose} className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]">
           <X size={20} />
         </button>
-        <div id="qr-print-area-modal" className="flex flex-col items-center rounded-md bg-white p-4">
-          <h1 className="text-lg font-bold text-[var(--color-text-primary)]">{batch.chemical?.canonicalName}</h1>
-          <p className="mb-4 text-sm text-[var(--color-text-secondary)]">Batch Number: {batch.batchNumber}</p>
-          <QRCodeSVG value={qrValue} size={200} includeMargin={true} />
+        <div id="qr-print-area-modal" className="flex flex-col items-center rounded-md bg-white p-5 text-center">
+          <h1 className="text-base font-bold text-gray-900 leading-snug">{batch.chemical?.canonicalName}</h1>
+          <p className="mt-0.5 text-xs font-medium text-gray-500">
+            {batch.chemical?.chemicalCode ? `Chemical Code: ${batch.chemical.chemicalCode}` : ''}
+          </p>
+
+          <div className="my-3">
+            <QRCodeSVG value={qrValue} size={175} includeMargin={true} />
+          </div>
+
+          {/* QR Representation Code & Details (Rendered below QR on screen, print, and PDF) */}
+          <div className="mt-1 flex flex-col items-center gap-1.5 w-full">
+            <div className="inline-flex items-center justify-center gap-1.5 rounded bg-gray-100 px-3 py-1.5 font-mono text-sm font-extrabold text-gray-900 border border-gray-300 shadow-sm">
+              <span className="text-gray-500 font-semibold text-xs">BATCH NO:</span>
+              <span className="text-[var(--color-primary)]">{batch.batchNumber}</span>
+            </div>
+
+            {batch.chemical?.binCardNumber && (
+              <p className="text-xs font-mono font-semibold text-gray-700">
+                Bin Card No: {batch.chemical.binCardNumber}
+              </p>
+            )}
+
+            <p className="text-[10px] font-mono text-gray-400 break-all max-w-[220px]">
+              ID: {batch.id}
+            </p>
+          </div>
         </div>
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button onClick={handlePrint} className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] color-transition hover:bg-[var(--color-surface-muted)]">
