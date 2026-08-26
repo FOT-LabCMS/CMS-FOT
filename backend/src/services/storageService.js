@@ -88,6 +88,56 @@ const deleteSdsFile = async (storageKey) => {
   return false;
 };
 
+/**
+ * Get the Chemical Images subfolder path and ensure it exists on disk.
+ */
+const getImageUploadDir = () => {
+  const imgDir = path.join(getUploadsRoot(), 'images');
+  if (!fs.existsSync(imgDir)) {
+    fs.mkdirSync(imgDir, { recursive: true });
+  }
+  return imgDir;
+};
+
+/**
+ * Safely resolve an image storage path within the images directory.
+ */
+const resolveImageFilePath = (storageKeyOrUrl) => {
+  if (!storageKeyOrUrl || typeof storageKeyOrUrl !== 'string') {
+    return null;
+  }
+  const safeFilename = path.basename(storageKeyOrUrl.trim());
+  if (!safeFilename) {
+    return null;
+  }
+
+  const imgDir = getImageUploadDir();
+  const resolvedPath = path.resolve(imgDir, safeFilename);
+
+  const normalizedImgDir = path.resolve(imgDir);
+  if (!resolvedPath.startsWith(normalizedImgDir + path.sep) && resolvedPath !== normalizedImgDir) {
+    throw new Error('Security Error: Path traversal attempt detected.');
+  }
+
+  return resolvedPath;
+};
+
+/**
+ * Safely remove an image file from disk.
+ */
+const deleteImageFile = async (storageKeyOrUrl) => {
+  try {
+    const filePath = resolveImageFilePath(storageKeyOrUrl);
+    if (filePath && fs.existsSync(filePath)) {
+      await fsPromises.unlink(filePath);
+      return true;
+    }
+  } catch (err) {
+    console.warn(`[storageService] Warning: Failed to delete image file "${storageKeyOrUrl}":`, err.message);
+  }
+  return false;
+};
+
 module.exports = {
   getUploadsRoot,
   getSdsUploadDir,
@@ -95,5 +145,9 @@ module.exports = {
   sdsFileExists,
   calculateFileChecksum,
   deleteSdsFile,
+  getImageUploadDir,
+  resolveImageFilePath,
+  deleteImageFile,
 };
+
 

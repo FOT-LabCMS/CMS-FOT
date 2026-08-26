@@ -27,6 +27,7 @@ const {
 const {
   getUploadsRoot,
   getSdsUploadDir,
+  getImageUploadDir,
 } = require("./services/storageService.js");
 
 const app = express();
@@ -68,6 +69,7 @@ app.use(express.json());
 
 // Ensure upload directories exist on server startup
 getSdsUploadDir();
+getImageUploadDir();
 
 // Serve uploaded files statically from configurable persistent storage root
 app.use("/uploads", express.static(getUploadsRoot()));

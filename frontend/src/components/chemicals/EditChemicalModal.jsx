@@ -6,6 +6,7 @@ import {
   ChevronDown,
   FileText,
   FlaskConical,
+  Image as ImageIcon,
   Info,
   Loader2,
   Paperclip,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 
 import api from "../../api/axiosInstance";
+import { getChemicalImageUrl } from "../../utils/chemicalImage";
 
 const STOCK_DIMENSION_OPTIONS = [
   {
@@ -152,6 +154,7 @@ const EditChemicalModal = ({
   const [formData, setFormData] = useState({
     chemicalCode: "",
     canonicalName: "",
+    binCardNumber: "",
     stockDimension: "VOLUME",
     baseUnit: "mL",
     casNumber: "",
@@ -162,6 +165,7 @@ const EditChemicalModal = ({
     densityValue: "",
     densityUnit: "g/cm³",
     safetySummary: "",
+    remarks: "",
     sdsRevisionDate: "",
   });
 
@@ -169,6 +173,10 @@ const EditChemicalModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState(null);
   const [sdsFile, setSdsFile] = useState(null);
+  const [existingImageUrl, setExistingImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [removeImage, setRemoveImage] = useState(false);
 
   useEffect(() => {
     if (!chemical) return;
@@ -176,6 +184,7 @@ const EditChemicalModal = ({
     setFormData({
       chemicalCode: chemical.chemicalCode || "",
       canonicalName: chemical.canonicalName || "",
+      binCardNumber: chemical.binCardNumber || "",
       stockDimension:
         chemical.stockDimension || "VOLUME",
       baseUnit: chemical.baseUnit || "mL",
@@ -195,10 +204,16 @@ const EditChemicalModal = ({
         chemical.densityUnit || "g/cm³",
       safetySummary:
         chemical.safetySummary || "",
+      remarks:
+        chemical.remarks || "",
       sdsRevisionDate:
         chemical.sdsRevisionDate || "",
     });
 
+    setExistingImageUrl(chemical.imageUrl || "");
+    setImageFile(null);
+    setImagePreview(null);
+    setRemoveImage(false);
     setErrors({});
     setSubmitMessage(null);
     setSdsFile(null);
@@ -361,12 +376,67 @@ const EditChemicalModal = ({
     }));
   };
 
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+      "image/svg+xml",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setErrors((previous) => ({
+        ...previous,
+        imageFile: "Invalid image format. Allowed formats: JPG, PNG, WEBP, GIF, SVG.",
+      }));
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors((previous) => ({
+        ...previous,
+        imageFile: "Image file size must not exceed 10 MB.",
+      }));
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setRemoveImage(false);
+    setErrors((previous) => ({ ...previous, imageFile: "" }));
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+      setImagePreview(null);
+    }
+    setExistingImageUrl("");
+    setRemoveImage(true);
+  };
+
   const validateForm = () => {
     const nextErrors = {};
 
     if (!formData.canonicalName.trim()) {
       nextErrors.canonicalName =
         "Canonical chemical name is required.";
+    }
+
+    const BIN_CARD_NUMBER_REGEX = /^BST\d{3}$/;
+
+    if (!formData.binCardNumber.trim()) {
+      nextErrors.binCardNumber = "Bin Card Number is required.";
+    } else if (
+      !BIN_CARD_NUMBER_REGEX.test(formData.binCardNumber.trim().toUpperCase())
+    ) {
+      nextErrors.binCardNumber =
+        "Bin Card Number must follow the format BST followed by exactly 3 digits (e.g. BST001).";
     }
 
     if (!formData.stockDimension) {
@@ -403,41 +473,34 @@ const EditChemicalModal = ({
   const buildPayload = () => ({
     canonicalName:
       formData.canonicalName.trim(),
-
+    binCardNumber:
+      formData.binCardNumber.trim().toUpperCase(),
     stockDimension:
       formData.stockDimension,
-
     baseUnit: formData.baseUnit.trim(),
-
     casNumber:
       formData.casNumber.trim() || null,
-
     formula:
       formData.formula.trim() || null,
-
     physicalState:
       formData.physicalState || null,
-
     hazardCategory:
       formData.hazardCategory || "NONE",
-
     synonyms: formData.synonyms
       .map((synonym) => synonym.trim())
       .filter(Boolean),
-
     densityValue:
       formData.densityValue === ""
         ? null
         : Number(formData.densityValue),
-
     densityUnit:
       formData.densityValue === ""
         ? null
         : formData.densityUnit.trim(),
-
     safetySummary:
       formData.safetySummary.trim() || null,
-
+    remarks:
+      formData.remarks.trim() || null,
     sdsRevisionDate:
       formData.sdsRevisionDate || null,
   });
@@ -462,7 +525,7 @@ const EditChemicalModal = ({
       let requestBody = payload;
       let requestConfig = {};
 
-      if (sdsFile) {
+      if (sdsFile || imageFile || removeImage) {
         const multipartData = new FormData();
 
         Object.entries(payload).forEach(
@@ -485,7 +548,15 @@ const EditChemicalModal = ({
           }
         );
 
-        multipartData.append("sdsFile", sdsFile);
+        if (sdsFile) {
+          multipartData.append("sdsFile", sdsFile);
+        }
+        if (imageFile) {
+          multipartData.append("imageFile", imageFile);
+        }
+        if (removeImage) {
+          multipartData.append("removeImage", "true");
+        }
 
         requestBody = multipartData;
 
@@ -732,6 +803,38 @@ const EditChemicalModal = ({
                   </div>
 
                   <div>
+                    <InputLabel
+                      htmlFor="binCardNumber"
+                      required
+                      description="The unique bin card identifier in BST### format (e.g. BST001)."
+                    >
+                      Bin Card Number
+                    </InputLabel>
+
+                    <input
+                      id="binCardNumber"
+                      name="binCardNumber"
+                      type="text"
+                      value={formData.binCardNumber}
+                      onChange={handleChange}
+                      placeholder="e.g. BST001"
+                      maxLength={6}
+                      className={`
+                        ${commonInputClass}
+                        ${
+                          errors.binCardNumber
+                            ? "border-[var(--color-danger)]"
+                            : ""
+                        }
+                      `}
+                    />
+
+                    <ErrorMessage
+                      message={errors.binCardNumber}
+                    />
+                  </div>
+
+                  <div>
                     <InputLabel htmlFor="casNumber">
                       CAS number
                     </InputLabel>
@@ -884,6 +987,106 @@ const EditChemicalModal = ({
                     Add synonym
                   </button>
                 </div>
+              </section>
+
+              {/* Image */}
+              <section
+                className="
+                  rounded-[var(--radius-lg)]
+                  border border-[var(--color-border)]
+                  bg-[var(--color-surface)]
+                  p-4 shadow-[var(--shadow-sm)]
+                  sm:p-5
+                "
+              >
+                <SectionTitle
+                  icon={ImageIcon}
+                  title="Image"
+                  description="Upload, change, or remove the photo / illustration of this chemical bottle."
+                />
+
+                {!imagePreview && !existingImageUrl ? (
+                  <label
+                    htmlFor="editImageFileInput"
+                    className={`
+                      flex flex-col items-center justify-center gap-3
+                      rounded-[var(--radius-lg)] border-2 border-dashed
+                      p-6 text-center cursor-pointer color-transition
+                      ${
+                        errors.imageFile
+                          ? "border-[var(--color-danger)] bg-red-500/5"
+                          : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
+                      }
+                    `}
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
+                      <UploadCloud size={24} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                        Click or drag & drop to upload a new bottle image
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                        Supports PNG, JPG, JPEG, WEBP, GIF, SVG up to 10 MB
+                      </p>
+                    </div>
+                    <input
+                      id="editImageFileInput"
+                      name="imageFile"
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+                      onChange={handleImageChange}
+                      className="sr-only"
+                    />
+                  </label>
+                ) : (
+                  <div className="flex flex-col sm:flex-row items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
+                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-black/5">
+                      <img
+                        src={imagePreview || getChemicalImageUrl(existingImageUrl)}
+                        alt="Chemical bottle preview"
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 text-center sm:text-left">
+                      <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">
+                        {imageFile?.name || (existingImageUrl ? "Current image" : "Selected Image")}
+                      </p>
+                      <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                        {imageFile ? `${(imageFile.size / 1024 / 1024).toFixed(2)} MB` : "Attached image"}
+                      </p>
+                      <div className="mt-2 flex items-center justify-center sm:justify-start gap-2">
+                        <label
+                          htmlFor="editImageFileInput"
+                          className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)] cursor-pointer color-transition"
+                        >
+                          Change Image
+                          <input
+                            id="editImageFileInput"
+                            name="imageFile"
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+                            onChange={handleImageChange}
+                            className="sr-only"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 color-transition"
+                        >
+                          <Trash2 size={13} />
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <ErrorMessage message={errors.imageFile} />
               </section>
 
               {/* Stock measurement */}
@@ -1150,6 +1353,25 @@ const EditChemicalModal = ({
                     value={formData.safetySummary}
                     onChange={handleChange}
                     placeholder="Enter the main safety warnings and handling precautions."
+                    className={`${commonInputClass} resize-y leading-6`}
+                  />
+                </div>
+
+                <div className="mt-5">
+                  <InputLabel
+                    htmlFor="remarks"
+                    description="Special notes, storage conditions, or confidential remarks (Staff only: Admin & Technical Officers)."
+                  >
+                    Remarks / Special Notes
+                  </InputLabel>
+
+                  <textarea
+                    id="remarks"
+                    name="remarks"
+                    rows={4}
+                    value={formData.remarks}
+                    onChange={handleChange}
+                    placeholder="Enter special instructions or internal remarks..."
                     className={`${commonInputClass} resize-y leading-6`}
                   />
                 </div>

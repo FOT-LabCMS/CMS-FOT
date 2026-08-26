@@ -2,6 +2,7 @@ import React from 'react';
 import { Beaker, FileText, MoreHorizontal, Pencil, Eye, Undo2, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getChemicalImageUrl } from '../../utils/chemicalImage';
 
 const PHYSICAL_STATE_BADGE = {
   LIQUID: 'bg-blue-100 text-blue-800 border-blue-300',
@@ -18,6 +19,8 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
     id,
     chemicalCode,
     canonicalName,
+    binCardNumber,
+    imageUrl,
     formula,
     physicalState,
     stockDimension,
@@ -25,6 +28,8 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
     sdsStorageKey,
     totalStock,
   } = chemical;
+
+  const resolvedImageUrl = getChemicalImageUrl(imageUrl);
 
   return (
     <div
@@ -36,15 +41,26 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
     >
       {/* Card Header */}
       <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
-            <Beaker size={20} />
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-md)] bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
+            {resolvedImageUrl ? (
+              <img
+                src={resolvedImageUrl}
+                alt={canonicalName}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              <Beaker size={20} />
+            )}
           </div>
-          <div>
-            <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-bold text-[var(--color-text-primary)] truncate">
               {canonicalName}
             </h3>
-            <p className="text-xs font-semibold text-[var(--color-accent-dark)]">
+            <p className="text-xs font-semibold text-[var(--color-accent-dark)] truncate">
               {chemicalCode}
             </p>
           </div>
@@ -52,7 +68,7 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
         <button
           type="button"
           aria-label="More options"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-text-muted)] color-transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] color-transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]"
         >
           <MoreHorizontal size={18} />
         </button>
@@ -61,6 +77,14 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
       {/* Card Body */}
       <div className="flex-1 p-4">
         <dl className="space-y-3 text-sm">
+          {binCardNumber && (
+            <div className="flex justify-between">
+              <dt className="text-[var(--color-text-secondary)]">Batch Number</dt>
+              <dd className="font-semibold text-[var(--color-primary)]">
+                {binCardNumber}
+              </dd>
+            </div>
+          )}
           <div className="flex justify-between">
             <dt className="text-[var(--color-text-secondary)]">Formula</dt>
             <dd className="font-medium text-[var(--color-text-primary)]">

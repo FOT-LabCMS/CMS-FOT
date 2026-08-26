@@ -22,12 +22,16 @@ import {
   TrendingDown,
   ChevronRight as ChevronRightIcon,
   Plus,
+  Image as ImageIcon,
+  X,
+  ZoomIn,
 } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import EditChemicalModal from '../../components/chemicals/EditChemicalModal';
 import DeleteConfirmationModal from '../../components/Common/DeleteConfirmationModal';
 import { useAuth } from '../../context/AuthContext';
 import { getSdsFilename, getSdsUrl, downloadSdsFile } from '../../utils/sds';
+import { getChemicalImageUrl } from '../../utils/chemicalImage';
 
 const DetailItem = ({ label, value, children }) => {
   if (!value && !children) {
@@ -263,7 +267,19 @@ const ChemicalDetails = () => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleteProcessing, setIsDeleteProcessing] = useState(false);
   const [isDownloadingSds, setIsDownloadingSds] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const { user, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (!isImageModalOpen) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setIsImageModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isImageModalOpen]);
 
   useEffect(() => {
     const fetchChemical = async () => {
@@ -363,8 +379,8 @@ const ChemicalDetails = () => {
                     Back
                   </button>
 
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="max-w-3xl">
+                  <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="max-w-2xl">
                       <div className="mb-3 flex items-center gap-2">
                         <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-accent-light)]">
                           <FlaskConical size={14} />
@@ -379,34 +395,68 @@ const ChemicalDetails = () => {
                         <strong className="font-bold text-[var(--color-accent-light)]">{chemical.chemicalCode}</strong>
                       </p>
                     </div>
-                    {isAuthenticated && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER') && (
-                      <div className="flex shrink-0 items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setIsConfirmingDelete(true)}
-                          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-[var(--color-danger)]/10 px-4 py-2.5 text-sm font-semibold text-[var(--color-danger)] color-transition hover:bg-[var(--color-danger)] hover:text-[var(--color-text-inverse)]"
+
+                    {/* Header Right: Chemical Bottle Image (Above) and Action Buttons (Below) */}
+                    <div className="flex flex-col items-center sm:items-end gap-3.5 shrink-0">
+                      {chemical.imageUrl && (
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setIsImageModalOpen(true)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              setIsImageModalOpen(true);
+                            }
+                          }}
+                          className="group relative h-28 w-28 sm:h-32 sm:w-32 cursor-pointer overflow-hidden rounded-[var(--radius-md)] border-2 border-white/25 bg-white/10 p-1 shadow-lg backdrop-blur-sm transition-all duration-300 hover:border-[var(--color-accent-light)] hover:scale-105 hover:shadow-xl"
+                          title="Click to view full chemical bottle image"
                         >
-                          <Trash2 size={16} />
-                          Delete
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIsEditing(true)}
-                          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] px-5 py-2.5 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
-                        >
-                          <Pencil size={16} />
-                          Edit Chemical
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => navigate('/stock/add', { state: { chemicalId: chemical.id } })}
-                          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-5 py-2.5 text-sm font-bold text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-primary-light)]"
-                        >
-                          <Plus size={16} />
-                          Add Batch
-                        </button>
-                      </div>
-                    )}
+                          <img
+                            src={getChemicalImageUrl(chemical.imageUrl)}
+                            alt={chemical.canonicalName}
+                            className="h-full w-full rounded-[calc(var(--radius-md)-4px)] object-cover"
+                            onError={(e) => {
+                              e.currentTarget.parentElement.style.display = "none";
+                            }}
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">
+                            <div className="flex items-center gap-1 rounded-full bg-black/75 px-2.5 py-1 text-[11px] font-bold text-white shadow">
+                              <Eye size={13} />
+                              Preview
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {isAuthenticated && (user.role === "ADMIN" || user.role === "TECHNICAL_OFFICER") && (
+                        <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setIsConfirmingDelete(true)}
+                            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-[var(--color-danger)]/10 px-3.5 py-2 text-sm font-semibold text-[var(--color-danger)] color-transition hover:bg-[var(--color-danger)] hover:text-[var(--color-text-inverse)]"
+                          >
+                            <Trash2 size={15} />
+                            Delete
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditing(true)}
+                            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] px-4 py-2 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
+                          >
+                            <Pencil size={15} />
+                            Edit Chemical
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigate("/stock/add", { state: { chemicalId: chemical.id } })}
+                            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-primary-light)]"
+                          >
+                            <Plus size={15} />
+                            Add Batch
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -423,6 +473,9 @@ const ChemicalDetails = () => {
                   <div className="px-4 sm:px-5">
                     <dl className="divide-y divide-[var(--color-border)]">
                       <DetailItem label="Canonical Name" value={chemical.canonicalName} />
+                      {isAuthenticated && (user?.role === "ADMIN" || user?.role === "TECHNICAL_OFFICER") && (
+                        <DetailItem label="Bin Card Number" value={chemical.binCardNumber} />
+                      )}
                       <DetailItem label="CAS Number" value={chemical.casNumber} />
                       <DetailItem label="Chemical Formula" value={chemical.formula} />
                       <DetailItem label="Synonyms">
@@ -453,6 +506,24 @@ const ChemicalDetails = () => {
                   </div>
                 </section>
 
+                {/* Special Remarks Section - Visible only to TECHNICAL_OFFICER and ADMIN */}
+                {isAuthenticated && (user?.role === "ADMIN" || user?.role === "TECHNICAL_OFFICER") && (
+                  <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+                    <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
+                      <FileText size={20} className="text-[var(--color-primary)]" />
+                      <div>
+                        <h2 className="text-base font-bold text-[var(--color-text-primary)]">Remarks / Special Notes</h2>
+                        <p className="text-xs text-[var(--color-text-muted)]">Confidential (Visible only to Admin & Technical Officers)</p>
+                      </div>
+                    </header>
+                    <div className="p-4 sm:p-5">
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                        {chemical.remarks || "No special remarks or internal notes recorded for this chemical."}
+                      </p>
+                    </div>
+                  </section>
+                )}
+
                 {isAuthenticated && (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER' || user.role === 'LECTURER') && (
                   <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
                   <header className="flex items-center justify-between border-b border-[var(--color-border)] p-4 sm:p-5">
@@ -479,6 +550,67 @@ const ChemicalDetails = () => {
               </div>
 
               <div className="space-y-6">
+                {/* Bin Card Number Section - Visible only to TECHNICAL_OFFICER and ADMIN */}
+                {isAuthenticated && (user?.role === "ADMIN" || user?.role === "TECHNICAL_OFFICER") && (
+                  <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-primary-light)]/40 bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+                    <header className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-primary-tint)]/40 p-4 sm:p-5">
+                      <Tag size={20} className="text-[var(--color-primary)]" />
+                      <div>
+                        <h2 className="text-base font-bold text-[var(--color-text-primary)]">Bin Card Information</h2>
+                        <p className="text-xs text-[var(--color-text-muted)]">Restricted to Technical Officers & Admin</p>
+                      </div>
+                    </header>
+                    <div className="p-4 sm:p-5">
+                      <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3.5">
+                        <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                          Bin Card Number
+                        </span>
+                        <span className="font-mono text-base font-extrabold text-[var(--color-primary)] tracking-wider">
+                          {chemical.binCardNumber || "N/A"}
+                        </span>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {chemical.imageUrl && (
+                  <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+                    <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
+                      <ImageIcon size={20} className="text-[var(--color-primary)]" />
+                      <h2 className="text-base font-bold text-[var(--color-text-primary)]">Bottle Image</h2>
+                    </header>
+                    <div className="p-4 sm:p-5 flex justify-center">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setIsImageModalOpen(true)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            setIsImageModalOpen(true);
+                          }
+                        }}
+                        className="group relative max-h-64 w-full cursor-pointer overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-black/5 flex items-center justify-center p-2 transition-all hover:border-[var(--color-primary)]"
+                        title="Click to view full image"
+                      >
+                        <img
+                          src={getChemicalImageUrl(chemical.imageUrl)}
+                          alt={chemical.canonicalName}
+                          className="max-h-60 max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                          onError={(e) => {
+                            e.currentTarget.parentElement.style.display = "none";
+                          }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                          <div className="flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-xs font-bold text-white shadow">
+                            <ZoomIn size={14} />
+                            Click to expand
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
                 <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
                   <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
                     <FlaskConical size={20} className="text-[var(--color-primary)]" />
@@ -600,6 +732,48 @@ const ChemicalDetails = () => {
         message={`Are you sure you want to deactivate "${chemical.canonicalName}"? This action will hide it from the main inventory list but will not remove historical data.`}
         confirmText="Yes, Deactivate"
       />
+      {/* Full-size Image Preview Modal */}
+      {isImageModalOpen && chemical?.imageUrl && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Chemical Bottle Image Preview"
+          onClick={() => setIsImageModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[var(--radius-lg)] border border-white/20 bg-[var(--color-surface)] shadow-2xl"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-2.5">
+                <ImageIcon size={18} className="text-[var(--color-primary)]" />
+                <h3 className="font-bold text-sm sm:text-base text-[var(--color-text-primary)] truncate">
+                  {chemical.canonicalName} ({chemical.chemicalCode})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsImageModalOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-danger)] transition-colors"
+                aria-label="Close preview"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body: Image */}
+            <div className="flex max-h-[75vh] items-center justify-center p-4 overflow-auto bg-black/5">
+              <img
+                src={getChemicalImageUrl(chemical.imageUrl)}
+                alt={chemical.canonicalName}
+                className="max-h-[70vh] w-auto max-w-full rounded-[var(--radius-md)] object-contain shadow-sm"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
