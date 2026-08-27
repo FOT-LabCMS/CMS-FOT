@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Html5Qrcode } from "html5-qrcode";
 import {
@@ -8,16 +8,10 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  ExternalLink,
   QrCode,
-  Sparkles,
-  RefreshCw,
   Upload,
   ArrowRight,
   FlaskConical,
-  Boxes,
-  MapPin,
-  Tag,
   Hash,
   X,
   FlipHorizontal,

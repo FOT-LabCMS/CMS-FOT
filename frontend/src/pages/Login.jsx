@@ -189,7 +189,7 @@ const Login = () => {
           {/* Logo */}
           <div className="w-28 h-32 shrink-0 mb-6 flex items-center justify-center drop-shadow-[0_0_15px_rgba(212,175,55,0.2)]">
             <img
-              src="../public/faculty_logo.png"
+              src="/faculty_logo.png"
               alt="Faculty of Technology logo"
               className="w-full h-full object-contain"
             />
@@ -247,7 +247,7 @@ const Login = () => {
         {/* Mobile Header (Only visible on small screens) */}
         <div className="lg:hidden flex flex-col items-center mb-10">
            <img
-              src="../public/faculty_logo.png"
+              src="/faculty_logo.png"
               alt="Logo"
               className="w-16 h-16 object-contain mb-4"
             />
@@ -357,7 +357,7 @@ const Login = () => {
             Powered by Department of Bio Systems Technology
           </p>
           <div className="w-8 h-8 rounded-full border border-gray-200 p-1 bg-white flex items-center justify-center opacity-60">
-             <img src="../public/faculty_logo.png" alt="University Logo" className="w-full h-full object-contain" />
+             <img src="/faculty_logo.png" alt="University Logo" className="w-full h-full object-contain" />
           </div>
         </div>
 
