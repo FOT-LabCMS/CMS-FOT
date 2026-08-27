@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Truck, Plus, Loader2, ServerCrash, Search, Pencil, QrCode, X, Printer, Download, Save, AlertTriangle, Box, Calendar, MapPin, ChevronDown } from 'lucide-react';
+import { Truck, Plus, Loader2, ServerCrash, Search, Pencil, QrCode, X, Printer, Download, Save, AlertTriangle, Box, Calendar, MapPin, ChevronDown, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../../api/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
@@ -9,9 +9,14 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 const getStatus = (batch) => {
-  const { expiryDate, currentQuantity, lowStockThresholdQuantity } = batch;
+  const { expiryDate, currentQuantity, lowStockThresholdQuantity, isDisposed } = batch;
   const currentQty = Number(currentQuantity);
   const thresholdQty = Number(lowStockThresholdQuantity);
+
+  // Disposed batches get their own distinct badge
+  if (isDisposed) {
+    return { text: 'Disposed', color: 'bg-purple-100 text-purple-800' };
+  }
 
   if (currentQty <= 0) {
     return { text: 'Out of Stock', color: 'bg-zinc-200 text-zinc-800' };

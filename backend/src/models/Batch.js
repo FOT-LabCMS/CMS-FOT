@@ -51,6 +51,22 @@ module.exports = function BatchModel(sequelize) {
         field: "received_date",
       },
       supplier: { type: DataTypes.STRING(255), allowNull: true },
+      isDisposed: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: "is_disposed",
+      },
+      disposalRemark: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: "disposal_remark",
+      },
+      disposedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "disposed_at",
+      },
     },
     { tableName: "batches", timestamps: true, underscored: true },
   );
