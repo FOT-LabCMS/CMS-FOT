@@ -446,11 +446,82 @@ const getBatchStats = async (req, res) => {
   }
 };
 
+const disposeBatch = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { remark } = req.body;
+
+    if (!remark || !remark.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'A disposal remark is required before disposing an expired batch.',
+      });
+    }
+
+    const batch = await Batch.findByPk(id, {
+      include: [
+        { model: Chemical, as: 'chemical', attributes: ['canonicalName', 'chemicalCode', 'baseUnit'] },
+        { model: Location, as: 'location', attributes: ['name'] },
+      ],
+    });
+
+    if (!batch) {
+      return res.status(404).json({ success: false, message: 'Batch not found.' });
+    }
+
+    if (batch.isDisposed) {
+      return res.status(400).json({ success: false, message: 'This batch has already been disposed.' });
+    }
+
+    // Verify the batch is actually expired
+    if (!batch.expiryDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only batches with an expiry date can be disposed this way.',
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(batch.expiryDate);
+
+    if (expiry >= today) {
+      return res.status(400).json({
+        success: false,
+        message: 'This batch is not yet expired and cannot be disposed.',
+      });
+    }
+
+    await batch.update({
+      isDisposed: true,
+      disposalRemark: remark.trim(),
+      disposedAt: new Date(),
+    });
+
+    const updatedBatch = await Batch.findByPk(id, {
+      include: [
+        { model: Chemical, as: 'chemical', attributes: ['canonicalName', 'chemicalCode', 'baseUnit'] },
+        { model: Location, as: 'location', attributes: ['name'] },
+      ],
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Batch has been successfully marked as disposed.',
+      batch: updatedBatch,
+    });
+  } catch (error) {
+    console.error(`Error disposing batch with ID ${req.params.id}:`, error);
+    res.status(500).json({ success: false, message: 'Internal server error while disposing the batch.' });
+  }
+};
+
 module.exports = {
   addBatch,
   getAllBatches,
   getBatchById,
   updateBatch,
+  disposeBatch,
   checkExpiryNotifications,
   checkLowStockNotifications,
   getBatchStats,

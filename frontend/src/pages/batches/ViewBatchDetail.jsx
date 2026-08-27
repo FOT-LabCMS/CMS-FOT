@@ -19,6 +19,9 @@ import {
   User,
   Hash,
   AlertTriangle,
+  Trash2,
+  CheckCircle2,
+  FileText,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../../api/axiosInstance';
@@ -107,6 +110,35 @@ const ViewBatchDetail = () => {
   const canViewQrCode =
     user &&
     (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER');
+  const canDisposeBatch = canViewQrCode;
+
+  const [disposalRemark, setDisposalRemark] = useState('');
+  const [isDisposing, setIsDisposing] = useState(false);
+  const [disposeError, setDisposeError] = useState('');
+  const [disposeSuccess, setDisposeSuccess] = useState(false);
+
+  const handleDispose = async () => {
+    if (!disposalRemark.trim()) {
+      setDisposeError('Please enter a disposal remark before disposing.');
+      return;
+    }
+    setIsDisposing(true);
+    setDisposeError('');
+    setDisposeSuccess(false);
+    try {
+      const response = await api.post(`/batches/${id}/dispose`, { remark: disposalRemark });
+      if (response.data?.success) {
+        setDisposeSuccess(true);
+        setBatch(response.data.batch);
+      } else {
+        throw new Error(response.data?.message || 'Failed to dispose batch.');
+      }
+    } catch (err) {
+      setDisposeError(err.response?.data?.message || err.message || 'Failed to dispose batch.');
+    } finally {
+      setIsDisposing(false);
+    }
+  };
 
   const handlePrint = () => {
     const printContent = document.getElementById('qr-print-area')?.innerHTML;
@@ -256,6 +288,11 @@ const ViewBatchDetail = () => {
   if (!batch) return null;
 
   const status = getStatus(batch.expiryDate);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isExpired = batch.expiryDate && new Date(batch.expiryDate) < today;
+  const isDisposed = batch.isDisposed;
   const usageRecords = batch.usages || [];
   const totalUsed = usageRecords.reduce(
     (sum, usage) => sum + Number(usage.quantityUsed || 0),
@@ -622,7 +659,102 @@ const ViewBatchDetail = () => {
                 </section>
               )}
 
-              
+
+              {/* Dispose Expired Batch section */}
+              {canDisposeBatch && isExpired && (
+                <section className="overflow-hidden rounded-[var(--radius-lg)] border border-red-300 bg-red-50 shadow-[var(--shadow-sm)]">
+                  <header className="flex items-center gap-3 border-b border-red-200 bg-red-100 p-4 sm:p-5">
+                    <Trash2 size={20} className="text-red-700" />
+                    <h2 className="text-base font-bold text-red-800">
+                      {isDisposed ? 'Batch Disposed' : 'Dispose Expired Batch'}
+                    </h2>
+                  </header>
+
+                  <div className="p-4 sm:p-5">
+                    {isDisposed ? (
+                      // Already disposed – show read-only info
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle2 size={18} className="shrink-0" />
+                          <p className="text-sm font-semibold">This batch has been disposed.</p>
+                        </div>
+                        {batch.disposedAt && (
+                          <p className="text-xs text-[var(--color-text-secondary)]">
+                            <span className="font-semibold">Disposed on:</span>{' '}
+                            {format(new Date(batch.disposedAt), 'MMMM dd, yyyy p')}
+                          </p>
+                        )}
+                        {batch.disposalRemark && (
+                          <div className="rounded-[var(--radius-md)] border border-red-200 bg-white p-3">
+                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-red-700">
+                              <FileText size={13} /> Disposal Remark
+                            </p>
+                            <p className="mt-1.5 text-sm leading-5 text-[var(--color-text-primary)]">
+                              {batch.disposalRemark}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      // Not yet disposed – show action form
+                      <div className="space-y-4">
+                        <p className="text-sm leading-5 text-red-700">
+                          This batch has <strong>expired</strong> and cannot be released. Add a remark
+                          and confirm disposal to remove it from active inventory.
+                        </p>
+
+                        <div>
+                          <label
+                            htmlFor="disposalRemark"
+                            className="mb-2 block text-sm font-semibold text-red-800"
+                          >
+                            Disposal Remark <span className="text-red-500">*</span>
+                          </label>
+                          <textarea
+                            id="disposalRemark"
+                            rows={3}
+                            value={disposalRemark}
+                            onChange={(e) => {
+                              setDisposalRemark(e.target.value);
+                              setDisposeError('');
+                            }}
+                            placeholder="Describe the reason for disposal (e.g. expired stock, contaminated, unusable)..."
+                            className="w-full resize-none rounded-[var(--radius-md)] border border-red-300 bg-white px-3 py-2.5 text-sm font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
+                          />
+                        </div>
+
+                        {disposeError && (
+                          <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-red-400 bg-white p-3 text-sm font-medium text-red-700">
+                            <AlertTriangle size={16} className="shrink-0" />
+                            {disposeError}
+                          </div>
+                        )}
+
+                        {disposeSuccess && (
+                          <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-green-400 bg-green-50 p-3 text-sm font-medium text-green-700">
+                            <CheckCircle2 size={16} className="shrink-0" />
+                            Batch successfully disposed.
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={handleDispose}
+                          disabled={isDisposing}
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-red-600 px-4 py-3 text-sm font-bold text-white color-transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isDisposing ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                          {isDisposing ? 'Disposing...' : 'Confirm Disposal'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
             </aside>
           </div>
         </div>
