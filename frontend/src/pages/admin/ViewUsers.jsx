@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
+import appConfig from "../../config/appConfig";
 
 const ROLE_FILTERS = ["ALL", "LECTURER", "TECHNICAL_OFFICER", "ADMIN"];
 
@@ -424,7 +425,7 @@ const ViewUsers = () => {
               <span className="font-semibold text-[var(--color-text-primary)]">
                 {userToDelete.fullName}
               </span>{" "}
-              ({userToDelete.institutionalId}) will lose access to FOTCMS
+              ({userToDelete.institutionalId}) will lose access to {appConfig.appName}
               immediately. This action cannot be undone.
             </p>
 

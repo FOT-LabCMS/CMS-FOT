@@ -35,6 +35,10 @@ router.put('/:id', [verifyToken, uploadSds], ChemicalController.updateChemical);
 // Route to download chemical SDS document (authenticated)
 router.get('/:id/sds/download', verifyToken, ChemicalController.downloadSds);
 
+// Route to resolve scanned QR code or manual search code (Batch/Chemical/BinCard)
+router.get('/scan/resolve', verifyToken, ChemicalController.resolveScanCode);
+router.get('/scan/resolve/:code', verifyToken, ChemicalController.resolveScanCode);
+
 // Route to get a single chemical by ID
 router.get('/:id', ChemicalController.getChemicalById);
 

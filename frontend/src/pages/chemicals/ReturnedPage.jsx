@@ -167,7 +167,7 @@ const ReturnModal = ({ record, onClose, onSuccess }) => {
                 {record.chemicalName || record.chemicalCode}
               </h3>
               <p className="text-xs text-[var(--color-text-inverse)]/70">
-                Bin Card No : {record.batchNumber}
+                Batch No : {record.batchNumber}
               </p>
             </div>
           </div>

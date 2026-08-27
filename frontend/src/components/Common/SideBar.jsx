@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../api/axiosInstance";
 import PasswordReset from "../PasswordReset";
+import appConfig from "../../config/appConfig";
 import {
   LayoutDashboard,
   FlaskConical,
@@ -14,16 +15,16 @@ import {
   ChartNoAxesCombined,
   Truck,
   Users,
-  Settings,
   ClipboardList,
   Menu,
   X,
   ChevronRight,
   LogOut,
-  ShieldCheck,
   Pencil,
   PanelLeftClose,
   PanelLeftOpen,
+  QrCode,
+  Scan,
 } from "lucide-react";
 
 const ROLE_LABELS = {
@@ -38,6 +39,18 @@ const MAIN_MENU_ITEMS = [
     label: "Dashboard",
     path: "/dashboard",
     icon: LayoutDashboard,
+    roles: ["ADMIN", "TECHNICAL_OFFICER"],
+  },
+  {
+    label: "QR Scanner",
+    path: "/scan",
+    icon: QrCode,
+    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+  },
+  {
+    label: "Alerts & Notifications",
+    path: "/notifications",
+    icon: BellIcon,
     roles: ["ADMIN", "TECHNICAL_OFFICER"],
   },
   {
@@ -147,12 +160,6 @@ const MAIN_MENU_ITEMS = [
         roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
       },
     ],
-  },
-  {
-    label: "Alerts & Notifications",
-    path: "/notifications",
-    icon: BellIcon,
-    roles: ["ADMIN", "TECHNICAL_OFFICER"],
   },
   {
     label: "Reports",
@@ -428,7 +435,7 @@ const SidebarContent = ({
 }) => {
   const navigate = useNavigate();
 
-  const userName = user?.fullName || "FOTCMS User";
+  const userName = user?.fullName || `${appConfig.appName} User`;
   const userRole = user?.role || "STUDENT";
   const department = user?.department || "Department of Biosystem Technology";
 
@@ -455,7 +462,7 @@ const SidebarContent = ({
           {!isCollapsed && (
             <div className="min-w-0 transition-opacity duration-300">
               <h1 className="truncate text-xl font-extrabold tracking-wide text-[var(--color-text-inverse)]">
-                FOTCMS
+                {appConfig.appName}
               </h1>
 
               <p className="mt-0.5 text-[10px] leading-4 text-[var(--color-text-inverse)]/65">
@@ -710,7 +717,7 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
 
           <div>
             <p className="font-[var(--font-display)] text-base font-extrabold text-[var(--color-primary)]">
-              FOTCMS
+              {appConfig.appName}
             </p>
             <p className="text-[9px] text-[var(--color-text-muted)]">
               Faculty Laboratory

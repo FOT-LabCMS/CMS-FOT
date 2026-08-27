@@ -87,6 +87,25 @@ module.exports = function ChemicalModel(sequelize) {
         defaultValue: true,
         field: "is_active",
       },
+      binCardNumber: {
+        type: DataTypes.STRING(6),
+        allowNull: false,
+        unique: true,
+        field: "bin_card_number",
+        validate: {
+          is: /^BST\d{3}$/,
+        },
+      },
+      imageUrl: {
+        type: DataTypes.STRING(1024),
+        allowNull: true,
+        field: "image_url",
+      },
+      remarks: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: "remarks",
+      },
       // --- SDS Fields ---
       sdsStorageKey: {
         type: DataTypes.STRING(512),

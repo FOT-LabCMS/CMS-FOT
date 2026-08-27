@@ -28,6 +28,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import ChemicalWiseReport from "./pages/reports/ChemicalWise";
 import UsageReport from "./pages/reports/UsageReport";
 import ViewSdsLibrary from "./pages/chemicals/sds/ViewSdsLibrary";
+import ScanQRPage from "./pages/scanner/ScanQRPage";
 
 function App() {
   return (
@@ -119,6 +120,14 @@ function App() {
           <Route
             path="/sds/library"
             element={<ViewSdsLibrary />}
+          />
+          <Route
+            path="/scan"
+            element={
+              <ProtectedRoute roles={["ADMIN", "TECHNICAL_OFFICER", "LECTURER"]}>
+                <ScanQRPage />
+              </ProtectedRoute>
+            }
           />
         </Route>
       </Routes>

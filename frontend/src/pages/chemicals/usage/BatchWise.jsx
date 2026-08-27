@@ -104,7 +104,7 @@ const SearchableSelect = ({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search chemical or Bin Card Number..."
+              placeholder="Search chemical or Batch Number..."
               className="w-full rounded-[var(--radius-sm)] bg-[var(--color-surface-muted)] py-2 pl-8 pr-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none"
             />
           </div>
@@ -358,7 +358,7 @@ const batchwise = () => {
               Select a batch
             </label>
             <p className="mb-3 text-xs leading-5 text-[var(--color-text-muted)]">
-              Search by chemical name or bin card number.
+              Search by chemical name or batch number.
             </p>
             <SearchableSelect
               options={batchOptions}
@@ -535,7 +535,7 @@ const batchwise = () => {
                   </div>
                   <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
                     <dt className="text-sm text-[var(--color-text-secondary)]">
-                      Bin Card Number
+                      Batch Number
                     </dt>
                     <dd className="text-sm font-bold text-[var(--color-text-primary)]">
                       {usageData.batchNumber}
