@@ -22,7 +22,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
 
 const INITIAL_FORM = {
-  chemicalCode: "",
+  binCardNumber: "",
   batchNumber: "",
   dateReleased: "",
   purpose: "",
@@ -233,9 +233,9 @@ const DisplosaReq = () => {
 
         setChemicalOptions(
           (data.chemicals || []).map((c) => ({
-            value: c.chemicalCode,
+            value: c.binCardNumber,
             label: c.canonicalName,
-            sublabel: c.chemicalCode,
+            sublabel: c.binCardNumber,
           })),
         );
       } catch (error) {
@@ -253,7 +253,7 @@ const DisplosaReq = () => {
   }, []);
 
   useEffect(() => {
-    if (!form.chemicalCode) {
+    if (!form.binCardNumber) {
       setBatchOptions([]);
       return;
     }
@@ -262,7 +262,7 @@ const DisplosaReq = () => {
       try {
         setIsBatchLoading(true);
         const response = await api.get(
-          `/dispose/getbatchbychemicalid/${encodeURIComponent(form.chemicalCode)}`,
+          `/dispose/getbatchbybinCardNumber/${encodeURIComponent(form.binCardNumber)}`,
         );
         const data = response.data;
 
@@ -299,11 +299,11 @@ const DisplosaReq = () => {
     };
 
     fetchBatches();
-  }, [form.chemicalCode]);
+  }, [form.binCardNumber]);
 
   const handleChemicalChange = (value) => {
-    setForm((prev) => ({ ...prev, chemicalCode: value, batchNumber: "" }));
-    setErrors((prev) => ({ ...prev, chemicalCode: "", batchNumber: "" }));
+    setForm((prev) => ({ ...prev, binCardNumber: value, batchNumber: "" }));
+    setErrors((prev) => ({ ...prev, binCardNumber: "", batchNumber: "" }));
     setSubmitMessage(null);
   };
 
@@ -322,7 +322,7 @@ const DisplosaReq = () => {
   const validateForm = () => {
     const nextErrors = {};
 
-    if (!form.chemicalCode) nextErrors.chemicalCode = "Select a chemical.";
+    if (!form.binCardNumber) nextErrors.binCardNumber = "Select a chemical.";
     if (!form.batchNumber) nextErrors.batchNumber = "Select a batch number.";
     if (!form.dateReleased)
       nextErrors.dateReleased = "Release date is required.";
@@ -389,7 +389,7 @@ const DisplosaReq = () => {
   };
 
   const selectedChemicalLabel =
-    chemicalOptions.find((c) => c.value === form.chemicalCode)?.label ||
+    chemicalOptions.find((c) => c.value === form.binCardNumber)?.label ||
     "No chemical selected";
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
@@ -483,7 +483,7 @@ const DisplosaReq = () => {
                   <div className="grid gap-5 md:grid-cols-2">
                     <div>
                       <InputLabel
-                        htmlFor="chemicalCode"
+                        htmlFor="binCardNumber"
                         required
                         description="Loaded from the chemical inventory."
                       >
@@ -492,14 +492,14 @@ const DisplosaReq = () => {
                       <SearchableSelect
                         icon={Beaker}
                         options={chemicalOptions}
-                        value={form.chemicalCode}
+                        value={form.binCardNumber}
                         onChange={handleChemicalChange}
                         placeholder="Select a chemical"
                         loading={isFormDataLoading}
-                        error={errors.chemicalCode}
+                        error={errors.binCardNumber}
                         emptyText="No chemicals found."
                       />
-                      <ErrorMessage message={errors.chemicalCode} />
+                      <ErrorMessage message={errors.binCardNumber} />
                     </div>
 
                     <div>
@@ -507,7 +507,7 @@ const DisplosaReq = () => {
                         htmlFor="batchNumber"
                         required
                         description={
-                          form.chemicalCode
+                          form.binCardNumber
                             ? "Batch numbers available for the selected chemical."
                             : "Select a chemical first."
                         }
@@ -520,7 +520,7 @@ const DisplosaReq = () => {
                         value={form.batchNumber}
                         onChange={handleBatchChange}
                         placeholder="Select a batch number"
-                        disabled={!form.chemicalCode}
+                        disabled={!form.binCardNumber}
                         loading={isBatchLoading}
                         error={errors.batchNumber}
                         emptyText="No batches available for this chemical."

@@ -164,7 +164,7 @@ const ReturnModal = ({ record, onClose, onSuccess }) => {
                 Mark as returned
               </p>
               <h3 className="truncate text-lg font-bold text-[var(--color-text-inverse)]">
-                {record.chemicalName || record.chemicalCode}
+                {record.chemicalName || record.binCardNumber}
               </h3>
               <p className="text-xs text-[var(--color-text-inverse)]/70">
                 Batch No : {record.batchNumber}
@@ -404,7 +404,7 @@ const ReturnedPage = () => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return records;
     return records.filter((r) =>
-      `${r.canonicalName || ""} ${r.chemicalCode || ""} ${r.batchCode || ""} ${r.userName || ""}`
+      `${r.canonicalName || ""} ${r.binCardNumber || ""} ${r.batchCode || ""} ${r.userName || ""}`
         .toLowerCase()
         .includes(term),
     );
@@ -555,7 +555,7 @@ const ReturnedPage = () => {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
-                            {record.canonicalName || record.chemicalCode}
+                            {record.canonicalName || record.binCardNumber}
                           </h3>
                           <span className="inline-flex rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-text-secondary)]">
                             {record.batchCode}

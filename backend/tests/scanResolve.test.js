@@ -21,7 +21,6 @@ describe('Scan Code Resolver Logic Tests', () => {
     const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
     
     expect(uuidRegex.test('88776655-4433-2211-00aa-bbccddeeff00')).toBe(true);
-    expect(uuidRegex.test('CHE-000001')).toBe(false);
     expect(uuidRegex.test('BST001')).toBe(false);
     expect(uuidRegex.test('BATCH-2026-001')).toBe(false);
   });

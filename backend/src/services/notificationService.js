@@ -109,21 +109,21 @@ const isLowStockBatch = (batch) => {
 
 const buildExpiryMessage = (batch, daysUntilExpiry) => {
   const chemicalName = batch.chemical?.canonicalName || "Unknown chemical";
-  const chemicalCode = batch.chemical?.chemicalCode ? ` (${batch.chemical.chemicalCode})` : "";
+  const binCardNumber = batch.chemical?.binCardNumber ? ` (${batch.chemical.binCardNumber})` : "";
   const batchNumber = batch.batchNumber || "N/A";
   const unit = batch.chemical?.baseUnit ? ` ${batch.chemical.baseUnit}` : "";
   const quantity = batch.currentQuantity ? ` Current stock: ${batch.currentQuantity}${unit}.` : "";
 
   if (daysUntilExpiry === 0) {
-    return `${chemicalName}${chemicalCode} batch ${batchNumber} expires today.${quantity}`;
+    return `${chemicalName}${binCardNumber} batch ${batchNumber} expires today.${quantity}`;
   }
 
-  return `${chemicalName}${chemicalCode} batch ${batchNumber} will expire in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? "" : "s"} on ${batch.expiryDate}.${quantity}`;
+  return `${chemicalName}${binCardNumber} batch ${batchNumber} will expire in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? "" : "s"} on ${batch.expiryDate}.${quantity}`;
 };
 
 const buildExpiredMessage = (batch, daysExpired) => {
   const chemicalName = batch.chemical?.canonicalName || "Unknown chemical";
-  const chemicalCode = batch.chemical?.chemicalCode ? ` (${batch.chemical.chemicalCode})` : "";
+  const binCardNumber = batch.chemical?.binCardNumber ? ` (${batch.chemical.binCardNumber})` : "";
   const batchNumber = batch.batchNumber || "N/A";
   const unit = batch.chemical?.baseUnit ? ` ${batch.chemical.baseUnit}` : "";
   const quantity = batch.currentQuantity ? ` Current stock: ${batch.currentQuantity}${unit}.` : "";
@@ -131,7 +131,7 @@ const buildExpiredMessage = (batch, daysExpired) => {
     ? "expired today"
     : `expired ${daysExpired} day${daysExpired === 1 ? "" : "s"} ago`;
 
-  return `${chemicalName}${chemicalCode} batch ${batchNumber} ${expiredFor} on ${batch.expiryDate}.${quantity}`;
+  return `${chemicalName}${binCardNumber} batch ${batchNumber} ${expiredFor} on ${batch.expiryDate}.${quantity}`;
 };
 
 const notifyExpiredBatches = async () => {
@@ -157,7 +157,7 @@ const notifyExpiredBatches = async () => {
         {
           model: Chemical,
           as: "chemical",
-          attributes: ["canonicalName", "chemicalCode", "baseUnit", "isActive"],
+          attributes: ["canonicalName", "binCardNumber", "baseUnit", "isActive"],
           where: { isActive: true },
         },
       ],
@@ -243,7 +243,7 @@ const notifyExpiringBatches = async () => {
         {
           model: Chemical,
           as: "chemical",
-          attributes: ["canonicalName", "chemicalCode", "baseUnit", "isActive"],
+          attributes: ["canonicalName", "binCardNumber", "baseUnit", "isActive"],
           where: { isActive: true },
         },
       ],
@@ -321,7 +321,7 @@ const notifyExpiringBatches = async () => {
 
 const buildLowStockMessage = (batch) => {
   const chemicalName = batch.chemical?.canonicalName || "Unknown chemical";
-  const chemicalCode = batch.chemical?.chemicalCode ? ` (${batch.chemical.chemicalCode})` : "";
+  const binCardNumber = batch.chemical?.binCardNumber ? ` (${batch.chemical.binCardNumber})` : "";
   const batchNumber = batch.batchNumber || "N/A";
   const unit = batch.chemical?.baseUnit ? ` ${batch.chemical.baseUnit}` : "";
   const quantityReceived = Number(batch.quantityReceived);
@@ -331,7 +331,7 @@ const buildLowStockMessage = (batch) => {
     ? ((currentQuantity / quantityReceived) * 100).toFixed(1)
     : "0.0";
 
-  return `${chemicalName}${chemicalCode} batch ${batchNumber} is low on stock: ${currentQuantity}${unit} remaining from ${quantityReceived}${unit} (${remainingPercentage}%, threshold ${thresholdQuantity}${unit}).`;
+  return `${chemicalName}${binCardNumber} batch ${batchNumber} is low on stock: ${currentQuantity}${unit} remaining from ${quantityReceived}${unit} (${remainingPercentage}%, threshold ${thresholdQuantity}${unit}).`;
 };
 
 const createLowStockNotifications = async (batches) => {
@@ -397,7 +397,7 @@ const notifyLowStockBatch = async (batchId) => {
         {
           model: Chemical,
           as: "chemical",
-          attributes: ["canonicalName", "chemicalCode", "baseUnit", "isActive"],
+          attributes: ["canonicalName", "binCardNumber", "baseUnit", "isActive"],
           where: { isActive: true },
         },
       ],
@@ -423,7 +423,7 @@ const notifyLowStockBatches = async () => {
         {
           model: Chemical,
           as: "chemical",
-          attributes: ["canonicalName", "chemicalCode", "baseUnit", "isActive"],
+          attributes: ["canonicalName", "binCardNumber", "baseUnit", "isActive"],
           where: { isActive: true },
         },
       ],

@@ -287,7 +287,7 @@ const ChemicalUsageTrend = ({
    * Split the selected batch key.
    *
    * Batch option format:
-   * CHE-000001::BAT-001
+   * BST001::BAT-001
    */
   const selectedBatchData = useMemo(() => {
     if (
@@ -295,7 +295,7 @@ const ChemicalUsageTrend = ({
       !trendEntity
     ) {
       return {
-        chemicalCode: "",
+        binCardNumber: "",
         batchNumber: "",
       };
     }
@@ -305,13 +305,13 @@ const ChemicalUsageTrend = ({
 
     if (separatorIndex === -1) {
       return {
-        chemicalCode: "",
+        binCardNumber: "",
         batchNumber: trendEntity,
       };
     }
 
     return {
-      chemicalCode: trendEntity.substring(
+      binCardNumber: trendEntity.substring(
         0,
         separatorIndex,
       ),
@@ -347,14 +347,14 @@ const ChemicalUsageTrend = ({
       };
 
       if (trendType === "chemical") {
-        params.chemicalCode = trendEntity;
+        params.binCardNumber = trendEntity;
       } else {
         params.batchNumber =
           selectedBatchData.batchNumber;
 
-        if (selectedBatchData.chemicalCode) {
-          params.chemicalCode =
-            selectedBatchData.chemicalCode;
+        if (selectedBatchData.binCardNumber) {
+          params.binCardNumber =
+            selectedBatchData.binCardNumber;
         }
       }
 
@@ -400,22 +400,22 @@ const ChemicalUsageTrend = ({
       const chemical =
         chemicalsForSelect.find(
           (item) =>
-            item.chemicalCode === trendEntity,
+            item.binCardNumber === trendEntity,
         );
 
       return chemical
-        ? `${chemical.canonicalName} (${chemical.chemicalCode})`
+        ? `${chemical.canonicalName} (${chemical.binCardNumber})`
         : trendEntity;
     }
 
     const selectedBatch =
       batchesForSelect.find((batch) => {
-        const chemicalCode =
-          batch.chemical?.chemicalCode ||
-          batch.chemicalCode ||
+        const binCardNumber =
+          batch.chemical?.binCardNumber ||
+          batch.binCardNumber ||
           "";
 
-        const batchKey = `${chemicalCode}::${batch.batchNumber}`;
+        const batchKey = `${binCardNumber}::${batch.batchNumber}`;
 
         return batchKey === trendEntity;
       });
@@ -645,23 +645,23 @@ const ChemicalUsageTrend = ({
                       <option
                         key={
                           chemical.id ||
-                          chemical.chemicalCode
+                          chemical.binCardNumber
                         }
                         value={
-                          chemical.chemicalCode
+                          chemical.binCardNumber
                         }
                       >
                         {chemical.canonicalName} (
-                        {chemical.chemicalCode})
+                        {chemical.binCardNumber})
                       </option>
                     ),
                   )
                 : batchesForSelect.map(
                     (batch) => {
-                      const chemicalCode =
+                      const binCardNumber =
                         batch.chemical
-                          ?.chemicalCode ||
-                        batch.chemicalCode ||
+                          ?.binCardNumber ||
+                        batch.binCardNumber ||
                         "";
 
                       const chemicalName =
@@ -670,7 +670,7 @@ const ChemicalUsageTrend = ({
                         batch.chemicalName ||
                         "Unknown Chemical";
 
-                      const batchValue = `${chemicalCode}::${batch.batchNumber}`;
+                      const batchValue = `${binCardNumber}::${batch.batchNumber}`;
 
                       return (
                         <option

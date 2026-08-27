@@ -35,7 +35,7 @@ const calculateUsageBatchvise = async (req, res) => {
         {
           model: Chemical,
           as: "chemical",
-          attributes: ["chemicalCode", "canonicalName", "baseUnit"],
+          attributes: ["binCardNumber", "canonicalName", "baseUnit"],
         },
       ],
     });
@@ -59,14 +59,14 @@ const calculateUsageBatchvise = async (req, res) => {
       entityId: batch.id,
       details: {
         batchNumber: batch.batchNumber,
-        chemicalCode: batch.chemical.chemicalCode,
+        binCardNumber: batch.chemical.binCardNumber,
       },
       ipAddress: req.ip,
     });
 
     res.json({
       batchNumber: batch.batchNumber,
-      chemicalCode: batch.chemical.chemicalCode,
+      binCardNumber: batch.chemical.binCardNumber,
       chemicalName: batch.chemical.canonicalName,
       unit: batch.chemical.baseUnit,
       quantityReceived,
@@ -84,10 +84,10 @@ const calculateUsageBatchvise = async (req, res) => {
 };
 const calculateUsageChemicalvise = async (req, res) => {
   try {
-    const { chemicalCode } = req.body;
+    const { binCardNumber } = req.body;
 
     const chemical = await Chemical.findOne({
-      where: { chemicalCode },
+      where: { binCardNumber },
     });
 
     if (!chemical) {
@@ -132,14 +132,14 @@ const calculateUsageChemicalvise = async (req, res) => {
       entityType: "Chemical",
       entityId: chemical.id,
       details: {
-        chemicalCode: chemical.chemicalCode,
+        binCardNumber: chemical.binCardNumber,
         chemicalName: chemical.canonicalName,
       },
       ipAddress: req.ip,
     });
 
     res.json({
-      chemicalCode: chemical.chemicalCode,
+      binCardNumber: chemical.binCardNumber,
       chemicalName: chemical.canonicalName,
       batches: result,
     });
@@ -153,7 +153,7 @@ const calculateUsageChemicalvise = async (req, res) => {
 
 const getDashboardUsageTrend = async (req, res) => {
   try {
-    const { startDate, endDate, chemicalCode, batchNumber } = req.query;
+    const { startDate, endDate, binCardNumber, batchNumber } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({
@@ -161,7 +161,7 @@ const getDashboardUsageTrend = async (req, res) => {
       });
     }
 
-    if (!chemicalCode && !batchNumber) {
+    if (!binCardNumber && !batchNumber) {
       return res.status(400).json({
         message: "Select a chemical or batch to generate the usage trend.",
       });
@@ -193,8 +193,8 @@ const getDashboardUsageTrend = async (req, res) => {
       quantityUsed: { [Op.gt]: 0 },
     };
 
-    if (chemicalCode) {
-      whereClause.chemicalCode = chemicalCode;
+    if (binCardNumber) {
+      whereClause.binCardNumber = binCardNumber;
     }
 
     if (batchNumber) {
@@ -229,8 +229,8 @@ const getDashboardUsageTrend = async (req, res) => {
           {
             model: Chemical,
             as: "chemical",
-            attributes: ["canonicalName", "chemicalCode", "baseUnit"],
-            ...(chemicalCode ? { where: { chemicalCode } } : {}),
+            attributes: ["canonicalName", "binCardNumber", "baseUnit"],
+            ...(binCardNumber ? { where: { binCardNumber } } : {}),
           },
         ],
       });
@@ -242,15 +242,15 @@ const getDashboardUsageTrend = async (req, res) => {
       } else {
         label = batchNumber;
       }
-    } else if (chemicalCode) {
+    } else if (binCardNumber) {
       const chemical = await Chemical.findOne({
-        where: { chemicalCode },
-        attributes: ["id", "canonicalName", "chemicalCode", "baseUnit"],
+        where: { binCardNumber },
+        attributes: ["id", "canonicalName", "binCardNumber", "baseUnit"],
       });
 
       if (chemical) {
         unit = chemical.baseUnit || "";
-        label = `${chemical.canonicalName} (${chemical.chemicalCode})`;
+        label = `${chemical.canonicalName} (${chemical.binCardNumber})`;
 
         const batches = await Batch.findAll({
           where: { chemicalId: chemical.id },
@@ -264,7 +264,7 @@ const getDashboardUsageTrend = async (req, res) => {
           0,
         );
       } else {
-        label = chemicalCode;
+        label = binCardNumber;
       }
     }
 
@@ -321,7 +321,7 @@ const getUsageByHazardCategory = async (req, res) => {
           COUNT(d.id)::int AS "recordCount"
         FROM disposals d
         LEFT JOIN chemicals c
-          ON c.chemical_code = d.chemical_code
+          ON c.bin_card_number = d.bin_card_number
         WHERE d.date_returned IS NOT NULL
           AND d.date_returned BETWEEN :startDate AND :endDate
           AND d.returned_status = 'RETURNED'
@@ -378,7 +378,7 @@ const getInventorySnapshot = async (req, res) => {
         {
           model: Chemical,
           as: "chemical",
-          attributes: ["canonicalName", "chemicalCode", "baseUnit"],
+          attributes: ["canonicalName", "binCardNumber", "baseUnit"],
           where: { isActive: true },
           required: true,
         },
@@ -423,7 +423,7 @@ const getInventorySnapshot = async (req, res) => {
       return {
         id: batch.id,
         chemicalName: batch.chemical?.canonicalName || "Unknown Chemical",
-        chemicalCode: batch.chemical?.chemicalCode || "",
+        binCardNumber: batch.chemical?.binCardNumber || "",
         batchNumber: batch.batchNumber,
         currentQuantity,
         unit: batch.chemical?.baseUnit || "",
@@ -567,7 +567,7 @@ const getRecentReturnActivity = async (req, res) => {
     const returns = await Dispose.findAll({
       attributes: [
         "id",
-        "chemicalCode",
+        "binCardNumber",
         "chemicalName",
         "batchNumber",
         "quantityUsed",
@@ -592,7 +592,7 @@ const getRecentReturnActivity = async (req, res) => {
       success: true,
       activities: returns.map((item) => ({
         id: item.id,
-        chemicalCode: item.chemicalCode,
+        binCardNumber: item.binCardNumber,
         chemicalName: item.chemicalName,
         batchNumber: item.batchNumber,
         quantityUsed: Number(item.quantityUsed || 0),
@@ -621,7 +621,7 @@ const getUnassignedStock = async (req, res) => {
       {
         model: Chemical,
         as: "chemical",
-        attributes: ["canonicalName", "chemicalCode", "baseUnit"],
+        attributes: ["canonicalName", "binCardNumber", "baseUnit"],
         where: { isActive: true },
         required: true,
       },
@@ -647,7 +647,7 @@ const getUnassignedStock = async (req, res) => {
       batches: batches.map((batch) => ({
         id: batch.id,
         chemicalName: batch.chemical?.canonicalName || "Unknown Chemical",
-        chemicalCode: batch.chemical?.chemicalCode || "",
+        binCardNumber: batch.chemical?.binCardNumber || "",
         batchNumber: batch.batchNumber,
         currentQuantity: Number(batch.currentQuantity || 0),
         unit: batch.chemical?.baseUnit || "",
@@ -677,7 +677,7 @@ const getExpiryWatchlist = async (req, res) => {
         {
           model: Chemical,
           as: "chemical",
-          attributes: ["canonicalName", "chemicalCode", "baseUnit"],
+          attributes: ["canonicalName", "binCardNumber", "baseUnit"],
           where: { isActive: true },
           required: true,
         },
@@ -705,7 +705,7 @@ const getExpiryWatchlist = async (req, res) => {
         return {
           id: batch.id,
           chemicalName: batch.chemical?.canonicalName || "Unknown Chemical",
-          chemicalCode: batch.chemical?.chemicalCode || "",
+          binCardNumber: batch.chemical?.binCardNumber || "",
           batchNumber: batch.batchNumber,
           currentQuantity: Number(batch.currentQuantity || 0),
           unit: batch.chemical?.baseUnit || "",

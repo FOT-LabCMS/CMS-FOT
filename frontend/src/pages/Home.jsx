@@ -27,7 +27,7 @@ const chemicalMatchesSearch = (chemical, searchTerm) => {
 
   return [
     chemical.canonicalName,
-    chemical.chemicalCode,
+    chemical.binCardNumber,
     chemical.formula,
     chemical.physicalState,
     chemical.baseUnit,

@@ -106,7 +106,7 @@ const QrCodeModal = ({ batch, onClose }) => {
       });
 
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`QR-Label-${batch.chemical?.chemicalCode || 'CHEM'}-${batch.batchNumber}.pdf`);
+      pdf.save(`QR-Label-${batch.chemical?.binCardNumber || 'CHEM'}-${batch.batchNumber}.pdf`);
     } catch (error) {
       console.error("Error generating PDF:", error);
     } finally {
@@ -123,7 +123,7 @@ const QrCodeModal = ({ batch, onClose }) => {
         <div id="qr-print-area-modal" className="flex flex-col items-center rounded-md bg-white p-5 text-center">
           <h1 className="text-base font-bold text-gray-900 leading-snug">{batch.chemical?.canonicalName}</h1>
           <p className="mt-0.5 text-xs font-medium text-gray-500">
-            {batch.chemical?.chemicalCode ? `Chemical Code: ${batch.chemical.chemicalCode}` : ''}
+            {batch.chemical?.binCardNumber ? `Bin Card Number: ${batch.chemical.binCardNumber}` : ''}
           </p>
 
           <div className="my-3">
@@ -312,7 +312,7 @@ const EditBatchModal = ({ batch, onClose, onSuccess }) => {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-accent-dark)]">Edit Batch</p>
             <h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">{batch.chemical?.canonicalName || 'Stock Batch'}</h2>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{batch.chemical?.chemicalCode}</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{batch.chemical?.binCardNumber}</p>
           </div>
           <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]">
             <X size={20} />
@@ -454,6 +454,7 @@ const ViewAllBatches = () => {
   const filteredBatches = useMemo(() =>
     batches.filter(batch =>
       (batch.chemical?.canonicalName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (batch.chemical?.binCardNumber?.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (batch.supplier?.toLowerCase().includes(searchTerm.toLowerCase()))
     ), [batches, searchTerm]);
@@ -523,7 +524,7 @@ const ViewAllBatches = () => {
                   >
                     <td className="whitespace-nowrap px-4 py-4 font-medium text-[var(--color-text-primary)]">
                       <div className="font-bold">{batch.chemical?.canonicalName || 'N/A'}</div>
-                      <div className="text-xs text-[var(--color-text-muted)]">{batch.chemical?.chemicalCode}</div>
+                      <div className="text-xs text-[var(--color-text-muted)]">{batch.chemical?.binCardNumber}</div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-[var(--color-text-secondary)]">{batch.batchNumber}</td>
                     <td className="whitespace-nowrap px-4 py-4 text-[var(--color-text-secondary)]">

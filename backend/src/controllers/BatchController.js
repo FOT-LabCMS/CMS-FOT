@@ -14,7 +14,7 @@ const getAllBatches = async (req, res) => {
         {
           model: Chemical,
           as: 'chemical',
-          attributes: ['canonicalName', 'chemicalCode', 'baseUnit'],
+          attributes: ['canonicalName', 'binCardNumber', 'baseUnit'],
         },
         {
           model: Location,
@@ -278,7 +278,7 @@ const updateBatch = async (req, res) => {
         {
           model: Chemical,
           as: 'chemical',
-          attributes: ['canonicalName', 'chemicalCode', 'baseUnit'],
+          attributes: ['canonicalName', 'binCardNumber', 'baseUnit'],
         },
         {
           model: Location,
@@ -342,7 +342,7 @@ const getBatchById = async (req, res) => {
       where: { batchNumber: batch.batchNumber },
       attributes: [
         'id',
-        'chemicalCode',
+        'binCardNumber',
         'chemicalName',
         'batchNumber',
         'quantityUsed',
@@ -460,7 +460,7 @@ const disposeBatch = async (req, res) => {
 
     const batch = await Batch.findByPk(id, {
       include: [
-        { model: Chemical, as: 'chemical', attributes: ['canonicalName', 'chemicalCode', 'baseUnit'] },
+        { model: Chemical, as: 'chemical', attributes: ['canonicalName', 'binCardNumber', 'baseUnit'] },
         { model: Location, as: 'location', attributes: ['name'] },
       ],
     });
@@ -500,7 +500,7 @@ const disposeBatch = async (req, res) => {
 
     const updatedBatch = await Batch.findByPk(id, {
       include: [
-        { model: Chemical, as: 'chemical', attributes: ['canonicalName', 'chemicalCode', 'baseUnit'] },
+        { model: Chemical, as: 'chemical', attributes: ['canonicalName', 'binCardNumber', 'baseUnit'] },
         { model: Location, as: 'location', attributes: ['name'] },
       ],
     });

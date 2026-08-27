@@ -152,7 +152,6 @@ const EditChemicalModal = ({
   const modalRef = useRef(null);
 
   const [formData, setFormData] = useState({
-    chemicalCode: "",
     canonicalName: "",
     binCardNumber: "",
     stockDimension: "VOLUME",
@@ -182,7 +181,6 @@ const EditChemicalModal = ({
     if (!chemical) return;
 
     setFormData({
-      chemicalCode: chemical.chemicalCode || "",
       canonicalName: chemical.canonicalName || "",
       binCardNumber: chemical.binCardNumber || "",
       stockDimension:
@@ -690,7 +688,7 @@ const EditChemicalModal = ({
                     text-[var(--color-primary)]
                   "
                 >
-                  {formData.chemicalCode}
+                  {formData.binCardNumber}
                 </span>
               </div>
 
@@ -747,30 +745,6 @@ const EditChemicalModal = ({
                 />
 
                 <div className="grid gap-5 md:grid-cols-2">
-                  <div>
-                    <InputLabel htmlFor="chemicalCode">
-                      Chemical code
-                    </InputLabel>
-
-                    <input
-                      id="chemicalCode"
-                      value={formData.chemicalCode}
-                      disabled
-                      className="
-                        w-full cursor-not-allowed
-                        rounded-[var(--radius-md)]
-                        border border-[var(--color-border)]
-                        bg-[var(--color-surface-muted)]
-                        px-4 py-3
-                        text-sm font-semibold
-                        text-[var(--color-text-muted)]
-                      "
-                    />
-
-                    <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                      The unique chemical code cannot be changed.
-                    </p>
-                  </div>
 
                   <div>
                     <InputLabel

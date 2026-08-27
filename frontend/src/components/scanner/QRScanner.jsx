@@ -73,9 +73,8 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
         saveRecentScan({
           chemicalId: data.chemicalId,
           batchId: data.batchId,
-          chemicalCode: data.chemical?.chemicalCode,
-          canonicalName: data.chemical?.canonicalName,
           binCardNumber: data.chemical?.binCardNumber,
+          canonicalName: data.chemical?.canonicalName,
           batchNumber: data.batch?.batchNumber,
           matchType: data.matchType,
         });
@@ -413,12 +412,9 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
                     {scanResult.chemical?.canonicalName}
                   </h3>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-green-800 font-medium">
-                    <span>Code: <strong className="font-bold">{scanResult.chemical?.chemicalCode}</strong></span>
+                    <span>Bin Card: <strong className="font-bold">{scanResult.chemical?.binCardNumber}</strong></span>
                     {scanResult.batch?.batchNumber && (
                       <span>Batch: <strong className="font-bold">{scanResult.batch?.batchNumber}</strong></span>
-                    )}
-                    {scanResult.chemical?.binCardNumber && (
-                      <span>Bin Card: <strong className="font-bold">{scanResult.chemical?.binCardNumber}</strong></span>
                     )}
                   </div>
                 </div>
@@ -462,7 +458,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
             </h3>
           </div>
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-            If scanning is difficult, enter the QR code value, Batch Number, Chemical Code (e.g. CHE-000001), or Bin Card Number (e.g. BST001) directly below.
+            If scanning is difficult, enter the QR code value, Batch Number, or Bin Card Number (e.g. BST001) directly below.
           </p>
         </div>
 
@@ -482,7 +478,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
               type="text"
               value={manualCode}
               onChange={(e) => setManualCode(e.target.value)}
-              placeholder="e.g. BATCH-001, CHE-000001, BST001, or scan payload..."
+              placeholder="e.g. BATCH-001, BST001, or scan payload..."
               disabled={isResolving}
               className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] pl-10 pr-10 py-3 text-sm font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] color-transition"
             />
@@ -513,9 +509,6 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
           <span className="font-semibold text-[var(--color-text-muted)]">Supported Formats:</span>
           <span className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 font-mono text-[var(--color-text-secondary)] border border-[var(--color-border)]">
             Batch Number
-          </span>
-          <span className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 font-mono text-[var(--color-text-secondary)] border border-[var(--color-border)]">
-            CHE-######
           </span>
           <span className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 font-mono text-[var(--color-text-secondary)] border border-[var(--color-border)]">
             BST###
@@ -565,7 +558,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
                       {scan.canonicalName}
                     </p>
                     <p className="text-xs text-[var(--color-text-muted)]">
-                      Code: {scan.chemicalCode} {scan.batchNumber ? `• Batch: ${scan.batchNumber}` : ""}
+                      Bin Card: {scan.binCardNumber} {scan.batchNumber ? `• Batch: ${scan.batchNumber}` : ""}
                     </p>
                   </div>
                 </div>

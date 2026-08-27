@@ -14,8 +14,7 @@ router.get('/', verifyToken, ChemicalController.getAllChemicals);
 // Public route to get a selection of chemicals for the homepage
 router.get('/public', ChemicalController.getPublicChemicals);
 
-// Route to get the next auto-generated chemical code
-router.get('/get-next-code', verifyToken, ChemicalController.getNextChemicalCode);
+
 
 // Route to get all inactive (soft-deleted) chemicals
 router.get('/inactive', verifyToken, ChemicalController.getInactiveChemicals);

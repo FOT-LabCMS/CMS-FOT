@@ -58,14 +58,14 @@ Location.belongsTo(Location, {
 // 5. dispose <-> chemical
 
 Dispose.belongsTo(Chemical, {
-  foreignKey: "chemicalCode",
-  targetKey: "chemicalCode",
+  foreignKey: "binCardNumber",
+  targetKey: "binCardNumber",
   as: "chemical",
 });
 
 Chemical.hasMany(Dispose, {
-  foreignKey: "chemicalCode",
-  sourceKey: "chemicalCode",
+  foreignKey: "binCardNumber",
+  sourceKey: "binCardNumber",
   as: "disposals",
 });
 

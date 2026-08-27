@@ -352,7 +352,7 @@ const AddNewBatch = () => {
                         </option>
                         {chemicals.map((chem) => (
                           <option key={chem.id} value={chem.id}>
-                            {chem.canonicalName} ({chem.chemicalCode})
+                            {chem.canonicalName} ({chem.binCardNumber})
                           </option>
                         ))}
                       </select>
