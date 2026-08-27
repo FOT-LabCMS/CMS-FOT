@@ -116,7 +116,7 @@ const getDescendants = async (locationId) => {
         include: [{
           model: Chemical,
           as: 'chemical',
-          attributes: ['id', 'canonicalName', 'chemicalCode', 'baseUnit']
+          attributes: ['id', 'canonicalName', 'binCardNumber', 'baseUnit']
         }]
       }
     ],
@@ -165,7 +165,7 @@ const getPublicLocationTree = async (req, res) => {
       include: [{
         model: Chemical,
         as: 'chemical',
-        attributes: ['id', 'canonicalName', 'chemicalCode', 'baseUnit'],
+        attributes: ['id', 'canonicalName', 'binCardNumber', 'baseUnit'],
         where: { isActive: true },
         required: true
       }]

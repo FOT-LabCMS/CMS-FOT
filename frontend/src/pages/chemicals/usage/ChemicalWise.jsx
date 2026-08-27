@@ -317,7 +317,7 @@ const BatchCard = ({ batch, unit, isSelected, onClick }) => {
 };
 
 /* Detail usage panel for selected batch */
-const UsageDetailPanel = ({ batch, chemicalName, chemicalCode, unit, onClose }) => {
+const UsageDetailPanel = ({ batch, chemicalName, binCardNumber, unit, onClose }) => {
   const status = getExpiryStatus(batch.expiryDate);
   const pct = usagePct(batch.quantityReceived, batch.currentQuantity);
 
@@ -412,7 +412,7 @@ const UsageDetailPanel = ({ batch, chemicalName, chemicalCode, unit, onClose }) 
         <dl className="divide-y divide-[var(--color-border)] rounded-[var(--radius-md)] border border-[var(--color-border)]">
           {[
             { label: "Chemical", value: chemicalName, icon: FlaskConical },
-            { label: "Chemical code", value: chemicalCode, icon: Info },
+            { label: "Bin Card Number", value: binCardNumber, icon: Info },
             { label: "Batch Number", value: batch.batchNumber, icon: Layers },
             {
               label: "Supplier",
@@ -491,9 +491,9 @@ const chemicalwise = () => {
       const chems = res.data?.chemicals || res.data || [];
       setChemOptions(
         chems.map((c) => ({
-          value: c.chemicalCode,
+          value: c.binCardNumber,
           label: c.canonicalName,
-          sublabel: c.chemicalCode,
+          sublabel: c.binCardNumber,
           unit: c.baseUnit ?? "",
         })),
       );
@@ -508,7 +508,7 @@ const chemicalwise = () => {
     fetchChemicals();
   }, []);
 
-  const fetchChemicalUsage = async (chemCode) => {
+  const fetchChemicalUsage = async (binCardNumber) => {
     setChemData(null);
     setSelectedBatch(null);
     setDataError("");
@@ -516,9 +516,9 @@ const chemicalwise = () => {
     try {
       setIsDataLoading(true);
       const res = await api.post("/usage/chemical/calculate-usage", {
-        chemicalCode: chemCode,
+        binCardNumber: binCardNumber,
       });
-      const matched = chemOptions.find((o) => o.value === chemCode);
+      const matched = chemOptions.find((o) => o.value === binCardNumber);
       setChemData({
         ...res.data,
         unit: matched?.unit ?? "",
@@ -728,7 +728,7 @@ const chemicalwise = () => {
                       {chemData.chemicalName}
                     </p>
                     <p className="mt-0.5 text-sm font-semibold text-[var(--color-text-muted)]">
-                      {chemData.chemicalCode}
+                      {chemData.binCardNumber}
                       {unit && (
                         <span className="ml-2 rounded-full bg-[var(--color-success)]/15 px-2 py-0.5 text-xs text-[var(--color-success)]">
                           Unit: {unit}
@@ -905,7 +905,7 @@ const chemicalwise = () => {
                   <UsageDetailPanel
                     batch={selectedBatch}
                     chemicalName={chemData.chemicalName}
-                    chemicalCode={chemData.chemicalCode}
+                    binCardNumber={chemData.binCardNumber}
                     unit={unit}
                     onClose={() => setSelectedBatch(null)}
                   />

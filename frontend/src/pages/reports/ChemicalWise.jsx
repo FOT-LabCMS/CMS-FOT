@@ -208,8 +208,8 @@ const ChemicalWise = () => {
     fetchChemicals();
   }, []);
 
-  const handleSelectChemical = async (chemicalCode) => {
-    setSelectedCode(chemicalCode);
+  const handleSelectChemical = async (binCardNumber) => {
+    setSelectedCode(binCardNumber);
     setDetail(null);
     setDetailError("");
     setDownloadError("");
@@ -217,7 +217,7 @@ const ChemicalWise = () => {
     try {
       setIsDetailLoading(true);
       const response = await api.get(
-        `/reports/chemical/${encodeURIComponent(chemicalCode)}`,
+        `/reports/chemical/${encodeURIComponent(binCardNumber)}`,
       );
       setDetail(response.data);
     } catch (error) {
@@ -335,7 +335,7 @@ const ChemicalWise = () => {
     return chemicals.filter(
       (c) =>
         c.canonicalName?.toLowerCase().includes(term) ||
-        c.chemicalCode?.toLowerCase().includes(term),
+        c.binCardNumber?.toLowerCase().includes(term),
     );
   }, [chemicals, searchTerm]);
 
@@ -515,18 +515,18 @@ const ChemicalWise = () => {
                   <div className="max-h-[70vh] overflow-y-auto lg:max-h-[calc(100vh-260px)]">
                     {filteredChemicals.map((chem) => (
                       <button
-                        key={chem.chemicalCode || chem.id}
+                        key={chem.binCardNumber || chem.id}
                         type="button"
-                        onClick={() => handleSelectChemical(chem.chemicalCode)}
+                        onClick={() => handleSelectChemical(chem.binCardNumber)}
                         className={`flex w-full items-center gap-3 border-b border-[var(--color-border)] px-4 py-3 text-left color-transition last:border-b-0 hover:bg-[var(--color-primary-tint)] ${
-                          selectedCode === chem.chemicalCode
+                          selectedCode === chem.binCardNumber
                             ? "bg-[var(--color-primary-tint)]"
                             : ""
                         }`}
                       >
                         <div
                           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] ${
-                            selectedCode === chem.chemicalCode
+                            selectedCode === chem.binCardNumber
                               ? "bg-[var(--color-primary)] text-[var(--color-text-inverse)]"
                               : "bg-[var(--color-primary-tint)] text-[var(--color-primary)]"
                           }`}
@@ -536,7 +536,7 @@ const ChemicalWise = () => {
                         <div className="min-w-0 flex-1">
                           <p
                             className={`truncate text-sm font-semibold ${
-                              selectedCode === chem.chemicalCode
+                              selectedCode === chem.binCardNumber
                                 ? "text-[var(--color-primary)]"
                                 : "text-[var(--color-text-primary)]"
                             }`}
@@ -544,7 +544,7 @@ const ChemicalWise = () => {
                             {chem.canonicalName}
                           </p>
                           <p className="truncate text-xs text-[var(--color-text-muted)]">
-                            {chem.chemicalCode}
+                            {chem.binCardNumber}
                           </p>
                         </div>
                       </button>
@@ -608,7 +608,7 @@ const ChemicalWise = () => {
                       <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
                         <div className="min-w-0">
                           <span className="inline-flex rounded-full bg-[var(--color-accent)] px-2.5 py-1 text-xs font-bold text-[var(--color-primary-dark)]">
-                            {detail.chemicalCode}
+                            {detail.binCardNumber}
                           </span>
                           <h2 className="mt-3 truncate text-xl font-extrabold text-[var(--color-text-inverse)] sm:text-2xl">
                             {detail.canonicalName}

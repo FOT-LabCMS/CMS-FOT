@@ -27,7 +27,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 
 const INITIAL_FORM = {
-  chemicalCode: "",
   canonicalName: "",
   binCardNumber: "",
   stockDimension: "VOLUME",
@@ -176,7 +175,6 @@ const AddChemical = () => {
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
   const [submitMessage, setSubmitMessage] = useState(null);
-  const [isCodeLoading, setIsCodeLoading] = useState(true);
   const [sdsFile, setSdsFile] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -207,35 +205,7 @@ const AddChemical = () => {
     },
   });
 
-  useEffect(() => {
-    const fetchNextCode = async () => {
-      try {
-        setIsCodeLoading(true);
-        const response = await api.get("/chemicals/get-next-code");
-        if (response.data?.success) {
-          setFormData((prev) => ({
-            ...prev,
-            chemicalCode: response.data.nextCode,
-          }));
-          // Clear any potential error for chemicalCode
-          setErrors((prev) => {
-            const { chemicalCode, ...rest } = prev;
-            return rest;
-          });
-        }
-      } catch (error) {
-        console.error("Failed to fetch next chemical code:", error);
-        setErrors((prev) => ({
-          ...prev,
-          chemicalCode: "Could not auto-generate code. Please refresh.",
-        }));
-      } finally {
-        setIsCodeLoading(false);
-      }
-    };
 
-    fetchNextCode();
-  }, []);
 
   const lookupChemicalByCas = async () => {
     const casNumber = formData.casNumber.trim();
@@ -473,9 +443,7 @@ const AddChemical = () => {
   const validateForm = () => {
     const nextErrors = {};
 
-    if (!formData.chemicalCode.trim()) {
-      nextErrors.chemicalCode = "Chemical code is required.";
-    }
+    // Validation for chemicalCode removed
 
     if (!formData.canonicalName.trim()) {
       nextErrors.canonicalName = "Canonical chemical name is required.";
@@ -524,7 +492,6 @@ const AddChemical = () => {
   };
 
   const buildPayload = () => ({
-    chemicalCode: formData.chemicalCode.trim(),
     canonicalName: formData.canonicalName.trim(),
     binCardNumber: formData.binCardNumber.trim().toUpperCase(),
     stockDimension: formData.stockDimension,
@@ -724,59 +691,6 @@ const AddChemical = () => {
                   <div className="grid gap-5 md:grid-cols-2">
                     <div>
                       <InputLabel
-                        htmlFor="chemicalCode"
-                        required
-                        description="A unique internal code used in reports and labels."
-                      >
-                        Chemical code
-                      </InputLabel>
-
-                      <div className="relative">
-                        {isCodeLoading && (
-                          <Loader2
-                            size={18}
-                            className="
-                              absolute right-3 top-1/2
-                              -translate-y-1/2
-                              animate-spin
-                              text-[var(--color-text-muted)]
-                            "
-                          />
-                        )}
-                        <input
-                          id="chemicalCode"
-                          name="chemicalCode"
-                          type="text"
-                          value={formData.chemicalCode}
-                          readOnly
-                          placeholder={
-                            isCodeLoading ? "Generating code..." : "CHE-000000"
-                          }
-                          autoComplete="off"
-                          className={`
-                            w-full
-                            rounded-[var(--radius-md)]
-                            border
-                            bg-[var(--color-surface-muted)]
-                            px-4 py-3
-                            text-sm font-medium
-                            text-[var(--color-text-secondary)]
-                            placeholder:text-[var(--color-text-muted)]
-                            cursor-not-allowed
-                            ${
-                              errors.chemicalCode
-                                ? "border-[var(--color-danger)]"
-                                : "border-[var(--color-border)]"
-                            }
-                          `}
-                        />
-                      </div>
-
-                      <ErrorMessage message={errors.chemicalCode} />
-                    </div>
-
-                    <div>
-                      <InputLabel
                         htmlFor="canonicalName"
                         required
                         description="The main standardized display name."
@@ -817,9 +731,9 @@ const AddChemical = () => {
                       <InputLabel
                         htmlFor="binCardNumber"
                         required
-                        description="The unique batch identifier in BST### format (e.g. BST001)."
+                        description="The unique bin card identifier in BST### format (e.g. BST001)."
                       >
-                        Batch Number
+                        Bin Card Number
                       </InputLabel>
 
                       <input
@@ -1667,7 +1581,7 @@ const AddChemical = () => {
 
                   <div className="rounded-[var(--radius-md)] bg-[var(--color-primary-dark)] p-4">
                     <span className="inline-flex rounded-full bg-[var(--color-accent)] px-2.5 py-1 text-xs font-bold text-[var(--color-primary-dark)]">
-                      {formData.chemicalCode.trim() || "NO CODE"}
+                      {formData.binCardNumber.trim() || "NO BIN CARD NUMBER"}
                     </span>
 
                     <h3 className="mt-4 text-lg font-bold text-[var(--color-text-inverse)]">

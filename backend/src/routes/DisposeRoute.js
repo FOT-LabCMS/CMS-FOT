@@ -8,5 +8,5 @@ router.put("/updateqty/:id", verifyToken, DisposeController.updateqty);
 router.get("/view/returned", verifyToken, DisposeController.viewreturnedchemicals);
 router.get("/view/notreturned", verifyToken, DisposeController.viewnotreturnedchemicals);
 router.get("/getformdata", verifyToken, DisposeController.getformdata);
-router.get("/getbatchbychemicalid/:chemicalId", verifyToken, DisposeController.getbatchbychemicalid);
+router.get("/getbatchbybinCardNumber/:binCardNumber", verifyToken, DisposeController.getbatchbychemicalid);
 module.exports = router;

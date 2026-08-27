@@ -213,7 +213,7 @@ const ViewBatchDetail = () => {
         finalImgHeight,
       );
       pdf.save(
-        `QR-Label-${batch.chemical?.chemicalCode || 'CHEM'}-${batch.batchNumber}.pdf`,
+        `QR-Label-${batch.chemical?.binCardNumber || 'CHEM'}-${batch.batchNumber}.pdf`,
       );
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -362,7 +362,7 @@ const ViewBatchDetail = () => {
                         className="break-words text-[var(--color-primary)] hover:underline"
                       >
                         {batch.chemical.canonicalName} (
-                        {batch.chemical.chemicalCode})
+                        {batch.chemical.binCardNumber})
                       </Link>
                     </DetailItem>
 

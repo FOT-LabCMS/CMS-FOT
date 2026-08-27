@@ -10,10 +10,10 @@ module.exports = function DisposeModel(sequelize) {
         defaultValue: DataTypes.UUIDV4,
       },
 
-      chemicalCode: {
-        type: DataTypes.STRING(50),
+      binCardNumber: {
+        type: DataTypes.STRING(6),
         allowNull: false,
-        field: "chemical_code",
+        field: "bin_card_number",
       },
 
       chemicalName: {

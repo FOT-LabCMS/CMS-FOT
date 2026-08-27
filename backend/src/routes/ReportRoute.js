@@ -10,12 +10,12 @@ router.use(verifyToken);
 router.get('/usage-trend', ReportController.getUsageTrend);
 
 // Route to get data for a single chemical report
-router.get('/chemical/:chemicalCode', ReportController.getChemicalReport);
-router.get('/chemicals/:chemicalCode', ReportController.getChemicalReport);
+router.get('/chemical/:binCardNumber', ReportController.getChemicalReport);
+router.get('/chemicals/:binCardNumber', ReportController.getChemicalReport);
 
 // Route to download a PDF for a single chemical report
-router.get('/chemical/:chemicalCode/download', ReportController.downloadChemicalReport);
-router.get('/chemicals/:chemicalCode/download', ReportController.downloadChemicalReport);
+router.get('/chemical/:binCardNumber/download', ReportController.downloadChemicalReport);
+router.get('/chemicals/:binCardNumber/download', ReportController.downloadChemicalReport);
 
 // Route to get data for a usage report over a date range
 router.get('/usage', ReportController.getUsageReport);

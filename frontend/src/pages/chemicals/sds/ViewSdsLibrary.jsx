@@ -82,7 +82,7 @@ const ViewSdsLibrary = () => {
     return chemicals.filter(
       (chemical) =>
         chemical.canonicalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        chemical.chemicalCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        chemical.binCardNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (chemical.formula && chemical.formula.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (chemical.sdsOriginalFilename && chemical.sdsOriginalFilename.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (chemical.sdsChecksum && chemical.sdsChecksum.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -148,7 +148,7 @@ const ViewSdsLibrary = () => {
                   <tr key={chemical.id} className="hover:bg-[var(--color-surface-muted)]">
                     <td className="whitespace-nowrap px-4 py-4 font-medium text-[var(--color-text-primary)]">
                       <div className="font-bold">{chemical.canonicalName}</div>
-                      <div className="text-xs text-[var(--color-text-muted)]">{chemical.chemicalCode}</div>
+                      <div className="text-xs text-[var(--color-text-muted)]">{chemical.binCardNumber}</div>
                       <div className="mt-1 max-w-56 truncate text-xs text-[var(--color-text-muted)]">
                         {sdsFilename || 'SDS document'}
                       </div>

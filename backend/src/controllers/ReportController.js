@@ -43,12 +43,12 @@ const getExpiryStatus = (expiryDate) => {
   return "ACTIVE";
 };
 
-const buildChemicalReportData = async (chemicalCode) => {
+const buildChemicalReportData = async (binCardNumber) => {
   const chemical = await Chemical.findOne({
-    where: { chemicalCode },
+    where: { binCardNumber },
     attributes: [
       "id",
-      "chemicalCode",
+      "binCardNumber",
       "canonicalName",
       "baseUnit",
       "stockDimension",
@@ -83,7 +83,7 @@ const buildChemicalReportData = async (chemicalCode) => {
   });
 
   return {
-    chemicalCode: chemical.chemicalCode,
+    binCardNumber: chemical.binCardNumber,
     canonicalName: chemical.canonicalName,
     baseUnit: chemical.baseUnit,
     stockDimension: chemical.stockDimension,
@@ -93,9 +93,9 @@ const buildChemicalReportData = async (chemicalCode) => {
 };
 const getChemicalReport = async (req, res) => {
   try {
-    const { chemicalCode } = req.params;
+    const { binCardNumber } = req.params;
 
-    const data = await buildChemicalReportData(chemicalCode);
+    const data = await buildChemicalReportData(binCardNumber);
 
     if (!data) {
       return res.status(404).json({ message: "Chemical not found." });
@@ -112,9 +112,9 @@ const getChemicalReport = async (req, res) => {
 
 const downloadChemicalReport = async (req, res) => {
   try {
-    const { chemicalCode } = req.params;
+    const { binCardNumber } = req.params;
 
-    const data = await buildChemicalReportData(chemicalCode);
+    const data = await buildChemicalReportData(binCardNumber);
 
     if (!data) {
       return res.status(404).json({ message: "Chemical not found." });
@@ -125,7 +125,7 @@ const downloadChemicalReport = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${data.chemicalCode}-stock-report.pdf"`,
+      `attachment; filename="${data.binCardNumber}-stock-report.pdf"`,
     );
 
     doc.pipe(res);
@@ -231,7 +231,7 @@ const downloadChemicalReport = async (req, res) => {
         .fillColor(COLOR_PRIMARY)
         .font("Helvetica-Bold")
         .fontSize(15)
-        .text(data.chemicalCode, marginLeft + pageWidth * 0.62, cardY + 20);
+        .text(data.binCardNumber, marginLeft + pageWidth * 0.62, cardY + 20);
 
       doc
         .fillColor(COLOR_TEXT_MUTED)
@@ -261,7 +261,7 @@ const downloadChemicalReport = async (req, res) => {
         .font("Helvetica-Bold")
         .fontSize(9)
         .text(
-          `${appConfig.appName}  ·  ${data.canonicalName} (${data.chemicalCode})`,
+          `${appConfig.appName}  ·  ${data.canonicalName} (${data.binCardNumber})`,
           marginLeft + 14,
           bannerY + 9,
           { width: pageWidth * 0.7 },
@@ -481,7 +481,7 @@ const buildUsageReportData = async (startDate, endDate) => {
     order: [["dateReleased", "DESC"]],
     attributes: [
       "id",
-      "chemicalCode",
+      "binCardNumber",
       "chemicalName",
       "batchNumber",
       "quantityUsed",
@@ -497,8 +497,7 @@ const buildUsageReportData = async (startDate, endDate) => {
 
   return records.map((r) => ({
     id: r.id,
-    chemicalCode: r.chemicalCode,
-    binCardNumber: r.chemical ? r.chemical.binCardNumber : r.chemicalCode,
+    binCardNumber: r.binCardNumber,
     chemicalName: r.chemicalName,
     batchNumber: r.batchNumber,
     quantityUsed: r.quantityUsed !== null ? Number(r.quantityUsed) : null,
@@ -860,7 +859,7 @@ const downloadFullInventoryReport = async (req, res) => {
     const chemicals = await Chemical.findAll({
       attributes: [
         "id",
-        "chemicalCode",
+        "binCardNumber",
         "canonicalName",
         "baseUnit",
         "stockDimension",
@@ -1060,7 +1059,7 @@ const downloadFullInventoryReport = async (req, res) => {
         .font("Helvetica-Bold")
         .fontSize(9.5)
         .text(
-          `${chemical.canonicalName} (${chemical.chemicalCode})`,
+          `${chemical.canonicalName} (${chemical.binCardNumber})`,
           marginLeft + 10,
           cursorY + 9,
           {

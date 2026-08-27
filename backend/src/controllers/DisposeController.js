@@ -7,7 +7,7 @@ const { notifyLowStockBatch } = require("../services/notificationService.js");
 
 const createreleaserecord = async (req, res) => {
   const {
-    chemicalCode,
+    binCardNumber,
     stuRegisterNum,
     userName,
     batchNumber,
@@ -17,7 +17,7 @@ const createreleaserecord = async (req, res) => {
     supervisorName,
   } = req.body;
   if (
-    !chemicalCode ||
+    !binCardNumber ||
     !batchNumber ||
     !dateReleased ||
     !purpose ||
@@ -29,7 +29,7 @@ const createreleaserecord = async (req, res) => {
   }
   try {
     const chemical = await Chemical.findOne({
-      where: { chemicalCode: chemicalCode },
+      where: { binCardNumber: binCardNumber },
     });
     if (!chemical) {
       return res.status(404).json({ message: "Chemical not found" });
@@ -41,7 +41,7 @@ const createreleaserecord = async (req, res) => {
       return res.status(404).json({ message: "Batch not found" });
     }
     const dispose = await Dispose.create({
-      chemicalCode: chemicalCode,
+      binCardNumber: binCardNumber,
       chemicalName: chemical.canonicalName,
       batchNumber: batchNumber,
       dateReleased: dateReleased,
@@ -60,7 +60,7 @@ const createreleaserecord = async (req, res) => {
       entityType: "Dispose",
       entityId: dispose.id,
       details: {
-        chemicalCode: dispose.chemicalCode,
+        binCardNumber: dispose.binCardNumber,
         batchNumber: dispose.batchNumber,
         purpose: dispose.purpose,
       },
@@ -104,7 +104,7 @@ const updateqty = async (req, res) => {
 
     if (inputUnit === "g") {
       const chemical = await Chemical.findOne({
-        where: { chemicalCode: dispose.chemicalCode },
+        where: { binCardNumber: dispose.binCardNumber },
         attributes: ["densityValue", "densityUnit", "stockDimension"],
       });
 
@@ -147,7 +147,7 @@ const updateqty = async (req, res) => {
       entityType: "Dispose",
       entityId: dispose.id,
       details: {
-        chemicalCode: dispose.chemicalCode,
+        binCardNumber: dispose.binCardNumber,
         batchNumber: dispose.batchNumber,
         quantityUsed: dispose.quantityUsed,
         stockDeducted: volumeToDeduct.toFixed(4),
@@ -214,8 +214,8 @@ const viewnotreturnedchemicals = async (req, res) => {
 const getformdata = async (req, res) => {
   try {
     const chemicals = await Chemical.findAll({
-      attributes: ["id", "chemicalCode", "canonicalName"],
-      order: [["chemicalCode", "ASC"]],
+      attributes: ["id", "binCardNumber", "canonicalName"],
+      order: [["binCardNumber", "ASC"]],
     });
     res.json({ chemicals });
   } catch (error) {
@@ -225,10 +225,10 @@ const getformdata = async (req, res) => {
 };
 const getbatchbychemicalid = async (req, res) => {
   try {
-    const { chemicalId } = req.params;
+    const { binCardNumber } = req.params;
 
     const chemical = await Chemical.findOne({
-      where: { chemicalCode: chemicalId },
+      where: { binCardNumber: binCardNumber },
     });
 
     if (!chemical) {

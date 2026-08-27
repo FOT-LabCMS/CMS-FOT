@@ -26,25 +26,7 @@ const normalizeOptionalDate = (value) => {
   return normalizedValue ? normalizedValue : null;
 };
 
-const getNextChemicalCode = async (req, res) => {
-  try {
-    // Count all existing chemicals to determine the next ID
-    const chemicalCount = await Chemical.count();
-    const nextId = chemicalCount + 1;
 
-    // Format the number with leading zeros to a length of 6
-    const paddedId = String(nextId).padStart(6, '0');
-    const nextCode = `CHE-${paddedId}`;
-
-    res.status(200).json({
-      success: true,
-      nextCode,
-    });
-  } catch (error) {
-    console.error('Error generating next chemical code:', error);
-    res.status(500).json({ success: false, message: 'Internal server error while generating chemical code.' });
-  }
-};
 
 const addChemical = async (req, res) => {
   try {
@@ -73,13 +55,13 @@ const addChemical = async (req, res) => {
     }
 
     // Basic validation for required fields based on the model
-    if (!payload.chemicalCode || !payload.canonicalName || !payload.stockDimension || !payload.baseUnit || !payload.binCardNumber) {
+    if (!payload.canonicalName || !payload.stockDimension || !payload.baseUnit || !payload.binCardNumber) {
       if (req.file) {
         await deleteSdsFile(req.file.filename);
       }
       return res.status(400).json({ 
         success: false,
-        message: 'Missing required fields. Chemical code, canonical name, Batch Number (BST###), stock dimension, and base unit are required.' 
+        message: 'Missing required fields. Canonical name, Bin Card Number (BST###), stock dimension, and base unit are required.' 
       });
     }
 
@@ -90,15 +72,14 @@ const addChemical = async (req, res) => {
       }
       return res.status(400).json({
         success: false,
-        message: 'Batch Number must follow the format BST followed by exactly 3 digits (e.g. BST001).',
+        message: 'Bin Card Number must follow the format BST followed by exactly 3 digits (e.g. BST001).',
       });
     }
 
-    // Check if a chemical with the same code, name, or binCardNumber already exists (case-insensitive)
+    // Check if a chemical with the same name or binCardNumber already exists (case-insensitive)
     const existingChemical = await Chemical.findOne({
       where: {
         [Op.or]: [
-          { chemicalCode: { [Op.iLike]: payload.chemicalCode.trim() } },
           { canonicalName: { [Op.iLike]: payload.canonicalName.trim() } },
           { binCardNumber: payload.binCardNumber },
         ],
@@ -109,17 +90,13 @@ const addChemical = async (req, res) => {
       if (req.file) {
         await deleteSdsFile(req.file.filename);
       }
-      let field = 'code';
-      if (existingChemical.chemicalCode.toLowerCase() === payload.chemicalCode.trim().toLowerCase()) {
-        field = 'chemical code';
-      } else if (existingChemical.canonicalName.toLowerCase() === payload.canonicalName.trim().toLowerCase()) {
+      let field = 'Bin Card Number (BST###)';
+      if (existingChemical.canonicalName.toLowerCase() === payload.canonicalName.trim().toLowerCase()) {
         field = 'canonical name';
-      } else {
-        field = 'Batch Number (BST###)';
       }
       return res.status(409).json({ 
         success: false, 
-        message: `A chemical with this ${field} already exists.` 
+        message: `A chemical with that ${field} already exists.` 
       });
     }
 
@@ -153,9 +130,9 @@ const addChemical = async (req, res) => {
       severity: 'INFO',
       messageBuilder: {
         actor: (createdChemical) =>
-          `You added a new chemical: ${createdChemical.canonicalName} (${createdChemical.chemicalCode}).`,
+          `You added a new chemical: ${createdChemical.canonicalName} (${createdChemical.binCardNumber}).`,
         others: (actorName, createdChemical) =>
-          `${actorName} added a new chemical: ${createdChemical.canonicalName} (${createdChemical.chemicalCode}).`,
+          `${actorName} added a new chemical: ${createdChemical.canonicalName} (${createdChemical.binCardNumber}).`,
       },
     });
 
@@ -167,7 +144,6 @@ const addChemical = async (req, res) => {
       entityType: "Chemical",
       entityId: chemical.id,
       details: {
-        chemicalCode: chemical.chemicalCode,
         canonicalName: chemical.canonicalName,
         binCardNumber: chemical.binCardNumber,
         imageUrl: chemical.imageUrl,
@@ -243,7 +219,7 @@ const getPublicChemicals = async (req, res) => {
       order: [['canonicalName', 'ASC']],
       attributes: [
         "id",
-        "chemicalCode",
+        "binCardNumber",
         "canonicalName",
         "formula",
         "physicalState",
@@ -412,7 +388,7 @@ const updateChemical = async (req, res) => {
         if (imageFile) await deleteImageFile(imageFile.filename);
         return res.status(400).json({
           success: false,
-          message: 'Batch Number must follow the format BST followed by exactly 3 digits (e.g. BST001).',
+          message: 'Bin Card Number must follow the format BST followed by exactly 3 digits (e.g. BST001).',
         });
       }
 
@@ -428,7 +404,7 @@ const updateChemical = async (req, res) => {
           if (imageFile) await deleteImageFile(imageFile.filename);
           return res.status(409).json({
             success: false,
-            message: `A chemical with Batch Number "${payload.binCardNumber}" already exists.`,
+            message: `A chemical with Bin Card Number "${payload.binCardNumber}" already exists.`,
           });
         }
       }
@@ -523,7 +499,7 @@ const softDeleteChemical = async (req, res) => {
       entityType: "Chemical",
       entityId: chemical.id,
       details: {
-        chemicalCode: chemical.chemicalCode,
+        binCardNumber: chemical.binCardNumber,
         canonicalName: chemical.canonicalName,
       },
       ipAddress: req.ip,
@@ -559,7 +535,7 @@ const reactivateChemical = async (req, res) => {
       entityType: "Chemical",
       entityId: chemical.id,
       details: {
-        chemicalCode: chemical.chemicalCode,
+        binCardNumber: chemical.binCardNumber,
         canonicalName: chemical.canonicalName,
       },
       ipAddress: req.ip,
@@ -586,7 +562,7 @@ const getChemicalsWithSds = async (req, res) => {
       order: [['canonicalName', 'ASC']],
       attributes: [
         'id',
-        'chemicalCode',
+        'binCardNumber',
         'canonicalName',
         'formula',
         'sdsStorageKey',
@@ -1083,22 +1059,7 @@ const resolveScanCode = async (req, res) => {
       });
     }
 
-    // 4. Try matching Chemical by chemicalCode (e.g. CHE-000001)
-    const chemicalByCode = await Chemical.findOne({
-      where: {
-        chemicalCode: { [Op.iLike]: targetId },
-      },
-    });
-
-    if (chemicalByCode) {
-      return res.status(200).json({
-        success: true,
-        matchType: 'CHEMICAL_CODE',
-        chemicalId: chemicalByCode.id,
-        batchId: null,
-        chemical: chemicalByCode,
-      });
-    }
+    // chemicalCode resolving is removed
 
     // 5. Try matching Chemical by binCardNumber (e.g. BST001)
     const chemicalByBin = await Chemical.findOne({
@@ -1149,7 +1110,6 @@ const resolveScanCode = async (req, res) => {
 
 module.exports = {
   addChemical,
-  getNextChemicalCode,
   getAllChemicals,
   updateChemical,
   getChemicalById,

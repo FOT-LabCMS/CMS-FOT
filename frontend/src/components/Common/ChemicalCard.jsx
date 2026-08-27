@@ -17,7 +17,6 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
 
   const {
     id,
-    chemicalCode,
     canonicalName,
     binCardNumber,
     imageUrl,
@@ -61,7 +60,7 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
               {canonicalName}
             </h3>
             <p className="text-xs font-semibold text-[var(--color-accent-dark)] truncate">
-              {chemicalCode}
+              {binCardNumber}
             </p>
           </div>
         </div>
@@ -79,7 +78,7 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
         <dl className="space-y-3 text-sm">
           {binCardNumber && (
             <div className="flex justify-between">
-              <dt className="text-[var(--color-text-secondary)]">Batch Number</dt>
+              <dt className="text-[var(--color-text-secondary)]">Bin Card Number</dt>
               <dd className="font-semibold text-[var(--color-primary)]">
                 {binCardNumber}
               </dd>

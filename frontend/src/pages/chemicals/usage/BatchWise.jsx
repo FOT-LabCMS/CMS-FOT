@@ -428,7 +428,7 @@ const batchwise = () => {
                         {usageData.chemicalName}
                       </p>
                       <p className="mt-0.5 text-xs text-[var(--color-text-inverse)] opacity-50">
-                        {usageData.chemicalCode}
+                        {usageData.binCardNumber}
                       </p>
                     </div>
 
@@ -527,10 +527,10 @@ const batchwise = () => {
                 <dl className="grid gap-4 sm:grid-cols-2">
                   <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
                     <dt className="text-sm text-[var(--color-text-secondary)]">
-                      Chemical code
+                      Bin Card Number
                     </dt>
                     <dd className="text-sm font-bold text-[var(--color-text-primary)]">
-                      {usageData.chemicalCode}
+                      {usageData.binCardNumber}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">

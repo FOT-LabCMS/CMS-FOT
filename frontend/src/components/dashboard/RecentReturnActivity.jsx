@@ -125,7 +125,7 @@ const RecentReturnActivity = ({
                       {item.chemicalName}
                     </p>
                     <p className="mt-1 text-xs font-semibold text-[var(--color-text-muted)]">
-                      {item.chemicalCode} • Batch no. {item.batchNumber}
+                      {item.binCardNumber} • Batch no. {item.batchNumber}
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-[var(--color-primary-tint)] px-2.5 py-1 text-xs font-extrabold text-[var(--color-primary)]">

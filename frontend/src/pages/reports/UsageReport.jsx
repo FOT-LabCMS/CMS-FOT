@@ -192,7 +192,7 @@ const UsageReport = () => {
           statusFilter === "ALL" || r.returnedStatus === statusFilter;
         const matchSearch =
           !term ||
-          r.chemicalCode?.toLowerCase().includes(term) ||
+          r.binCardNumber?.toLowerCase().includes(term) ||
           r.chemicalName?.toLowerCase().includes(term) ||
           r.batchNumber?.toLowerCase().includes(term) ||
           r.stuRegisterNum?.toLowerCase().includes(term) ||
@@ -228,7 +228,7 @@ const UsageReport = () => {
     [filtered],
   );
   const uniqueChemicals = useMemo(
-    () => new Set(filtered.map((r) => r.chemicalCode)).size,
+    () => new Set(filtered.map((r) => r.binCardNumber)).size,
     [filtered],
   );
 
@@ -643,8 +643,8 @@ const UsageReport = () => {
                         onSort={handleSort}
                       />
                       <SortHeader
-                        label="Code"
-                        field="chemicalCode"
+                        label="Bin Card No."
+                        field="binCardNumber"
                         sortField={sortField}
                         sortDir={sortDir}
                         onSort={handleSort}
@@ -721,10 +721,10 @@ const UsageReport = () => {
                           </div>
                         </td>
 
-                        {/* Chemical Code */}
+                        {/* Bin Card Number */}
                         <td className="px-3 py-3">
                           <span className="rounded-md bg-[var(--color-primary-tint)] px-2 py-1 text-[11px] font-bold text-[var(--color-primary)]">
-                            {record.chemicalCode || "—"}
+                            {record.binCardNumber || "—"}
                           </span>
                         </td>
 

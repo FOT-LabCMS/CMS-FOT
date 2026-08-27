@@ -44,7 +44,7 @@ const ViewChemicals = () => {
   const filteredChemicals = chemicals.filter(
     (chemical) =>
       chemical.canonicalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      chemical.chemicalCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      chemical.binCardNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (chemical.formula && chemical.formula.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 

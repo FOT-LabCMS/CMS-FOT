@@ -406,8 +406,8 @@ const ChemicalDetails = () => {
                         {chemical.canonicalName}
                       </h1>
                       <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                        Viewing the master record for chemical code:{" "}
-                        <strong className="font-bold text-[var(--color-accent-light)]">{chemical.chemicalCode}</strong>
+                        Viewing the master record for Bin Card Number:{" "}
+                        <strong className="font-bold text-[var(--color-accent-light)]">{chemical.binCardNumber}</strong>
                       </p>
                     </div>
 
@@ -770,7 +770,7 @@ const ChemicalDetails = () => {
               <div className="flex items-center gap-2.5">
                 <ImageIcon size={18} className="text-[var(--color-primary)]" />
                 <h3 className="font-bold text-sm sm:text-base text-[var(--color-text-primary)] truncate">
-                  {chemical.canonicalName} ({chemical.chemicalCode})
+                  {chemical.canonicalName} ({chemical.binCardNumber})
                 </h3>
               </div>
               <button

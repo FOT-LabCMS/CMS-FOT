@@ -9,12 +9,7 @@ module.exports = function ChemicalModel(sequelize) {
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4,
       },
-      chemicalCode: {
-        type: DataTypes.STRING(50),
-        allowNull: false,
-        unique: true,
-        field: "chemical_code",
-      },
+
       canonicalName: {
         type: DataTypes.STRING(255),
         allowNull: false,

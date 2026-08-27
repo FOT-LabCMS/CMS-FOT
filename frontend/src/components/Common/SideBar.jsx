@@ -709,7 +709,7 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
         <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)] shadow-[var(--shadow-sm)]">
             <img
-              src="../../../public/faculty_logo.png"
+              src="/faculty_logo.png"
               alt="Faculty of Technology Logo"
               className="h-full w-full object-cover"
             />
