@@ -475,7 +475,7 @@ const buildUsageReportData = async (startDate, endDate) => {
       {
         model: Chemical,
         as: "chemical",
-        attributes: ["baseUnit"],
+        attributes: ["baseUnit", "binCardNumber"],
       },
     ],
     order: [["dateReleased", "DESC"]],
@@ -498,6 +498,7 @@ const buildUsageReportData = async (startDate, endDate) => {
   return records.map((r) => ({
     id: r.id,
     chemicalCode: r.chemicalCode,
+    binCardNumber: r.chemical ? r.chemical.binCardNumber : r.chemicalCode,
     chemicalName: r.chemicalName,
     batchNumber: r.batchNumber,
     quantityUsed: r.quantityUsed !== null ? Number(r.quantityUsed) : null,
@@ -545,7 +546,12 @@ const downloadUsageReport = async (req, res) => {
     const records = await buildUsageReportData(startDate, endDate);
 
     // ── Landscape A4 ──────────────────────────────────────────────────────────
-    const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 20, bufferPages: true });
+    const doc = new PDFDocument({
+      size: "A4",
+      layout: "landscape",
+      margin: 20,
+      bufferPages: true,
+    });
 
     const friendlyStart = formatDate(startDate);
     const friendlyEnd = formatDate(endDate);
@@ -558,32 +564,43 @@ const downloadUsageReport = async (req, res) => {
 
     doc.pipe(res);
 
-    const marginLeft  = doc.page.margins.left;
-    const marginTop   = doc.page.margins.top;
-    const pageWidth   = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const marginLeft = doc.page.margins.left;
+    const marginTop = doc.page.margins.top;
+    const pageWidth =
+      doc.page.width - doc.page.margins.left - doc.page.margins.right;
     // A4 landscape inner width ≈ 801 pt  (841 – 20 – 20)
 
-    const PURPOSE_COL_WIDTH = 130;  // fixed width for Purpose column
-    const HEADER_ROW_H      = 20;   // table-header row height
-    const FONT_SIZE         = 7.5;
-    const LINE_H            = FONT_SIZE * 1.3; // ≈9.75 pt per line
+    const PURPOSE_COL_WIDTH = 110; // fixed width for Purpose column
+    const REMARK_COL_WIDTH = 110; // fixed width for Remark column
+    const HEADER_ROW_H = 20; // table-header row height
+    const FONT_SIZE = 7.5;
+    const LINE_H = FONT_SIZE * 1.3; // ≈9.75 pt per line
     const MAX_PURPOSE_LINES = 2;
-    const ROW_PAD           = 5;    // vertical padding (top + bottom)
-    const BASE_ROW_HEIGHT   = Math.ceil(MAX_PURPOSE_LINES * LINE_H + ROW_PAD * 2); // ≈30 pt
+    const ROW_PAD = 5; // vertical padding (top + bottom)
+    const BASE_ROW_HEIGHT = Math.ceil(MAX_PURPOSE_LINES * LINE_H + ROW_PAD * 2); // ≈30 pt
 
     // Column definitions — total must equal pageWidth
-    // Remaining width after Purpose = 801 – 130 = 671; distribute among 8 cols:
-    //   80 + 125 + 68 + 78 + 55 + 52 + 65 + 148 = 671
+    // Remaining width after Purpose + Remark = 801 – 110 – 110 = 581; distribute among 8 cols:
+    //   75 + 115 + 65 + 75 + 52 + 50 + 60 + 89 = 581
     const columns = [
-      { key: "chemicalCode",   label: "Code",       width: 80  },
-      { key: "chemicalName",   label: "Chemical",   width: 125 },
-      { key: "batchNumber",    label: "Batch No.",  width: 68  },
-      { key: "stuRegisterNum", label: "Reg. No.",   width: 78  },
-      { key: "quantityUsed",   label: "Qty Used",   width: 55  },
-      { key: "returnedStatus", label: "Status",     width: 52  },
-      { key: "dateReleased",   label: "Released",   width: 65  },
-      { key: "dateReturned",   label: "Returned",   width: pageWidth - PURPOSE_COL_WIDTH - (80 + 125 + 68 + 78 + 55 + 52 + 65) },
-      { key: "purpose",        label: "Purpose",    width: PURPOSE_COL_WIDTH },
+      { key: "binCardNumber", label: "Bin Card No.", width: 75 },
+      { key: "chemicalName", label: "Chemical", width: 115 },
+      { key: "batchNumber", label: "Batch No.", width: 65 },
+      { key: "stuRegisterNum", label: "Released TG.No.", width: 75 },
+      { key: "quantityUsed", label: "Qty Used", width: 52 },
+      { key: "returnedStatus", label: "Status", width: 50 },
+      { key: "dateReleased", label: "Released", width: 60 },
+      {
+        key: "dateReturned",
+        label: "Returned",
+        width:
+          pageWidth -
+          PURPOSE_COL_WIDTH -
+          REMARK_COL_WIDTH -
+          (75 + 115 + 65 + 75 + 52 + 50 + 60),
+      },
+      { key: "purpose", label: "Purpose", width: PURPOSE_COL_WIDTH },
+      { key: "remark", label: "Remark", width: REMARK_COL_WIDTH },
     ];
 
     const statusColor = (status) => {
@@ -597,35 +614,79 @@ const downloadUsageReport = async (req, res) => {
       const bannerHeight = 50;
       const bannerY = marginTop;
 
-      doc.rect(marginLeft, bannerY, pageWidth, bannerHeight).fill(COLOR_PRIMARY_DARK);
+      doc
+        .rect(marginLeft, bannerY, pageWidth, bannerHeight)
+        .fill(COLOR_PRIMARY_DARK);
 
-      doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(13)
+      doc
+        .fillColor("#FFFFFF")
+        .font("Helvetica-Bold")
+        .fontSize(13)
         .text(appConfig.appName, marginLeft + 16, bannerY + 8);
 
-      doc.fillColor(COLOR_ACCENT).font("Helvetica").fontSize(7.5)
-        .text("FACULTY LABORATORY CHEMICAL MANAGEMENT SYSTEM", marginLeft + 16, bannerY + 23);
+      doc
+        .fillColor(COLOR_ACCENT)
+        .font("Helvetica")
+        .fontSize(7.5)
+        .text(
+          "FACULTY LABORATORY CHEMICAL MANAGEMENT SYSTEM",
+          marginLeft + 16,
+          bannerY + 23,
+        );
 
-      doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(9)
+      doc
+        .fillColor("#FFFFFF")
+        .font("Helvetica-Bold")
+        .fontSize(9)
         .text("Chemical Usage Report", marginLeft + 16, bannerY + 35);
 
-      doc.fillColor("#FFFFFF").font("Helvetica").fontSize(8)
-        .text(`Generated ${new Date().toLocaleString("en-GB")}`, marginLeft, bannerY + 8,
-          { width: pageWidth - 16, align: "right" });
+      doc
+        .fillColor("#FFFFFF")
+        .font("Helvetica")
+        .fontSize(8)
+        .text(
+          `Generated ${new Date().toLocaleString("en-GB")}`,
+          marginLeft,
+          bannerY + 8,
+          { width: pageWidth - 16, align: "right" },
+        );
 
       // Date-range info card
       const cardY = bannerY + bannerHeight + 12;
       const cardH = 36;
-      doc.rect(marginLeft, cardY, pageWidth, cardH).fillAndStroke("#F3F0E8", COLOR_BORDER);
+      doc
+        .rect(marginLeft, cardY, pageWidth, cardH)
+        .fillAndStroke("#F3F0E8", COLOR_BORDER);
 
-      doc.fillColor(COLOR_TEXT_MUTED).font("Helvetica-Bold").fontSize(7)
+      doc
+        .fillColor(COLOR_TEXT_MUTED)
+        .font("Helvetica-Bold")
+        .fontSize(7)
         .text("PERIOD", marginLeft + 14, cardY + 7);
-      doc.fillColor(COLOR_TEXT).font("Helvetica-Bold").fontSize(12)
-        .text(`${friendlyStart}  —  ${friendlyEnd}`, marginLeft + 14, cardY + 16);
+      doc
+        .fillColor(COLOR_TEXT)
+        .font("Helvetica-Bold")
+        .fontSize(12)
+        .text(
+          `${friendlyStart}  —  ${friendlyEnd}`,
+          marginLeft + 14,
+          cardY + 16,
+        );
 
-      doc.fillColor(COLOR_TEXT_MUTED).font("Helvetica-Bold").fontSize(7)
+      doc
+        .fillColor(COLOR_TEXT_MUTED)
+        .font("Helvetica-Bold")
+        .fontSize(7)
         .text("TOTAL RECORDS", marginLeft + pageWidth * 0.55, cardY + 7);
-      doc.fillColor(COLOR_PRIMARY).font("Helvetica-Bold").fontSize(12)
-        .text(String(records.length), marginLeft + pageWidth * 0.55, cardY + 16);
+      doc
+        .fillColor(COLOR_PRIMARY)
+        .font("Helvetica-Bold")
+        .fontSize(12)
+        .text(
+          String(records.length),
+          marginLeft + pageWidth * 0.55,
+          cardY + 16,
+        );
 
       doc.y = cardY + cardH + 14;
     };
@@ -635,15 +696,29 @@ const downloadUsageReport = async (req, res) => {
       const bannerH = 26;
       const bannerY = marginTop;
 
-      doc.rect(marginLeft, bannerY, pageWidth, bannerH).fill(COLOR_PRIMARY_DARK);
+      doc
+        .rect(marginLeft, bannerY, pageWidth, bannerH)
+        .fill(COLOR_PRIMARY_DARK);
 
-      doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(9)
-        .text(`${appConfig.appName}  ·  Usage Report  (${friendlyStart} — ${friendlyEnd})`,
-          marginLeft + 14, bannerY + 8, { width: pageWidth * 0.7 });
+      doc
+        .fillColor("#FFFFFF")
+        .font("Helvetica-Bold")
+        .fontSize(9)
+        .text(
+          `${appConfig.appName}  ·  Usage Report  (${friendlyStart} — ${friendlyEnd})`,
+          marginLeft + 14,
+          bannerY + 8,
+          { width: pageWidth * 0.7 },
+        );
 
-      doc.fillColor(COLOR_ACCENT).font("Helvetica").fontSize(8)
-        .text("Chemical Usage Report (cont.)", marginLeft, bannerY + 8,
-          { width: pageWidth - 14, align: "right" });
+      doc
+        .fillColor(COLOR_ACCENT)
+        .font("Helvetica")
+        .fontSize(8)
+        .text("Chemical Usage Report (cont.)", marginLeft, bannerY + 8, {
+          width: pageWidth - 14,
+          align: "right",
+        });
 
       doc.y = bannerY + bannerH + 12;
     };
@@ -654,7 +729,10 @@ const downloadUsageReport = async (req, res) => {
       let x = marginLeft;
       doc.fillColor("#FFFFFF").fontSize(7.5).font("Helvetica-Bold");
       columns.forEach((col) => {
-        doc.text(col.label, x + 4, y + 6, { width: col.width - 8, lineBreak: false });
+        doc.text(col.label, x + 4, y + 6, {
+          width: col.width - 8,
+          lineBreak: false,
+        });
         x += col.width;
       });
       return y + HEADER_ROW_H;
@@ -672,14 +750,24 @@ const downloadUsageReport = async (req, res) => {
     cursorY = drawUsageTableHeader(doc.y);
 
     if (records.length === 0) {
-      doc.fillColor(COLOR_TEXT_MUTED).fontSize(9).font("Helvetica-Oblique")
-        .text("No usage records found for this period.", marginLeft + 4, cursorY + 10);
+      doc
+        .fillColor(COLOR_TEXT_MUTED)
+        .fontSize(9)
+        .font("Helvetica-Oblique")
+        .text(
+          "No usage records found for this period.",
+          marginLeft + 4,
+          cursorY + 10,
+        );
     }
 
     records.forEach((record, index) => {
       const rowHeight = BASE_ROW_HEIGHT;
 
-      if (cursorY + rowHeight > doc.page.height - doc.page.margins.bottom - 20) {
+      if (
+        cursorY + rowHeight >
+        doc.page.height - doc.page.margins.bottom - 20
+      ) {
         doc.addPage();
       }
 
@@ -689,18 +777,21 @@ const downloadUsageReport = async (req, res) => {
       }
 
       const rowValues = {
-        chemicalCode:    record.chemicalCode   || "—",
-        chemicalName:    record.chemicalName   || "—",
-        batchNumber:     record.batchNumber    || "—",
-        stuRegisterNum:  record.stuRegisterNum || "—",
+        binCardNumber: record.binCardNumber || "—",
+        chemicalName: record.chemicalName || "—",
+        batchNumber: record.batchNumber || "—",
+        stuRegisterNum: record.stuRegisterNum || "—",
         quantityUsed:
           record.quantityUsed != null
             ? `${Number(record.quantityUsed).toFixed(2)}${record.baseUnit || ""}`
             : "—",
-        returnedStatus:  record.returnedStatus || "—",
-        dateReleased:    formatDate(record.dateReleased),
-        dateReturned:    record.dateReturned ? formatDate(record.dateReturned) : "—",
-        purpose:         record.purpose || "—",
+        returnedStatus: record.returnedStatus || "—",
+        dateReleased: formatDate(record.dateReleased),
+        dateReturned: record.dateReturned
+          ? formatDate(record.dateReturned)
+          : "—",
+        purpose: record.purpose || "—",
+        remark: record.remark || "—",
       };
 
       const textY = cursorY + ROW_PAD;
@@ -709,21 +800,25 @@ const downloadUsageReport = async (req, res) => {
       columns.forEach((col) => {
         doc.fontSize(FONT_SIZE);
         doc.font(col.key === "returnedStatus" ? "Helvetica-Bold" : "Helvetica");
-        doc.fillColor(col.key === "returnedStatus" ? statusColor(record.returnedStatus) : COLOR_TEXT);
+        doc.fillColor(
+          col.key === "returnedStatus"
+            ? statusColor(record.returnedStatus)
+            : COLOR_TEXT,
+        );
 
-        if (col.key === "purpose") {
+        if (col.key === "purpose" || col.key === "remark") {
           // Fixed 2-row height — text is clipped to that height
           doc.text(String(rowValues[col.key]), x + 4, textY, {
-            width:     col.width - 8,
-            height:    MAX_PURPOSE_LINES * LINE_H,
+            width: col.width - 8,
+            height: MAX_PURPOSE_LINES * LINE_H,
             lineBreak: true,
-            ellipsis:  true,
+            ellipsis: true,
           });
         } else {
           doc.text(String(rowValues[col.key]), x + 4, textY, {
-            width:     col.width - 8,
+            width: col.width - 8,
             lineBreak: false,
-            ellipsis:  true,
+            ellipsis: true,
           });
         }
 
@@ -737,7 +832,10 @@ const downloadUsageReport = async (req, res) => {
     const range = doc.bufferedPageRange();
     for (let i = range.start; i < range.start + range.count; i++) {
       doc.switchToPage(i);
-      doc.fontSize(7).fillColor(COLOR_TEXT_MUTED).font("Helvetica")
+      doc
+        .fontSize(7)
+        .fillColor(COLOR_TEXT_MUTED)
+        .font("Helvetica")
         .text(
           `Page ${i + 1} of ${range.count}   ·   Generated by ${appConfig.appName} — Usage data for period ${friendlyStart} to ${friendlyEnd}.`,
           marginLeft,
