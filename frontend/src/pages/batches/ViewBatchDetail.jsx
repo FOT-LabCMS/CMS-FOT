@@ -117,6 +117,13 @@ const ViewBatchDetail = () => {
   const [disposeError, setDisposeError] = useState('');
   const [disposeSuccess, setDisposeSuccess] = useState(false);
 
+  const scrollToDispose = () => {
+    const el = document.getElementById('dispose-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   const handleDispose = async () => {
     if (!disposalRemark.trim()) {
       setDisposeError('Please enter a disposal remark before disposing.');
@@ -341,6 +348,34 @@ const ViewBatchDetail = () => {
               </div>
             </div>
           </header>
+
+          {/* Expired & Needs Disposal — Prominent Alert Banner */}
+          {canDisposeBatch && isExpired && !isDisposed && (
+            <div className="mb-6 flex flex-col gap-3 rounded-xl border-2 border-red-400 bg-red-50 p-4 shadow-md sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 ring-4 ring-red-200">
+                  <AlertTriangle className="text-red-600" size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-red-800">
+                    ⚠️ This batch has expired and requires disposal
+                  </p>
+                  <p className="mt-0.5 text-xs text-red-600">
+                    Expired batches must not be used. Please add a disposal
+                    remark and confirm disposal to remove it from active
+                    inventory.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={scrollToDispose}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow transition-colors hover:bg-red-700 active:bg-red-800"
+              >
+                <Trash2 size={15} />
+                Dispose This Batch
+              </button>
+            </div>
+          )}
 
           {/* Main Content */}
           <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(330px,0.85fr)]">
@@ -662,7 +697,14 @@ const ViewBatchDetail = () => {
 
               {/* Dispose Expired Batch section */}
               {canDisposeBatch && isExpired && (
-                <section className="overflow-hidden rounded-[var(--radius-lg)] border border-red-300 bg-red-50 shadow-[var(--shadow-sm)]">
+                <section
+                  id="dispose-section"
+                  className={`overflow-hidden rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] ${
+                    !isDisposed
+                      ? 'border-2 border-red-400 bg-red-50 ring-4 ring-red-100'
+                      : 'border border-red-300 bg-red-50'
+                  }`}
+                >
                   <header className="flex items-center gap-3 border-b border-red-200 bg-red-100 p-4 sm:p-5">
                     <Trash2 size={20} className="text-red-700" />
                     <h2 className="text-base font-bold text-red-800">
