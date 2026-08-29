@@ -730,6 +730,14 @@ const ViewAllBatches = () => {
     return counts;
   }, [batches]);
 
+  const expiredCount = useMemo(
+    () =>
+      batches.filter(
+        (batch) => !batch.isDisposed && getStatus(batch).text === "Expired",
+      ).length,
+    [batches],
+  );
+
   const filteredBatches = useMemo(() => {
     return batches.filter((batch) => {
       const matchesSearch =
@@ -986,6 +994,34 @@ const ViewAllBatches = () => {
               </div>
             </div>
           </header>
+
+          {/* Expired Batches Notification Banner */}
+          {expiredCount > 0 && (
+            <div className="mb-6 flex flex-col gap-3 rounded-xl border border-red-300 bg-red-50 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100">
+                  <AlertTriangle className="text-red-600" size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-red-800">
+                    {expiredCount} Expired{" "}
+                    {expiredCount === 1 ? "Batch" : "Batches"} Require Disposal
+                  </p>
+                  <p className="mt-0.5 text-xs text-red-600">
+                    These batches have passed their expiry date. Please review
+                    and dispose of them to maintain inventory compliance.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setStatusFilter("Expired")}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-red-700 active:bg-red-800"
+              >
+                <Trash2 size={14} />
+                View & Dispose Expired Batches
+              </button>
+            </div>
+          )}
 
           {/* Search and Filter Bar */}
           <div className="mb-6 flex flex-wrap items-center justify-between gap-y-3">
