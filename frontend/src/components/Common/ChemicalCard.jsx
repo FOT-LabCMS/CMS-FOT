@@ -1,19 +1,35 @@
-import React from 'react';
-import { Beaker, FileText, MoreHorizontal, Pencil, Eye, Undo2, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { getChemicalImageUrl } from '../../utils/chemicalImage';
+import React from "react";
+import {
+  Beaker,
+  FileText,
+  MoreHorizontal,
+  Pencil,
+  Eye,
+  Undo2,
+  Trash2,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { getChemicalImageUrl } from "../../utils/chemicalImage";
 
 const PHYSICAL_STATE_BADGE = {
-  LIQUID: 'bg-blue-100 text-blue-800 border-blue-300',
-  SOLID: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  GAS: 'bg-green-100 text-green-800 border-green-300',
-  OTHER: 'bg-gray-100 text-gray-800 border-gray-300',
+  LIQUID: "bg-blue-100 text-blue-800 border-blue-300",
+  SOLID: "bg-yellow-100 text-yellow-800 border-yellow-300",
+  GAS: "bg-green-100 text-green-800 border-green-300",
+  OTHER: "bg-gray-100 text-gray-800 border-gray-300",
 };
 
-const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated = false, isPublicView = false }) => {
+const ChemicalCard = ({
+  chemical,
+  onEdit,
+  onDelete,
+  onReactivate,
+  isDeactivated = false,
+  isPublicView = false,
+}) => {
   const { user } = useAuth();
-  const canModify = user?.role === 'ADMIN' || user?.role === 'TECHNICAL_OFFICER';
+  const canModify =
+    user?.role === "ADMIN" || user?.role === "TECHNICAL_OFFICER";
 
   const {
     id,
@@ -34,8 +50,8 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
     <div
       className={`flex flex-col rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] transition-all duration-300 ${
         isDeactivated
-          ? 'opacity-70'
-          : 'hover:shadow-[var(--shadow-md)] hover:-translate-y-1'
+          ? "opacity-70"
+          : "hover:shadow-[var(--shadow-md)] hover:-translate-y-1"
       }`}
     >
       {/* Card Header */}
@@ -48,7 +64,7 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
                 alt={canonicalName}
                 className="h-full w-full object-cover"
                 onError={(e) => {
-                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.style.display = "none";
                 }}
               />
             ) : (
@@ -78,7 +94,9 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
         <dl className="space-y-3 text-sm">
           {binCardNumber && (
             <div className="flex justify-between">
-              <dt className="text-[var(--color-text-secondary)]">Bin Card Number</dt>
+              <dt className="text-[var(--color-text-secondary)]">
+                Bin Card Number
+              </dt>
               <dd className="font-semibold text-[var(--color-primary)]">
                 {binCardNumber}
               </dd>
@@ -87,7 +105,7 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
           <div className="flex justify-between">
             <dt className="text-[var(--color-text-secondary)]">Formula</dt>
             <dd className="font-medium text-[var(--color-text-primary)]">
-              {formula || 'N/A'}
+              {formula || "N/A"}
             </dd>
           </div>
           <div className="flex justify-between">

@@ -17,6 +17,8 @@ import {
   Calendar,
   MapPin,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -687,6 +689,7 @@ const ViewAllBatches = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
   const [qrModalBatch, setQrModalBatch] = useState(null);
   const [editingBatch, setEditingBatch] = useState(null);
   const { user } = useAuth();
@@ -756,6 +759,26 @@ const ViewAllBatches = () => {
       return matchesSearch && matchesStatus;
     });
   }, [batches, searchTerm, statusFilter]);
+
+  // Reset to first page whenever filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const PAGE_SIZE = 10;
+
+  const sortedFilteredBatches = useMemo(() => {
+    return [...filteredBatches].sort(
+      (a, b) => new Date(b.receivedDate) - new Date(a.receivedDate),
+    );
+  }, [filteredBatches]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedFilteredBatches.length / PAGE_SIZE));
+
+  const paginatedBatches = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sortedFilteredBatches.slice(start, start + PAGE_SIZE);
+  }, [sortedFilteredBatches, currentPage]);
 
   const canViewQrCode =
     user && (user.role === "ADMIN" || user.role === "TECHNICAL_OFFICER");
@@ -857,7 +880,7 @@ const ViewAllBatches = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
-              {filteredBatches.map((batch) => {
+              {paginatedBatches.map((batch) => {
                 const status = getStatus(batch);
                 return (
                   <tr
@@ -936,6 +959,61 @@ const ViewAllBatches = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Bar */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:px-6">
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Showing{" "}
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {(currentPage - 1) * PAGE_SIZE + 1}
+              </span>
+              {"–"}
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {Math.min(currentPage * PAGE_SIZE, sortedFilteredBatches.length)}
+              </span>
+              {" of "}
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {sortedFilteredBatches.length}
+              </span>{" "}
+              batches
+            </p>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40"
+                title="Previous page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-[var(--radius-sm)] border px-2 text-xs font-semibold transition-colors ${
+                    page === currentPage
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                      : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40"
+                title="Next page"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

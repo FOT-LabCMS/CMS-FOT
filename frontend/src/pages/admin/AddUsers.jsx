@@ -31,7 +31,7 @@ const INITIAL_FORM = {
   role: "",
 };
 
-const ROLE_OPTIONS = ["LECTURER", "TECHNICAL_OFFICER", "ADMIN"];
+const ROLE_OPTIONS = ["LECTURER", "TECHNICAL_OFFICER", "ADMIN", "COMMON"];
 
 const InputLabel = ({ children, required = false, description, htmlFor }) => (
   <div className="mb-2">
@@ -104,8 +104,8 @@ const AddUsers = () => {
 
     if (!form.institutionalId.trim()) {
       nextErrors.institutionalId = "Institutional ID is required.";
-    } else if (!/^R\d{6}$/.test(form.institutionalId)) {
-      nextErrors.institutionalId = "Format must be R123456.";
+    } else if (!/^(R\d{6}|COM\d{4})$/.test(form.institutionalId)) {
+      nextErrors.institutionalId = "Format must be R123456 or COM1234.";
     }
 
     if (!form.fullName.trim()) {
@@ -382,7 +382,8 @@ const AddUsers = () => {
                       <div className="mt-2">
                         <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--color-accent-dark)] bg-amber-50/70 dark:bg-amber-950/15 px-2 py-1 rounded border border-amber-200/50 text-[11px]">
                           <Info size={12} className="shrink-0" />
-                          Refer the Access Privileges Guide before select a role.
+                          Refer the Access Privileges Guide before select a
+                          role.
                         </span>
                       </div>
                       <ErrorMessage message={errors.role} />

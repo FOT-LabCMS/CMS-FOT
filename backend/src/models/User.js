@@ -37,7 +37,12 @@ module.exports = function (sequelize) {
       },
 
       role: {
-        type: DataTypes.ENUM("LECTURER", "TECHNICAL_OFFICER", "ADMIN"),
+        type: DataTypes.ENUM(
+          "LECTURER",
+          "TECHNICAL_OFFICER",
+          "ADMIN",
+          "COMMON",
+        ),
         allowNull: false,
       },
 
