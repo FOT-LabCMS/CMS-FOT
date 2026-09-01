@@ -1,5 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import "./App.css";
+import Landing from "./pages/Landing";
+import Instruments from "./pages/Instruments";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AddChemical from "./pages/chemicals/AddChemical";
@@ -34,13 +36,27 @@ function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/" element={<Home />} />
+        {/* Public Routes */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/instruments" element={<Instruments />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/chemicals/:id" element={<ChemicalDetails />} />
         <Route path="/reset-password" element={<PasswordReset />} />
+        <Route path="/chemicals/:id" element={<ChemicalDetails />} />
+
+        {/* Protected Home Route - Available for Authenticated users including COMMON */}
         <Route
+          path="/home"
           element={
             <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Protected Management Routes for Staff (ADMIN, TECHNICAL_OFFICER, LECTURER) */}
+        <Route
+          element={
+            <ProtectedRoute roles={["ADMIN", "TECHNICAL_OFFICER", "LECTURER"]}>
               <DashboardLayout />
             </ProtectedRoute>
           }
@@ -117,14 +133,13 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/sds/library"
-            element={<ViewSdsLibrary />}
-          />
+          <Route path="/sds/library" element={<ViewSdsLibrary />} />
           <Route
             path="/scan"
             element={
-              <ProtectedRoute roles={["ADMIN", "TECHNICAL_OFFICER", "LECTURER"]}>
+              <ProtectedRoute
+                roles={["ADMIN", "TECHNICAL_OFFICER", "LECTURER"]}
+              >
                 <ScanQRPage />
               </ProtectedRoute>
             }
