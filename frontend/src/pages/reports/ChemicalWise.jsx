@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -188,25 +188,8 @@ const ChemicalWise = () => {
 
   const [isPreviewingFull, setIsPreviewingFull] = useState(false);
   const [fullPreviewError, setFullPreviewError] = useState("");
-
-  const fetchChemicals = async () => {
-    try {
-      setIsListLoading(true);
-      setListError("");
-      const response = await api.get("/chemicals/");
-      setChemicals(response.data?.chemicals || response.data || []);
-    } catch (error) {
-      setListError(
-        error.response?.data?.message || "Unable to load the chemical list.",
-      );
-    } finally {
-      setIsListLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchChemicals();
-  }, []);
+  const autoSelectedRef = useRef(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleSelectChemical = async (binCardNumber) => {
     setSelectedCode(binCardNumber);
@@ -230,6 +213,48 @@ const ChemicalWise = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchChemicals = async () => {
+      try {
+        setIsListLoading((previous) => previous || chemicals.length === 0);
+        setListError("");
+        const response = await api.get("/chemicals/");
+        const list = response.data?.chemicals || response.data || [];
+        setChemicals(list);
+
+        // On first successful load, automatically select the first chemical
+        if (!autoSelectedRef.current && list.length > 0) {
+          autoSelectedRef.current = true;
+          setSelectedCode(list[0].binCardNumber);
+          setDetailError("");
+          setDownloadError("");
+          setIsDetailLoading(true);
+          try {
+            const detailResponse = await api.get(
+              `/reports/chemical/${encodeURIComponent(list[0].binCardNumber)}`,
+            );
+            setDetail(detailResponse.data);
+          } catch (detailErr) {
+            setDetailError(
+              detailErr.response?.data?.message ||
+                "Unable to load report details for this chemical.",
+            );
+          } finally {
+            setIsDetailLoading(false);
+          }
+        }
+      } catch (error) {
+        setListError(
+          error.response?.data?.message || "Unable to load the chemical list.",
+        );
+      } finally {
+        setIsListLoading(false);
+      }
+    };
+
+    fetchChemicals();
+  }, [refreshKey, chemicals.length]);
+
   const handlePreview = async () => {
     if (!selectedCode) return;
     try {
@@ -249,7 +274,7 @@ const ChemicalWise = () => {
           window.URL.revokeObjectURL(blobUrl),
         );
       }
-    } catch (error) {
+    } catch {
       setPreviewError("Unable to generate the PDF preview. Please try again.");
     } finally {
       setIsPreviewing(false);
@@ -275,7 +300,7 @@ const ChemicalWise = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
+    } catch {
       setDownloadError("Unable to generate the PDF report. Please try again.");
     } finally {
       setIsDownloading(false);
@@ -298,7 +323,7 @@ const ChemicalWise = () => {
           window.URL.revokeObjectURL(blobUrl),
         );
       }
-    } catch (error) {
+    } catch {
       setFullPreviewError("Unable to generate the full status report preview. Please try again.");
     } finally {
       setIsPreviewingFull(false);
@@ -322,7 +347,7 @@ const ChemicalWise = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
+    } catch {
       setFullDownloadError("Unable to generate the full status report. Please try again.");
     } finally {
       setIsDownloadingFull(false);
@@ -488,7 +513,7 @@ const ChemicalWise = () => {
                     </p>
                     <button
                       type="button"
-                      onClick={fetchChemicals}
+                      onClick={() => setRefreshKey((prev) => prev + 1)}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-primary)] underline"
                     >
                       <RefreshCw size={12} />
