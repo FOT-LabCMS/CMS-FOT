@@ -10,11 +10,11 @@ const createUser = async (req, res) => {
     if (!institutionalId || !fullName || !email || !password || !role) {
       return res.status(400).json({ error: "Missing required fields" });
     }
-    const institutionalIdRegex = /^R\d{6}$/;
+    const institutionalIdRegex = /^(R\d{6}|COM\d{4})$/;
+
     if (!institutionalIdRegex.test(institutionalId)) {
       return res.status(400).json({
-        error:
-          "Institutional ID must be in the format R123456 (capital R followed by 6 digits).",
+        error: "Institutional ID must be in the format R123456 or COM1234.",
       });
     }
     const existingUser = await User.findOne({
@@ -46,14 +46,15 @@ const createUser = async (req, res) => {
     await createNotification({
       actor,
       entity,
-      entityType: 'User',
-      type: 'NEW_USER_ADDED',
-      severity: 'INFO',
+      entityType: "User",
+      type: "NEW_USER_ADDED",
+      severity: "INFO",
       messageBuilder: {
         // Message for the person who performed the action
         actor: (e) => `You have added a new user: ${e.fullName} (${e.role}).`,
         // Message for everyone else
-        others: (actorName, e) => `${actorName} has added a new user: ${e.fullName} (${e.role}).`,
+        others: (actorName, e) =>
+          `${actorName} has added a new user: ${e.fullName} (${e.role}).`,
       },
     });
 
@@ -121,7 +122,7 @@ const loginUser = async (req, res) => {
         role: user.role,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "1h" },
     );
     user.lastLoginAt = new Date();
     await user.save();
@@ -237,7 +238,12 @@ const deleteUser = async (req, res) => {
         actionType: "DEACTIVATE_USER",
         entityType: "User",
         entityId: user.id,
-        details: { targetUser: { institutionalId: user.institutionalId, fullName: user.fullName } },
+        details: {
+          targetUser: {
+            institutionalId: user.institutionalId,
+            fullName: user.fullName,
+          },
+        },
         ipAddress: req.ip,
       });
       await user.update({ isActive: false });
@@ -245,7 +251,10 @@ const deleteUser = async (req, res) => {
     }
 
     // Store details before destroying for the log
-    const deletedUserDetails = { institutionalId: user.institutionalId, fullName: user.fullName };
+    const deletedUserDetails = {
+      institutionalId: user.institutionalId,
+      fullName: user.fullName,
+    };
 
     await user.destroy();
 
