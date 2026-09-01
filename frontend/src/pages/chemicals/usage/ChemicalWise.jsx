@@ -62,7 +62,11 @@ const getExpiryStatus = (expiryDate) => {
   );
   if (daysLeft < 0) return { label: "Expired", tone: "danger", days: daysLeft };
   if (daysLeft <= 30)
-    return { label: `Expires in ${daysLeft}d`, tone: "warning", days: daysLeft };
+    return {
+      label: `Expires in ${daysLeft}d`,
+      tone: "warning",
+      days: daysLeft,
+    };
   return { label: "Active", tone: "success", days: daysLeft };
 };
 
@@ -92,7 +96,9 @@ const ChemicalDropdown = ({ options, value, onChange, loading }) => {
   }, []);
 
   const filtered = options.filter((o) =>
-    `${o.label} ${o.sublabel || ""}`.toLowerCase().includes(query.toLowerCase()),
+    `${o.label} ${o.sublabel || ""}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
   );
 
   return (
@@ -127,7 +133,10 @@ const ChemicalDropdown = ({ options, value, onChange, loading }) => {
           )}
         </span>
         {loading ? (
-          <Loader2 size={16} className="shrink-0 animate-spin text-[var(--color-text-muted)]" />
+          <Loader2
+            size={16}
+            className="shrink-0 animate-spin text-[var(--color-text-muted)]"
+          />
         ) : (
           <ChevronDown
             size={16}
@@ -189,7 +198,10 @@ const ChemicalDropdown = ({ options, value, onChange, loading }) => {
                     </span>
                   </span>
                   {opt.value === value && (
-                    <ChevronRight size={14} className="shrink-0 text-[var(--color-primary)]" />
+                    <ChevronRight
+                      size={14}
+                      className="shrink-0 text-[var(--color-primary)]"
+                    />
                   )}
                 </button>
               ))
@@ -204,14 +216,21 @@ const ChemicalDropdown = ({ options, value, onChange, loading }) => {
 /* Summary pills row */
 const SummaryPill = ({ icon: Icon, label, value, tone }) => {
   const tones = {
-    default: "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)]",
-    success: "bg-[var(--color-success)]/10 border-[var(--color-success)]/30 text-[var(--color-success)]",
-    danger: "bg-[var(--color-danger)]/10 border-[var(--color-danger)]/30 text-[var(--color-danger)]",
-    warning: "bg-[var(--color-warning)]/10 border-[var(--color-warning)]/30 text-[var(--color-warning)]",
-    primary: "bg-[var(--color-primary-tint)] border-[var(--color-primary)]/30 text-[var(--color-primary)]",
+    default:
+      "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)]",
+    success:
+      "bg-[var(--color-success)]/10 border-[var(--color-success)]/30 text-[var(--color-success)]",
+    danger:
+      "bg-[var(--color-danger)]/10 border-[var(--color-danger)]/30 text-[var(--color-danger)]",
+    warning:
+      "bg-[var(--color-warning)]/10 border-[var(--color-warning)]/30 text-[var(--color-warning)]",
+    primary:
+      "bg-[var(--color-primary-tint)] border-[var(--color-primary)]/30 text-[var(--color-primary)]",
   };
   return (
-    <div className={`flex items-center gap-2.5 rounded-[var(--radius-md)] border px-4 py-3 ${tones[tone ?? "default"]}`}>
+    <div
+      className={`flex items-center gap-2.5 rounded-[var(--radius-md)] border px-4 py-3 ${tones[tone ?? "default"]}`}
+    >
       <Icon size={16} className="shrink-0" />
       <span>
         <span className="block text-xs font-medium opacity-75">{label}</span>
@@ -227,10 +246,14 @@ const BatchCard = ({ batch, unit, isSelected, onClick }) => {
   const pct = usagePct(batch.quantityReceived, batch.currentQuantity);
 
   const statusStyles = {
-    danger: "text-[var(--color-danger)] bg-[var(--color-danger)]/10 border-[var(--color-danger)]/30",
-    warning: "text-[var(--color-warning)] bg-[var(--color-warning)]/10 border-[var(--color-warning)]/30",
-    success: "text-[var(--color-success)] bg-[var(--color-success)]/10 border-[var(--color-success)]/30",
-    default: "text-[var(--color-text-muted)] bg-[var(--color-surface-muted)] border-[var(--color-border)]",
+    danger:
+      "text-[var(--color-danger)] bg-[var(--color-danger)]/10 border-[var(--color-danger)]/30",
+    warning:
+      "text-[var(--color-warning)] bg-[var(--color-warning)]/10 border-[var(--color-warning)]/30",
+    success:
+      "text-[var(--color-success)] bg-[var(--color-success)]/10 border-[var(--color-success)]/30",
+    default:
+      "text-[var(--color-text-muted)] bg-[var(--color-surface-muted)] border-[var(--color-border)]",
   };
 
   const barColors = {
@@ -253,7 +276,9 @@ const BatchCard = ({ batch, unit, isSelected, onClick }) => {
       {/* Top row */}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className={`truncate text-base font-extrabold ${isSelected ? "text-[var(--color-primary)]" : "text-[var(--color-text-primary)]"}`}>
+          <p
+            className={`truncate text-base font-extrabold ${isSelected ? "text-[var(--color-primary)]" : "text-[var(--color-text-primary)]"}`}
+          >
             {batch.batchNumber}
           </p>
           {batch.supplier && (
@@ -263,8 +288,16 @@ const BatchCard = ({ batch, unit, isSelected, onClick }) => {
             </p>
           )}
         </div>
-        <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${statusStyles[status.tone]}`}>
-          {status.tone === "danger" ? <ShieldX size={11} /> : status.tone === "warning" ? <Clock size={11} /> : <ShieldCheck size={11} />}
+        <span
+          className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${statusStyles[status.tone]}`}
+        >
+          {status.tone === "danger" ? (
+            <ShieldX size={11} />
+          ) : status.tone === "warning" ? (
+            <Clock size={11} />
+          ) : (
+            <ShieldCheck size={11} />
+          )}
           {status.label}
         </span>
       </div>
@@ -317,7 +350,13 @@ const BatchCard = ({ batch, unit, isSelected, onClick }) => {
 };
 
 /* Detail usage panel for selected batch */
-const UsageDetailPanel = ({ batch, chemicalName, binCardNumber, unit, onClose }) => {
+const UsageDetailPanel = ({
+  batch,
+  chemicalName,
+  binCardNumber,
+  unit,
+  onClose,
+}) => {
   const status = getExpiryStatus(batch.expiryDate);
   const pct = usagePct(batch.quantityReceived, batch.currentQuantity);
 
@@ -392,7 +431,9 @@ const UsageDetailPanel = ({ batch, chemicalName, binCardNumber, unit, onClose })
             <div className="mx-auto mb-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-success)]/15 text-[var(--color-success)]">
               <Beaker size={15} />
             </div>
-            <p className="text-xs text-[var(--color-success)]/80">Current qty</p>
+            <p className="text-xs text-[var(--color-success)]/80">
+              Current qty
+            </p>
             <p className="mt-0.5 text-sm font-extrabold text-[var(--color-success)]">
               {fmtQty(batch.currentQuantity, unit)}
             </p>
@@ -447,9 +488,15 @@ const UsageDetailPanel = ({ batch, chemicalName, binCardNumber, unit, onClose })
               icon: Activity,
             },
           ].map(({ label, value, icon: Icon }) => (
-            <div key={label} className="flex items-center justify-between gap-3 px-4 py-3">
+            <div
+              key={label}
+              className="flex items-center justify-between gap-3 px-4 py-3"
+            >
               <dt className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                <Icon size={14} className="shrink-0 text-[var(--color-text-muted)]" />
+                <Icon
+                  size={14}
+                  className="shrink-0 text-[var(--color-text-muted)]"
+                />
                 {label}
               </dt>
               <dd className="text-right text-sm font-semibold text-[var(--color-text-primary)]">
@@ -483,32 +530,11 @@ const chemicalwise = () => {
   const [sortKey, setSortKey] = useState("batchNumber");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  const fetchChemicals = async () => {
-    try {
-      setIsChemLoading(true);
-      setChemError("");
-      const res = await api.get("/chemicals");
-      const chems = res.data?.chemicals || res.data || [];
-      setChemOptions(
-        chems.map((c) => ({
-          value: c.binCardNumber,
-          label: c.canonicalName,
-          sublabel: c.binCardNumber,
-          unit: c.baseUnit ?? "",
-        })),
-      );
-    } catch {
-      setChemError("Unable to load chemical list. Please refresh.");
-    } finally {
-      setIsChemLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchChemicals();
-  }, []);
-
-  const fetchChemicalUsage = async (binCardNumber) => {
+  const fetchChemicalUsage = async (
+    binCardNumber,
+    optionsList = chemOptions,
+  ) => {
+    if (!binCardNumber) return;
     setChemData(null);
     setSelectedBatch(null);
     setDataError("");
@@ -518,7 +544,7 @@ const chemicalwise = () => {
       const res = await api.post("/usage/chemical/calculate-usage", {
         binCardNumber: binCardNumber,
       });
-      const matched = chemOptions.find((o) => o.value === binCardNumber);
+      const matched = optionsList.find((o) => o.value === binCardNumber);
       setChemData({
         ...res.data,
         unit: matched?.unit ?? "",
@@ -537,6 +563,36 @@ const chemicalwise = () => {
     setSelectedChem(code);
     fetchChemicalUsage(code);
   };
+
+  const fetchChemicals = async () => {
+    try {
+      setIsChemLoading(true);
+      setChemError("");
+      const res = await api.get("/chemicals");
+      const chems = res.data?.chemicals || res.data || [];
+      const options = chems.map((c) => ({
+        value: c.binCardNumber,
+        label: c.canonicalName,
+        sublabel: c.binCardNumber,
+        unit: c.baseUnit ?? "",
+      }));
+
+      setChemOptions(options);
+
+      if (options.length > 0) {
+        setSelectedChem(options[0].value);
+        fetchChemicalUsage(options[0].value, options);
+      }
+    } catch {
+      setChemError("Unable to load chemical list. Please refresh.");
+    } finally {
+      setIsChemLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchChemicals();
+  }, []);
 
   const allBatches = chemData?.batches ?? [];
 
@@ -569,10 +625,18 @@ const chemicalwise = () => {
 
   const summaryStats = (() => {
     if (!allBatches.length) return null;
-    const active = allBatches.filter((b) => getExpiryStatus(b.expiryDate).tone !== "danger").length;
+    const active = allBatches.filter(
+      (b) => getExpiryStatus(b.expiryDate).tone !== "danger",
+    ).length;
     const expired = allBatches.length - active;
-    const totalCurrent = allBatches.reduce((s, b) => s + Number(b.currentQuantity), 0);
-    const totalUsed = allBatches.reduce((s, b) => s + Number(b.quantityUsed), 0);
+    const totalCurrent = allBatches.reduce(
+      (s, b) => s + Number(b.currentQuantity),
+      0,
+    );
+    const totalUsed = allBatches.reduce(
+      (s, b) => s + Number(b.quantityUsed),
+      0,
+    );
     return { active, expired, totalCurrent, totalUsed };
   })();
 
@@ -589,7 +653,6 @@ const chemicalwise = () => {
 
       <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
         <div className="mx-auto max-w-6xl">
-
           {/* ── Page header ── */}
           <header className="mb-6 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-primary-dark)] shadow-[var(--shadow-md)]">
             <div className="relative p-5 sm:p-7 lg:p-8">
@@ -676,7 +739,10 @@ const chemicalwise = () => {
           {isDataLoading && (
             <div className="flex flex-col items-center justify-center gap-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-20">
               <div className="relative">
-                <FlaskConical size={32} className="text-[var(--color-success)]" />
+                <FlaskConical
+                  size={32}
+                  className="text-[var(--color-success)]"
+                />
                 <Loader2
                   size={48}
                   className="absolute -inset-2 animate-spin text-[var(--color-success)]/40"
@@ -691,8 +757,13 @@ const chemicalwise = () => {
           {/* ── Error state ── */}
           {!isDataLoading && dataError && (
             <div className="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-[var(--color-surface)] p-4">
-              <AlertTriangle size={20} className="mt-0.5 shrink-0 text-[var(--color-danger)]" />
-              <p className="text-sm font-semibold text-[var(--color-danger)]">{dataError}</p>
+              <AlertTriangle
+                size={20}
+                className="mt-0.5 shrink-0 text-[var(--color-danger)]"
+              />
+              <p className="text-sm font-semibold text-[var(--color-danger)]">
+                {dataError}
+              </p>
             </div>
           )}
 
@@ -707,7 +778,8 @@ const chemicalwise = () => {
                   No chemical selected yet
                 </p>
                 <p className="mt-1 max-w-xs text-xs text-[var(--color-text-muted)]">
-                  Use the dropdown above to pick a chemical and view all its batch usage details.
+                  Use the dropdown above to pick a chemical and view all its
+                  batch usage details.
                 </p>
               </div>
             </div>
@@ -716,7 +788,6 @@ const chemicalwise = () => {
           {/* ── Results ── */}
           {!isDataLoading && chemData && (
             <div className="space-y-6">
-
               {/* Chemical identity banner */}
               <section className="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--color-success)]/30 bg-[var(--color-success)]/5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div className="flex items-center gap-4">
@@ -855,7 +926,10 @@ const chemicalwise = () => {
                 {/* Batch cards grid */}
                 {filteredBatches.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] p-12 text-center">
-                    <Search size={26} className="text-[var(--color-text-muted)]" />
+                    <Search
+                      size={26}
+                      className="text-[var(--color-text-muted)]"
+                    />
                     <p className="text-sm font-semibold text-[var(--color-text-primary)]">
                       No batches match your filters
                     </p>
@@ -877,7 +951,9 @@ const chemicalwise = () => {
                         key={batch.batchNumber}
                         batch={batch}
                         unit={unit}
-                        isSelected={selectedBatch?.batchNumber === batch.batchNumber}
+                        isSelected={
+                          selectedBatch?.batchNumber === batch.batchNumber
+                        }
                         onClick={() =>
                           setSelectedBatch(
                             selectedBatch?.batchNumber === batch.batchNumber

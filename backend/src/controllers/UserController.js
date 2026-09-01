@@ -1,6 +1,7 @@
 const { User } = require("../models/index.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { Op } = require("sequelize");
 const { logAction } = require("../services/auditLogService.js");
 const { createNotification } = require("../services/notificationService.js");
 
@@ -185,18 +186,56 @@ const changePassword = async (req, res) => {
 };
 const viewUsers = async (req, res) => {
   try {
-    const users = await User.findAll({
-      attributes: [
-        "id",
-        "institutionalId",
-        "fullName",
-        "email",
-        "role",
-        "isActive",
-        "lastLoginAt",
-      ],
-    });
-    res.json(users);
+    const { page, limit, search, role } = req.query;
+    const isPaginated = page !== undefined && limit !== undefined;
+
+    const attributes = [
+      "id",
+      "institutionalId",
+      "fullName",
+      "email",
+      "role",
+      "isActive",
+      "lastLoginAt",
+    ];
+
+    const buildWhere = () => {
+      const where = {};
+      if (role && role !== "ALL") {
+        where.role = role;
+      }
+      if (search && search.trim()) {
+        const q = search.trim();
+        where[Op.or] = [
+          { fullName: { [Op.iLike]: `%${q}%` } },
+          { email: { [Op.iLike]: `%${q}%` } },
+          { institutionalId: { [Op.iLike]: `%${q}%` } },
+        ];
+      }
+      return where;
+    };
+
+    if (isPaginated) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 8));
+      const offset = (pageNum - 1) * limitNum;
+      const where = buildWhere();
+
+      const [users, total] = await Promise.all([
+        User.findAll({ where, attributes, offset, limit: limitNum }),
+        User.count({ where }),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / limitNum));
+      return res.json({
+        success: true,
+        users,
+        pagination: { total, page: pageNum, limit: limitNum, totalPages },
+      });
+    }
+
+    const users = await User.findAll({ attributes });
+    res.json({ success: true, users });
   } catch (error) {
     console.error("Error viewing users:", error);
     res.status(500).json({ error: "Internal server error" });

@@ -181,7 +181,47 @@ const addChemical = async (req, res) => {
 
 const getAllChemicals = async (req, res) => {
   try {
+    const { page, limit, search } = req.query;
+    const isPaginated = page !== undefined && limit !== undefined;
+
+    const buildWhere = () => {
+      const where = { isActive: true };
+      if (search && search.trim()) {
+        const q = search.trim();
+        where[Op.or] = [
+          { canonicalName: { [Op.iLike]: `%${q}%` } },
+          { binCardNumber: { [Op.iLike]: `%${q}%` } },
+          { formula: { [Op.iLike]: `%${q}%` } },
+        ];
+      }
+      return where;
+    };
+
     // Only fetch active chemicals for the main list view
+    if (isPaginated) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 8));
+      const offset = (pageNum - 1) * limitNum;
+      const where = buildWhere();
+
+      const [chemicals, total] = await Promise.all([
+        Chemical.findAll({
+          where,
+          order: [['createdAt', 'DESC']],
+          offset,
+          limit: limitNum,
+        }),
+        Chemical.count({ where }),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / limitNum));
+      return res.status(200).json({
+        success: true,
+        chemicals,
+        pagination: { total, page: pageNum, limit: limitNum, totalPages },
+      });
+    }
+
     const chemicals = await Chemical.findAll({
       where: { isActive: true },
       order: [['createdAt', 'DESC']],
@@ -198,6 +238,46 @@ const getAllChemicals = async (req, res) => {
 
 const getInactiveChemicals = async (req, res) => {
   try {
+    const { page, limit, search } = req.query;
+    const isPaginated = page !== undefined && limit !== undefined;
+
+    const buildWhere = () => {
+      const where = { isActive: false };
+      if (search && search.trim()) {
+        const q = search.trim();
+        where[Op.or] = [
+          { canonicalName: { [Op.iLike]: `%${q}%` } },
+          { binCardNumber: { [Op.iLike]: `%${q}%` } },
+          { formula: { [Op.iLike]: `%${q}%` } },
+        ];
+      }
+      return where;
+    };
+
+    if (isPaginated) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 8));
+      const offset = (pageNum - 1) * limitNum;
+      const where = buildWhere();
+
+      const [chemicals, total] = await Promise.all([
+        Chemical.findAll({
+          where,
+          order: [['updatedAt', 'DESC']],
+          offset,
+          limit: limitNum,
+        }),
+        Chemical.count({ where }),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / limitNum));
+      return res.status(200).json({
+        success: true,
+        chemicals,
+        pagination: { total, page: pageNum, limit: limitNum, totalPages },
+      });
+    }
+
     const chemicals = await Chemical.findAll({
       where: { isActive: false },
       order: [['updatedAt', 'DESC']], // Order by when they were deactivated
