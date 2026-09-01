@@ -892,12 +892,54 @@ const ViewAllBatches = () => {
                     <td className="whitespace-nowrap px-4 py-4 text-[var(--color-text-secondary)]">
                       {batch.batchNumber}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-[var(--color-text-secondary)]">
-                      <span className="font-semibold text-[var(--color-text-primary)]">
-                        {parseFloat(batch.currentQuantity)}
-                      </span>{" "}
-                      / {parseFloat(batch.quantityReceived)}{" "}
-                      {batch.chemical?.baseUnit}
+                    <td className="px-4 py-4 text-[var(--color-text-secondary)]">
+                      <div className="whitespace-nowrap font-semibold text-[var(--color-text-primary)]">
+                        {parseFloat(batch.currentQuantity)} /{" "}
+                        {parseFloat(batch.quantityReceived)}{" "}
+                        {batch.chemical?.baseUnit}
+                      </div>
+                      <div className="mt-1.5 flex w-40 items-center gap-2">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
+                          <div
+                            className={`h-full rounded-full ${
+                              status.text === "Good"
+                                ? "bg-green-500"
+                                : status.text === "Expiring Soon"
+                                  ? "bg-yellow-500"
+                                  : status.text === "Expired"
+                                    ? "bg-red-500"
+                                    : status.text === "Low Stock"
+                                      ? "bg-orange-500"
+                                      : status.text === "Out of Stock"
+                                        ? "bg-zinc-400"
+                                        : status.text === "Disposed"
+                                          ? "bg-purple-500"
+                                          : "bg-[var(--color-primary)]"
+                            } color-transition`}
+                            style={{
+                              width: `${
+                                Number(batch.quantityReceived) > 0
+                                  ? Math.min(
+                                      100,
+                                      (Number(batch.currentQuantity) /
+                                        Number(batch.quantityReceived)) *
+                                        100,
+                                    )
+                                  : 0
+                              }%`,
+                            }}
+                          />
+                        </div>
+                        <span className="shrink-0 whitespace-nowrap text-xs font-medium text-[var(--color-text-muted)]">
+                          {Number(batch.quantityReceived) > 0
+                            ? `${Math.round(
+                                (Number(batch.currentQuantity) /
+                                  Number(batch.quantityReceived)) *
+                                  100,
+                              )}%`
+                            : "0%"}
+                        </span>
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-[var(--color-text-secondary)]">
                       {batch.supplier || "N/A"}
