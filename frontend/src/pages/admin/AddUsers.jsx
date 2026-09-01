@@ -31,7 +31,7 @@ const INITIAL_FORM = {
   role: "",
 };
 
-const ROLE_OPTIONS = ["LECTURER", "TECHNICAL_OFFICER", "ADMIN"];
+const ROLE_OPTIONS = ["LECTURER", "TECHNICAL_OFFICER", "ADMIN","COMMON"];
 
 const InputLabel = ({ children, required = false, description, htmlFor }) => (
   <div className="mb-2">
