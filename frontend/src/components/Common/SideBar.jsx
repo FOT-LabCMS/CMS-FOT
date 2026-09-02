@@ -78,6 +78,24 @@ const MAIN_MENU_ITEMS = [
     ],
   },
   {
+    label: "Batches",
+    icon: Truck,
+    pathPrefix: "/stock",
+    roles: ["ADMIN", "TECHNICAL_OFFICER"],
+    children: [
+      {
+        label: "Add New Batch",
+        path: "/stock/add",
+        roles: ["ADMIN", "TECHNICAL_OFFICER"],
+      },
+      {
+        label: "View All Batches",
+        path: "/stock/batches",
+        roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+      },
+    ],
+  },
+  {
     label: "Instruments",
     icon: Microscope,
     pathPrefix: "/instruments",
@@ -158,24 +176,6 @@ const MAIN_MENU_ITEMS = [
       {
         label: "View SDS",
         path: "/sds/library",
-        roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
-      },
-    ],
-  },
-  {
-    label: "Procurement & Stock",
-    icon: Truck,
-    pathPrefix: "/stock",
-    roles: ["ADMIN", "TECHNICAL_OFFICER"],
-    children: [
-      {
-        label: "Add New Batch",
-        path: "/stock/add",
-        roles: ["ADMIN", "TECHNICAL_OFFICER"],
-      },
-      {
-        label: "View All Batches",
-        path: "/stock/batches",
         roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
       },
     ],

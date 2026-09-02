@@ -48,6 +48,8 @@ const getNotifications = async (req, res) => {
 
     if (filter === 'unread') {
       where.isRead = false;
+    } else if (filter === 'read') {
+      where.isRead = true;
     }
 
     const { count, rows } = await Notification.findAndCountAll({

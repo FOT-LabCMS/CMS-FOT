@@ -7,6 +7,7 @@ import {
   Truck,
   FlaskConical,
   Box,
+  Boxes,
   Calendar,
   Scale,
   MapPin,
@@ -202,7 +203,6 @@ const ViewBatchDetail = () => {
       });
 
       const imgProps = pdf.getImageProperties(imgData);
-      const pdfAspectRatio = pdfWidth / pdfHeight;
       const imgAspectRatio = imgProps.width / imgProps.height;
 
       let finalImgWidth = pdfWidth;
@@ -318,14 +318,32 @@ const ViewBatchDetail = () => {
               <div className="pointer-events-none absolute -bottom-20 right-32 h-40 w-40 rounded-full bg-[var(--color-accent)] opacity-10" />
 
               <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => navigate("/stock/batches")}
-                  className="mb-5 inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
-                >
-                  <ArrowLeft size={17} />
-                  Back to List
-                </button>
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/stock/batches")}
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
+                  >
+                    <ArrowLeft size={17} />
+                    Back to List
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate("/disposal/request", {
+                        state: {
+                          binCardNumber: batch.chemical?.binCardNumber,
+                          batchNumber: batch.batchNumber,
+                        },
+                      })
+                    }
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-4 py-2 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
+                  >
+                    <Boxes size={16} />
+                    Chemical Request
+                  </button>
+                </div>
 
                 <div className="max-w-3xl">
                   <div className="mb-3 flex items-center gap-2">

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -18,7 +18,7 @@ import {
   ShieldAlert,
   User,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../../api/axiosInstance";
 
 const INITIAL_FORM = {
@@ -210,8 +210,13 @@ const SearchableSelect = ({
 };
 const DisplosaReq = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [form, setForm] = useState(INITIAL_FORM);
+  const [form, setForm] = useState(() => ({
+    ...INITIAL_FORM,
+    binCardNumber: location.state?.binCardNumber || "",
+    batchNumber: location.state?.batchNumber || "",
+  }));
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState(null);
@@ -254,10 +259,10 @@ const DisplosaReq = () => {
 
   useEffect(() => {
     if (!form.binCardNumber) {
-      setBatchOptions([]);
       return;
     }
 
+    let isMounted = true;
     const fetchBatches = async () => {
       try {
         setIsBatchLoading(true);
@@ -275,33 +280,46 @@ const DisplosaReq = () => {
           return new Date(a.expiryDate) - new Date(b.expiryDate);
         });
 
-        setBatchOptions(
-          sortedBatches.map((b) => ({
-            value: b.batchNumber,
-            label: b.batchNumber,
-            sublabel: (() => {
-              const qty = parseFloat(b.currentQuantity);
-              const unit = b.chemical?.baseUnit ?? "";
-              const formatted = qty % 1 === 0 ? `${qty.toFixed(0)}` : `${qty}`;
-              return `${formatted}${unit ? ` ${unit}` : ""} available${b.expiryDate ? ` · Expires ${b.expiryDate}` : ""}`;
-            })(),
-          })),
-        );
-      } catch (error) {
-        setBatchOptions([]);
-        setErrors((prev) => ({
-          ...prev,
-          batchNumber: "Unable to load batches for this chemical.",
-        }));
+        if (isMounted) {
+          setBatchOptions(
+            sortedBatches.map((b) => ({
+              value: b.batchNumber,
+              label: b.batchNumber,
+              sublabel: (() => {
+                const qty = parseFloat(b.currentQuantity);
+                const unit = b.chemical?.baseUnit ?? "";
+                const formatted = qty % 1 === 0 ? `${qty.toFixed(0)}` : `${qty}`;
+                return `${formatted}${unit ? ` ${unit}` : ""} available${b.expiryDate ? ` · Expires ${b.expiryDate}` : ""}`;
+              })(),
+            })),
+          );
+        }
+      } catch {
+        if (isMounted) {
+          setBatchOptions([]);
+          setErrors((prev) => ({
+            ...prev,
+            batchNumber: "Unable to load batches for this chemical.",
+          }));
+        }
       } finally {
-        setIsBatchLoading(false);
+        if (isMounted) {
+          setIsBatchLoading(false);
+        }
       }
     };
 
     fetchBatches();
+
+    return () => {
+      isMounted = false;
+    };
   }, [form.binCardNumber]);
 
   const handleChemicalChange = (value) => {
+    if (!value) {
+      setBatchOptions([]);
+    }
     setForm((prev) => ({ ...prev, binCardNumber: value, batchNumber: "" }));
     setErrors((prev) => ({ ...prev, binCardNumber: "", batchNumber: "" }));
     setSubmitMessage(null);
