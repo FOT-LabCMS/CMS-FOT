@@ -96,18 +96,19 @@ const AuditLogsPage = () => {
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
     params.append("page", page);
-    params.append("limit", 15);
+    params.append("limit", 10);
     if (debouncedSearch) {
       params.append("search", debouncedSearch);
     }
     return params;
   }, [page, debouncedSearch]);
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, isFetching } = useQuery({
     queryKey: ["auditLogs", queryParams.toString()],
     queryFn: () => api.get(`/audit-logs?${queryParams.toString()}`),
     select: (res) => res.data,
     placeholderData: (previousData) => previousData,
+    staleTime: 5 * 60 * 1000,
   });
 
   const logs = data?.data || [];
@@ -179,7 +180,12 @@ const AuditLogsPage = () => {
 
         {pagination && pagination.totalPages > 1 && (
           <div className="mt-4 flex items-center justify-between">
-            <span className="text-sm text-[var(--color-text-muted)]">Page {pagination.currentPage} of {pagination.totalPages}</span>
+            <span className="text-sm text-[var(--color-text-muted)]">
+              Page {pagination.currentPage} of {pagination.totalPages}
+              {isFetching && !isLoading && (
+                <LoaderCircle className="ml-2 inline animate-spin" size={14} />
+              )}
+            </span>
             <div className="flex items-center gap-2">
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="flex h-8 w-8 items-center justify-center rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-50"><ChevronLeft size={16} /></button>
               <button onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))} disabled={page === pagination.totalPages} className="flex h-8 w-8 items-center justify-center rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-50"><ChevronRight size={16} /></button>
