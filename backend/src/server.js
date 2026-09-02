@@ -24,6 +24,11 @@ const {
   notifyExpiringBatches,
   notifyLowStockBatches,
 } = require("./services/notificationService.js");
+
+const {
+  verifyEmailConnection,
+} = require("./services/emailService.js");
+
 const {
   getUploadsRoot,
   getSdsUploadDir,
@@ -126,6 +131,8 @@ const startServer = async () => {
     console.log("Connecting to the database...");
     await sequelize.authenticate();
     console.log("Database connection established successfully.✅");
+
+    await verifyEmailConnection();
 
     if (process.env.NODE_ENV === "development") {
       await db.sequelize.sync({ alter: true });

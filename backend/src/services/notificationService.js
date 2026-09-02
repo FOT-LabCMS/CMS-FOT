@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
 const { User, Notification, Batch, Chemical } = require("../models");
+const { sendEmail } = require("./emailService.js");
 
 /**
  * Finds all users who should receive notifications (ADMINs and TECHNICAL_OFFICERs).
@@ -334,59 +335,225 @@ const buildLowStockMessage = (batch) => {
   return `${chemicalName}${binCardNumber} batch ${batchNumber} is low on stock: ${currentQuantity}${unit} remaining from ${quantityReceived}${unit} (${remainingPercentage}%, threshold ${thresholdQuantity}${unit}).`;
 };
 
-const createLowStockNotifications = async (batches) => {
+const buildChemicalOutOfStockEmail = (chemical, totalQuantity) => {
+  const chemicalName = chemical.canonicalName || "Unknown chemical";
+  const binCardNumber = chemical.binCardNumber
+    ? ` (${chemical.binCardNumber})`
+    : "";
+  const unit = chemical.baseUnit ? ` ${chemical.baseUnit}` : "";
+
+  const subject = `[FOTLAB] Chemical Out of Stock - ${chemicalName}`;
+
+  const text = `
+Chemical Out of Stock Alert
+
+Chemical: ${chemicalName}${binCardNumber}
+
+Total available quantity: ${totalQuantity}${unit}
+
+All batches belonging to this chemical currently have zero stock.
+
+Please log in to the FOTLAB system and arrange the required action.
+
+This is an automated email from FOTLAB.
+  `.trim();
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h2>Chemical Out of Stock Alert</h2>
+
+      <p>
+        <strong>Chemical:</strong>
+        ${chemicalName}${binCardNumber}
+      </p>
+
+      <p>
+        <strong>Total available quantity:</strong>
+        ${totalQuantity}${unit}
+      </p>
+
+      <p>
+        All batches belonging to this chemical currently have
+        <strong>zero stock</strong>.
+      </p>
+
+      <p>
+        Please log in to the FOTLAB system and arrange the required action.
+      </p>
+
+      <hr />
+
+      <p style="font-size: 13px; color: #666;">
+        This is an automated email from FOTLAB.
+      </p>
+    </div>
+  `.trim();
+
+  return {
+    subject,
+    text,
+    html,
+  };
+};
+
+const createLowStockNotifications = async (
+  batches,
+  { sendOutOfStockEmail = false } = {},
+) => {
   const lowStockBatches = batches.filter(isLowStockBatch);
 
-  if (lowStockBatches.length === 0) {
-    return { checkedBatches: batches.length, lowStockBatches: 0, createdNotifications: 0 };
-  }
-
   const notifiableUsers = await getNotifiableUsers();
-  if (notifiableUsers.length === 0) {
-    return { checkedBatches: batches.length, lowStockBatches: lowStockBatches.length, createdNotifications: 0 };
+
+  // ---------------------------------------------------------
+  // 1. CREATE IN-APP LOW STOCK NOTIFICATIONS
+  // ---------------------------------------------------------
+
+  let notificationsToCreate = [];
+
+  if (lowStockBatches.length > 0 && notifiableUsers.length > 0) {
+    const existingNotifications = await Notification.findAll({
+      where: {
+        type: "LOW_STOCK",
+        entityType: "Batch",
+        entityId: {
+          [Op.in]: lowStockBatches.map((batch) => batch.id),
+        },
+        userId: {
+          [Op.in]: notifiableUsers.map((user) => user.id),
+        },
+      },
+      attributes: ["userId", "entityId"],
+    });
+
+    const existingKeys = new Set(
+      existingNotifications.map(
+        (notification) =>
+          `${notification.userId}:${notification.entityId}`,
+      ),
+    );
+
+    notificationsToCreate = lowStockBatches.flatMap((batch) => {
+      const message = buildLowStockMessage(batch);
+
+      return notifiableUsers
+        .filter(
+          (user) =>
+            !existingKeys.has(`${user.id}:${batch.id}`),
+        )
+        .map((user) => ({
+          userId: user.id,
+          type: "LOW_STOCK",
+          severity: "WARNING",
+          message,
+          entityType: "Batch",
+          entityId: batch.id,
+        }));
+    });
+
+    if (notificationsToCreate.length > 0) {
+      await Notification.bulkCreate(notificationsToCreate);
+    }
   }
 
-  const existingNotifications = await Notification.findAll({
-    where: {
-      type: "LOW_STOCK",
-      entityType: "Batch",
-      entityId: {
-        [Op.in]: lowStockBatches.map((batch) => batch.id),
+  // ---------------------------------------------------------
+  // 2. CHECK CHEMICAL-LEVEL TOTAL STOCK
+  // ---------------------------------------------------------
+
+  const chemicalIds = [
+    ...new Set(
+      lowStockBatches.map((batch) => batch.chemicalId),
+    ),
+  ];
+
+  let emailsSent = 0;
+
+  // ---------------------------------------------------------
+  // 3. EMAIL ONLY FROM STOCK-CHANGING OPERATIONS
+  // ---------------------------------------------------------
+
+  if (sendOutOfStockEmail && chemicalIds.length > 0) {
+    const chemicals = await Chemical.findAll({
+      where: {
+        id: {
+          [Op.in]: chemicalIds,
+        },
+        isActive: true,
       },
-      userId: {
-        [Op.in]: notifiableUsers.map((user) => user.id),
-      },
-    },
-    attributes: ["userId", "entityId"],
-  });
+      attributes: [
+        "id",
+        "canonicalName",
+        "binCardNumber",
+        "baseUnit",
+      ],
+    });
 
-  const existingKeys = new Set(
-    existingNotifications.map((notification) => `${notification.userId}:${notification.entityId}`),
-  );
+    const hodEmail = process.env.HOD_EMAIL;
 
-  const notificationsToCreate = lowStockBatches.flatMap((batch) => {
-    const message = buildLowStockMessage(batch);
+    if (!hodEmail) {
+      console.error(
+        "[NotificationService] HOD_EMAIL is not configured. Out-of-stock email cannot be sent.",
+      );
+    } else {
+      for (const chemical of chemicals) {
+        // ---------------------------------------------------
+        // Calculate TOTAL AVAILABLE STOCK for this chemical
+        // across all non-disposed batches.
+        // ---------------------------------------------------
 
-    return notifiableUsers
-      .filter((user) => !existingKeys.has(`${user.id}:${batch.id}`))
-      .map((user) => ({
-        userId: user.id,
-        type: "LOW_STOCK",
-        severity: "WARNING",
-        message,
-        entityType: "Batch",
-        entityId: batch.id,
-      }));
-  });
+        const totalQuantity = await Batch.sum("currentQuantity", {
+          where: {
+            chemicalId: chemical.id,
+            isDisposed: false,
+          },
+        });
 
-  if (notificationsToCreate.length > 0) {
-    await Notification.bulkCreate(notificationsToCreate);
+        const totalStock = Number(totalQuantity || 0);
+
+        console.log(
+          `[NotificationService] Chemical ${chemical.canonicalName} (${chemical.binCardNumber}) total stock: ${totalStock}`,
+        );
+
+        // ---------------------------------------------------
+        // EMAIL ONLY WHEN TOTAL CHEMICAL STOCK = 0
+        // ---------------------------------------------------
+
+        if (totalStock !== 0) {
+          continue;
+        }
+
+        const email = buildChemicalOutOfStockEmail(
+          chemical,
+          totalStock,
+        );
+
+        try {
+          await sendEmail({
+            to: hodEmail,
+            subject: email.subject,
+            text: email.text,
+            html: email.html,
+          });
+
+          emailsSent += 1;
+
+          console.log(
+            `[NotificationService] Out-of-stock email sent to HOD for chemical ${chemical.canonicalName} (${chemical.binCardNumber}).`,
+          );
+        } catch (emailError) {
+          console.error(
+            `[NotificationService] Failed to send out-of-stock email to HOD (${hodEmail}) for chemical ${chemical.canonicalName}:`,
+            emailError,
+          );
+        }
+      }
+    }
   }
 
   return {
     checkedBatches: batches.length,
     lowStockBatches: lowStockBatches.length,
     createdNotifications: notificationsToCreate.length,
+    emailsSent,
   };
 };
 
@@ -407,7 +574,9 @@ const notifyLowStockBatch = async (batchId) => {
       return { checkedBatches: 0, lowStockBatches: 0, createdNotifications: 0 };
     }
 
-    return createLowStockNotifications([batch]);
+    return createLowStockNotifications([batch], {
+      sendOutOfStockEmail: true,
+    });
   } catch (error) {
     console.error("--- FAILED TO CREATE LOW STOCK NOTIFICATIONS ---");
     console.error("Error details:", error);
@@ -423,18 +592,34 @@ const notifyLowStockBatches = async () => {
         {
           model: Chemical,
           as: "chemical",
-          attributes: ["canonicalName", "binCardNumber", "baseUnit", "isActive"],
+          attributes: [
+            "canonicalName",
+            "binCardNumber",
+            "baseUnit",
+            "isActive",
+          ],
           where: { isActive: true },
         },
       ],
     });
 
-    return createLowStockNotifications(batches);
+    return createLowStockNotifications(batches, {
+      sendOutOfStockEmail: false,
+    });
   } catch (error) {
-    console.error("--- FAILED TO CREATE LOW STOCK NOTIFICATIONS ---");
+    console.error(
+      "--- FAILED TO CREATE LOW STOCK NOTIFICATIONS ---",
+    );
     console.error("Error details:", error);
     console.error("-----------------------------------------------");
-    return { checkedBatches: 0, lowStockBatches: 0, createdNotifications: 0, error };
+
+    return {
+      checkedBatches: 0,
+      lowStockBatches: 0,
+      createdNotifications: 0,
+      emailsSent: 0,
+      error,
+    };
   }
 };
 
