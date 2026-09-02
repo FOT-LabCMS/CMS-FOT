@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import QRScanner from "./QRScanner";
 
 const QuickScannerModal = ({ isOpen, onClose }) => {
@@ -25,7 +25,7 @@ const QuickScannerModal = ({ isOpen, onClose }) => {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-bg)] p-2 sm:p-4 shadow-2xl"
+        className="relative max-h-[90vh] w-full max-w-lg sm:max-w-xl overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-bg)] p-2 sm:p-3 shadow-2xl"
       >
         <QRScanner autoNavigate={true} isModal={true} onClose={onClose} />
       </div>
