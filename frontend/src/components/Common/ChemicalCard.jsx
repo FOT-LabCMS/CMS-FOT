@@ -4,7 +4,6 @@ import {
   FileText,
   MoreHorizontal,
   Pencil,
-  Eye,
   Undo2,
   Trash2,
 } from "lucide-react";
@@ -47,8 +46,9 @@ const ChemicalCard = ({
   const resolvedImageUrl = getChemicalImageUrl(imageUrl);
 
   return (
-    <div
-      className={`flex flex-col rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] transition-all duration-300 ${
+    <Link
+      to={`/chemicals/${id}`}
+      className={`flex cursor-pointer flex-col rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] transition-all duration-300 ${
         isDeactivated
           ? "opacity-70"
           : "hover:shadow-[var(--shadow-md)] hover:-translate-y-1"
@@ -83,6 +83,7 @@ const ChemicalCard = ({
         <button
           type="button"
           aria-label="More options"
+          onClick={(e) => e.preventDefault()}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] color-transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]"
         >
           <MoreHorizontal size={18} />
@@ -151,17 +152,13 @@ const ChemicalCard = ({
 
       {/* Card Footer */}
       <div className="flex items-center justify-end gap-2 border-t border-[var(--color-border)] p-3">
-        <Link
-          to={`/chemicals/${id}`}
-          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text-primary)] color-transition hover:bg-[var(--color-surface-muted)]"
-        >
-          <Eye size={14} />
-          View
-        </Link>
         {isDeactivated && !isPublicView && canModify && (
           <button
             type="button"
-            onClick={() => onReactivate(chemical)}
+            onClick={(e) => {
+              e.preventDefault();
+              onReactivate(chemical);
+            }}
             className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-green-600 px-3 py-2 text-xs font-semibold text-white color-transition hover:bg-green-700"
           >
             <Undo2 size={14} />
@@ -172,7 +169,10 @@ const ChemicalCard = ({
           <>
             <button
               type="button"
-              onClick={() => onEdit(chemical)}
+              onClick={(e) => {
+                e.preventDefault();
+                onEdit(chemical);
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
             >
               <Pencil size={14} />
@@ -180,7 +180,10 @@ const ChemicalCard = ({
             </button>
             <button
               type="button"
-              onClick={() => onDelete(chemical)}
+              onClick={(e) => {
+                e.preventDefault();
+                onDelete(chemical);
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-red-600/10 px-3 py-2 text-xs font-semibold text-red-600 color-transition hover:bg-red-600 hover:text-white"
             >
               <Trash2 size={14} />
@@ -188,7 +191,7 @@ const ChemicalCard = ({
           </>
         )}
       </div>
-    </div>
+    </Link>
   );
 };
 

@@ -1,18 +1,96 @@
-import React from "react";
+import { useMemo, useState } from "react";
 import {
   Microscope,
   ArrowLeft,
-  Calendar,
-  Wrench,
-  Sparkles,
   Search,
-  SlidersHorizontal,
+  Loader2,
+  ServerCrash,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import Footer from "../components/Common/Footer";
-import appConfig from "../config/appConfig";
+import { useQuery } from "@tanstack/react-query";
+import api from "../api/axiosInstance";
+import InstrumentCard from "../components/instruments/InstrumentCard";
 
 const Instruments = () => {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const {
+    data,
+    isLoading: loading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ['publicInstruments'],
+    queryFn: async () => {
+      const response = await api.get('/instruments/public');
+      if (response.data?.success) {
+        return response.data;
+      }
+      throw new Error(response.data?.message || 'Failed to fetch instruments from the server.');
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const instruments = useMemo(() => {
+    const all = data?.instruments || [];
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter((instrument) =>
+      instrument.name?.toLowerCase().includes(q) ||
+      instrument.description?.toLowerCase().includes(q)
+    );
+  }, [data, searchTerm]);
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 text-center text-[var(--color-text-secondary)] py-20">
+          <Loader2 size={40} className="animate-spin text-[var(--color-primary)]" />
+          <h3 className="text-lg font-semibold">Loading Instruments...</h3>
+          <p>Please wait while we fetch the data.</p>
+        </div>
+      );
+    }
+
+    if (isError) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 text-center text-[var(--color-danger)] py-20 rounded-[var(--radius-lg)] bg-[var(--color-surface)] border border-[var(--color-danger)]">
+          <ServerCrash size={40} />
+          <h3 className="text-lg font-semibold">Failed to Load Instruments</h3>
+          <p className="max-w-md">{error.message}</p>
+        </div>
+      );
+    }
+
+    if (instruments.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 text-center text-[var(--color-text-secondary)] py-20 rounded-[var(--radius-lg)] bg-[var(--color-surface)] border-2 border-dashed border-[var(--color-border)]">
+          <Microscope size={40} />
+          <h3 className="text-lg font-semibold">
+            {searchTerm ? "No Instruments Match Your Search" : "No Instruments Available"}
+          </h3>
+          <p>
+            {searchTerm
+              ? "Try a different search keyword."
+              : "The instrument directory is empty. Please check back later."}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {instruments.map((instrument) => (
+          <InstrumentCard
+            key={instrument.id}
+            instrument={instrument}
+            isPublicView
+          />
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen w-full flex flex-col bg-[var(--color-bg)] font-[family-name:var(--font-body)]">
       {/* ---------------- Header ---------------- */}
@@ -57,7 +135,7 @@ const Instruments = () => {
               <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-3xl">
                   <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[rgba(214,170,94,0.45)] bg-[rgba(246,244,236,0.08)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-accent-light)]">
-                    <Sparkles size={14} />
+                    <Microscope size={14} />
                     Public Directory
                   </span>
                   <h1 className="text-2xl font-extrabold leading-tight text-[var(--color-text-inverse)] sm:text-4xl lg:text-5xl">
@@ -73,81 +151,27 @@ const Instruments = () => {
             </div>
           </section>
 
-          {/* Under Development Placeholder Card */}
-          <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] p-8 sm:p-14 text-center shadow-[var(--shadow-sm)]">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-[var(--color-primary-tint)] text-[var(--color-primary)] flex items-center justify-center mb-6">
-              <Microscope className="w-8 h-8" />
-            </div>
-
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-400/30 px-3.5 py-1 text-xs font-bold text-amber-800 uppercase tracking-wider mb-4">
-              Module Under Development
-            </span>
-
-            <h2 className="text-2xl font-bold text-[var(--color-text-primary)] mb-3">
-              Instruments Portal Coming Soon
-            </h2>
-
-            <p className="max-w-xl mx-auto text-sm text-[var(--color-text-secondary)] leading-relaxed mb-8">
-              The instruments & equipment directory is currently being designed.
-              Future capabilities will include real-time apparatus availability,
-              calibration history, maintenance logs, and slot booking for
-              academic research.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto text-left">
-              <div className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-bg)]">
-                <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-tint)] text-[var(--color-primary)] flex items-center justify-center mb-2">
-                  <Search className="w-4 h-4" />
-                </div>
-                <h3 className="text-xs font-bold text-[var(--color-text-primary)]">
-                  Apparatus Directory
-                </h3>
-                <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-                  Catalogues of spectrometers, centrifuges, autoclaves, and
-                  microscopes.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-bg)]">
-                <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-tint)] text-[var(--color-primary)] flex items-center justify-center mb-2">
-                  <Calendar className="w-4 h-4" />
-                </div>
-                <h3 className="text-xs font-bold text-[var(--color-text-primary)]">
-                  Equipment Booking
-                </h3>
-                <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-                  Online reservation system for research students and lecturers.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-bg)]">
-                <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-tint)] text-[var(--color-primary)] flex items-center justify-center mb-2">
-                  <Wrench className="w-4 h-4" />
-                </div>
-                <h3 className="text-xs font-bold text-[var(--color-text-primary)]">
-                  Calibration Logs
-                </h3>
-                <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-                  Maintenance schedules and technical inspection records.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <Link
-                to="/"
-                className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-6 py-2.5 text-xs font-bold text-[var(--color-text-inverse)] shadow-sm transition hover:bg-[var(--color-primary-light)]"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Return to Main Menu</span>
-              </Link>
+          {/* Search Bar */}
+          <div className="mb-6">
+            <div className="relative">
+              <Search
+                size={20}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+              />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search instruments..."
+                className="w-full max-w-lg rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-3 pl-12 pr-4 text-sm font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] color-transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-tint)]"
+              />
             </div>
           </div>
+
+          {/* Instruments Grid */}
+          {renderContent()}
         </div>
       </main>
-
-      {/* ---------------- Footer ---------------- */}
-      <Footer />
     </div>
   );
 };

@@ -31,6 +31,9 @@ import ChemicalWiseReport from "./pages/reports/ChemicalWise";
 import UsageReport from "./pages/reports/UsageReport";
 import ViewSdsLibrary from "./pages/chemicals/sds/ViewSdsLibrary";
 import ScanQRPage from "./pages/scanner/ScanQRPage";
+import ViewInstruments from "./pages/instruments/ViewInstruments";
+import AddInstrument from "./pages/instruments/AddInstrument";
+import InstrumentDetails from "./pages/instruments/InstrumentDetails";
 
 function App() {
   return (
@@ -39,6 +42,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/instruments" element={<Instruments />} />
+        <Route path="/instruments/:id" element={<InstrumentDetails />} />
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<PasswordReset />} />
         <Route path="/chemicals/:id" element={<ChemicalDetails />} />
@@ -141,6 +145,24 @@ function App() {
                 roles={["ADMIN", "TECHNICAL_OFFICER", "LECTURER"]}
               >
                 <ScanQRPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instruments/list"
+            element={
+              <ProtectedRoute
+                roles={["ADMIN", "TECHNICAL_OFFICER", "LECTURER"]}
+              >
+                <ViewInstruments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instruments/add"
+            element={
+              <ProtectedRoute roles={["ADMIN", "TECHNICAL_OFFICER"]}>
+                <AddInstrument />
               </ProtectedRoute>
             }
           />

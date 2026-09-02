@@ -1,25 +1,24 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Archive, ArrowLeft, Loader2, Search, ServerCrash, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Microscope, Plus, Loader2, ServerCrash, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../../api/axiosInstance';
-import ChemicalCard from '../../components/Common/ChemicalCard';
-import EditChemicalModal from '../../components/chemicals/EditChemicalModal';
+import InstrumentCard from '../../components/instruments/InstrumentCard';
+import EditInstrumentModal from '../../components/instruments/EditInstrumentModal';
 import DeleteConfirmationModal from '../../components/Common/DeleteConfirmationModal';
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation, keepPreviousData } from '@tanstack/react-query';
+import { useAuth } from '../../context/AuthContext';
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 7;
 
-const ViewDeactivatedChemicals = () => {
-  const navigate = useNavigate();
+const ViewInstruments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingChemical, setEditingChemical] = useState(null);
-  const [reactivatingChemical, setReactivatingChemical] = useState(null);
-  const [isReactivateProcessing, setIsReactivateProcessing] = useState(false);
+  const [editingInstrument, setEditingInstrument] = useState(null);
+  const [deletingInstrument, setDeletingInstrument] = useState(null);
   const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
 
-  // Debounce search input (300ms)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
@@ -28,91 +27,97 @@ const ViewDeactivatedChemicals = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const { data, isLoading: loading, error, isPlaceholderData } = useQuery({
-    queryKey: ['deactivatedChemicals', currentPage, debouncedSearch],
+  const { data, isLoading: loading, isError, error, isPlaceholderData } = useQuery({
+    queryKey: ['instruments', currentPage, debouncedSearch],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set('page', String(currentPage));
       params.set('limit', String(PAGE_SIZE));
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
 
-      const response = await api.get(`/chemicals/inactive?${params.toString()}`);
+      const response = await api.get(`/instruments?${params.toString()}`);
       if (response.data?.success) {
         return response.data;
       }
-      throw new Error('Failed to fetch deactivated chemicals from the server.');
+      throw new Error(response.data?.message || 'Failed to fetch instruments from the server.');
     },
     placeholderData: keepPreviousData,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const chemicals = data?.chemicals || [];
-  const pagination = data?.pagination || { total: chemicals.length, page: 1, limit: PAGE_SIZE, totalPages: 1 };
+  const instruments = data?.instruments || [];
+  const pagination = data?.pagination || { total: instruments.length, page: 1, limit: PAGE_SIZE, totalPages: 1 };
   const totalPages = pagination.totalPages;
 
-  const handleEditClick = (chemical) => {
-    setEditingChemical(chemical);
+  const deleteMutation = useMutation({
+    mutationFn: (instrumentId) => api.delete(`/instruments/${instrumentId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instruments'] });
+      setDeletingInstrument(null);
+    },
+    onError: (error) => {
+      console.error("Failed to deactivate instrument:", error);
+    },
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: (instrumentId) => api.patch(`/instruments/${instrumentId}/reactivate`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instruments'] });
+    },
+    onError: (error) => {
+      console.error("Failed to reactivate instrument:", error);
+    },
+  });
+
+  const handleEditClick = (instrument) => {
+    setEditingInstrument(instrument);
+  };
+
+  const handleDeleteClick = (instrument) => {
+    setDeletingInstrument(instrument);
+  };
+
+  const handleReactivateClick = (instrument) => {
+    reactivateMutation.mutate(instrument.id);
   };
 
   const handleCloseModal = () => {
-    setEditingChemical(null);
+    setEditingInstrument(null);
   };
 
   const handleUpdateSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ['deactivatedChemicals'] });
+    queryClient.invalidateQueries({ queryKey: ['instruments'] });
     handleCloseModal();
-  };
-
-  const handleReactivateClick = (chemical) => {
-    setReactivatingChemical(chemical);
-  };
-
-  const handleConfirmReactivation = async () => {
-    if (!reactivatingChemical) return;
-
-    setIsReactivateProcessing(true);
-    try {
-      await api.patch(`/chemicals/${reactivatingChemical.id}/reactivate`);
-      queryClient.invalidateQueries({ queryKey: ['deactivatedChemicals'] });
-      queryClient.invalidateQueries({ queryKey: ['chemicals'] });
-      setReactivatingChemical(null);
-    } catch (err) {
-      // You could show an error toast here
-      console.error("Failed to reactivate chemical:", err);
-      // For now, just log it and close the modal
-      setReactivatingChemical(null);
-    } finally {
-      setIsReactivateProcessing(false);
-    }
   };
 
   const renderContent = () => {
     if (loading) {
       return (
-        <div className="flex flex-col items-center justify-center gap-4 py-20 text-center text-[var(--color-text-secondary)]">
+        <div className="flex flex-col items-center justify-center gap-4 text-center text-[var(--color-text-secondary)] py-20">
           <Loader2 size={40} className="animate-spin text-[var(--color-primary)]" />
-          <h3 className="text-lg font-semibold">Loading Deactivated Chemicals...</h3>
+          <h3 className="text-lg font-semibold">Loading Instruments...</h3>
+          <p>Please wait while we fetch the data.</p>
         </div>
       );
     }
 
-    if (error) {
+    if (isError) {
       return (
-        <div className="rounded-[var(--radius-lg)] border border-[var(--color-danger)] bg-[var(--color-surface)] py-20 text-center text-[var(--color-danger)]">
-          <ServerCrash size={40} className="mx-auto" />
-          <h3 className="mt-4 text-lg font-semibold">Failed to Load Data</h3>
-          <p className="mx-auto mt-2 max-w-md">
-            {error.response?.data?.message || error.message}
-          </p>
+        <div className="flex flex-col items-center justify-center gap-4 text-center text-[var(--color-danger)] py-20 rounded-[var(--radius-lg)] bg-[var(--color-surface)] border border-[var(--color-danger)]">
+          <ServerCrash size={40} />
+          <h3 className="text-lg font-semibold">Failed to Load Instruments</h3>
+          <p className="max-w-md">{error.message}</p>
         </div>
       );
     }
 
-    if (chemicals.length === 0) {
+    if (instruments.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)] py-20 text-center text-[var(--color-text-secondary)]">
-          <Archive size={40} />
-          <h3 className="text-lg font-semibold">No Deactivated Chemicals</h3>
-          <p className="max-w-md">There are currently no chemicals in the deactivated list.</p>
+        <div className="flex flex-col items-center justify-center gap-4 text-center text-[var(--color-text-secondary)] py-20 rounded-[var(--radius-lg)] bg-[var(--color-surface)] border-2 border-dashed border-[var(--color-border)]">
+          <Microscope size={40} />
+          <h3 className="text-lg font-semibold">No Instruments Found</h3>
+          <p>Your instrument list is empty. Add a new instrument to get started.</p>
         </div>
       );
     }
@@ -120,18 +125,17 @@ const ViewDeactivatedChemicals = () => {
     return (
       <>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {chemicals.map((chemical) => (
-            <ChemicalCard
-              key={chemical.id}
-              chemical={chemical}
+          {instruments.map((instrument) => (
+            <InstrumentCard
+              key={instrument.id}
+              instrument={instrument}
               onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
               onReactivate={handleReactivateClick}
-              isDeactivated
             />
           ))}
         </div>
 
-        {/* Pagination bar */}
         {totalPages > 1 && (
           <div className={`mt-6 flex flex-col items-center justify-between gap-3 sm:flex-row ${isPlaceholderData ? 'opacity-60' : ''}`}>
             <p className="text-sm text-[var(--color-text-secondary)]">
@@ -147,7 +151,7 @@ const ViewDeactivatedChemicals = () => {
               <span className="font-semibold text-[var(--color-text-primary)]">
                 {pagination.total}
               </span>{" "}
-              chemicals
+              instruments
             </p>
 
             <div className="flex items-center gap-1">
@@ -194,72 +198,72 @@ const ViewDeactivatedChemicals = () => {
     <div className="min-h-screen bg-[var(--color-bg)]">
       <main className="px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
         <div className="mx-auto max-w-screen-2xl">
-          {/* Page header */}
           <header className="mb-8 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-primary-dark)] shadow-[var(--shadow-md)]">
             <div className="relative p-5 sm:p-7 lg:p-8">
               <div className="pointer-events-none absolute -right-12 -top-16 h-52 w-52 rounded-full bg-[var(--color-primary-light)] opacity-30" />
               <div className="pointer-events-none absolute -bottom-20 right-32 h-40 w-40 rounded-full bg-[var(--color-accent)] opacity-10" />
 
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => navigate('/chemicals/list')}
-                  className="mb-5 inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
-                >
-                  <ArrowLeft size={17} />
-                  Back to Inventory
-                </button>
-
+              <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-3xl">
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-danger)]/80 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-text-inverse)]">
-                      <Archive size={14} />
-                      Deactivated
+                    <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-accent-light)]">
+                      <Microscope size={14} />
+                      Instrument Inventory
                     </span>
                   </div>
                   <h1 className="text-2xl font-extrabold text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
-                    Deactivated Chemicals
+                    Laboratory Instruments
                   </h1>
                 </div>
+                {isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'TECHNICAL_OFFICER') && (
+                  <div className="shrink-0">
+                    <Link
+                      to="/instruments/add"
+                      className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] px-5 py-3 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
+                    >
+                      <Plus size={18} />
+                      Add New Instrument
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </header>
 
-          {/* Search Bar */}
           <div className="mb-6">
             <div className="relative">
-              <Search size={20} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+              <Search
+                size={20}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+              />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by name or code..."
+                placeholder="Search by name or description..."
                 className="w-full max-w-lg rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-3 pl-12 pr-4 text-sm font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] color-transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-tint)]"
               />
             </div>
           </div>
 
-          {/* Content Area */}
           {renderContent()}
 
-          {editingChemical && (
-            <EditChemicalModal
-              chemical={editingChemical}
+          {editingInstrument && (
+            <EditInstrumentModal
+              instrument={editingInstrument}
               onClose={handleCloseModal}
               onSuccess={handleUpdateSuccess}
             />
           )}
-
-          {reactivatingChemical && (
+          {deletingInstrument && (
             <DeleteConfirmationModal
-              isOpen={!!reactivatingChemical}
-              onClose={() => setReactivatingChemical(null)}
-              onConfirm={handleConfirmReactivation}
-              isProcessing={isReactivateProcessing}
-              title="Reactivate Chemical"
-              message={`Are you sure you want to reactivate "${reactivatingChemical.canonicalName}"? It will become visible in the main inventory again.`}
-              confirmText="Yes, Reactivate"
-              variant="success"
+              isOpen={!!deletingInstrument}
+              onClose={() => setDeletingInstrument(null)}
+              onConfirm={() => deleteMutation.mutate(deletingInstrument.id)}
+              isProcessing={deleteMutation.isPending}
+              title="Deactivate Instrument"
+              message={`Are you sure you want to deactivate "${deletingInstrument.name}"? This action will hide it from the instrument list but will not remove historical data.`}
+              confirmText="Yes, Deactivate"
             />
           )}
         </div>
@@ -268,4 +272,4 @@ const ViewDeactivatedChemicals = () => {
   );
 };
 
-export default ViewDeactivatedChemicals;
+export default ViewInstruments;

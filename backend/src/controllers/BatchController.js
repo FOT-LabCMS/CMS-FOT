@@ -7,28 +7,110 @@ const {
   notifyLowStockBatches,
 } = require('../services/notificationService.js');
 
+const BATCH_INCLUDES = [
+  {
+    model: Chemical,
+    as: 'chemical',
+    attributes: ['canonicalName', 'binCardNumber', 'baseUnit'],
+  },
+  {
+    model: Location,
+    as: 'location',
+    attributes: ['name'],
+  },
+];
+
+const computeBatchStatus = (batch, today, thirtyDaysFromNow) => {
+  const currentQty = Number(batch.currentQuantity);
+  const thresholdQty = Number(batch.lowStockThresholdQuantity);
+
+  if (batch.isDisposed) return 'Disposed';
+  if (currentQty <= 0) return 'Out of Stock';
+
+  if (batch.expiryDate) {
+    const expiry = new Date(batch.expiryDate);
+    if (expiry < today) return 'Expired';
+  }
+
+  if (Number.isFinite(thresholdQty) && thresholdQty >= 0 && currentQty <= thresholdQty) {
+    return 'Low Stock';
+  }
+
+  if (batch.expiryDate) {
+    const expiry = new Date(batch.expiryDate);
+    if (expiry <= thirtyDaysFromNow) return 'Expiring Soon';
+  }
+
+  return 'Good';
+};
+
 const getAllBatches = async (req, res) => {
   try {
+    const { page, limit, search, status } = req.query;
+    const isPaginated = page !== undefined && limit !== undefined;
+
+    if (isPaginated) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+      const offset = (pageNum - 1) * limitNum;
+
+      const where = {};
+      if (search && search.trim()) {
+        const q = search.trim();
+        where[Op.or] = [
+          { batchNumber: { [Op.iLike]: `%${q}%` } },
+          { supplier: { [Op.iLike]: `%${q}%` } },
+          { '$chemical.canonicalName$': { [Op.iLike]: `%${q}%` } },
+          { '$chemical.binCardNumber$': { [Op.iLike]: `%${q}%` } },
+        ];
+      }
+
+      const allMatching = await Batch.findAll({
+        where: Object.keys(where).length ? where : undefined,
+        include: BATCH_INCLUDES,
+        order: [['receivedDate', 'DESC']],
+        subQuery: false,
+      });
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+      const batchesWithStatus = allMatching.map((batch) => {
+        const json = batch.toJSON();
+        json._status = computeBatchStatus(json, today, thirtyDaysFromNow);
+        return json;
+      });
+
+      const filtered = (status && status !== 'All')
+        ? batchesWithStatus.filter((b) => b._status === status)
+        : batchesWithStatus;
+
+      const statusCounts = { All: batchesWithStatus.length };
+      batchesWithStatus.forEach((b) => {
+        statusCounts[b._status] = (statusCounts[b._status] || 0) + 1;
+      });
+
+      const total = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / limitNum));
+      const paginated = filtered.slice(offset, offset + limitNum);
+      paginated.forEach((b) => { delete b._status; });
+
+      return res.status(200).json({
+        success: true,
+        batches: paginated,
+        pagination: { total, page: pageNum, limit: limitNum, totalPages },
+        statusCounts,
+      });
+    }
+
     const batches = await Batch.findAll({
-      include: [
-        {
-          model: Chemical,
-          as: 'chemical',
-          attributes: ['canonicalName', 'binCardNumber', 'baseUnit'],
-        },
-        {
-          model: Location,
-          as: 'location',
-          attributes: ['name'],
-        },
-      ],
+      include: BATCH_INCLUDES,
       order: [['receivedDate', 'DESC']],
     });
 
-    res.status(200).json({
-      success: true,
-      batches,
-    });
+    res.status(200).json({ success: true, batches });
   } catch (error) {
     console.error('Error fetching batches:', error);
     res.status(500).json({ success: false, message: 'Internal server error while fetching batches.' });

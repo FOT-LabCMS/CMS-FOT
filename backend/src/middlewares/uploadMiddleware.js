@@ -1,12 +1,14 @@
 const multer = require('multer');
 const path = require('path');
-const { getSdsUploadDir, getImageUploadDir } = require('../services/storageService.js');
+const { getSdsUploadDir, getImageUploadDir, getInstrumentUploadDir } = require('../services/storageService.js');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     try {
       if (file.fieldname === 'sdsFile') {
         cb(null, getSdsUploadDir());
+      } else if (file.fieldname === 'instrumentImage') {
+        cb(null, getInstrumentUploadDir());
       } else if (file.fieldname === 'imageFile' || file.fieldname === 'image') {
         cb(null, getImageUploadDir());
       } else {
@@ -21,6 +23,8 @@ const storage = multer.diskStorage({
     const ext = path.extname(file.originalname).toLowerCase();
     if (file.fieldname === 'sdsFile') {
       cb(null, `sds-${uniqueSuffix}${ext}`);
+    } else if (file.fieldname === 'instrumentImage') {
+      cb(null, `instrument-${uniqueSuffix}${ext}`);
     } else {
       cb(null, `chemical-${uniqueSuffix}${ext}`);
     }
@@ -46,7 +50,11 @@ const fileFilter = (req, file, cb) => {
     return cb(err, false);
   }
 
-  if (file.fieldname === 'imageFile' || file.fieldname === 'image') {
+  if (
+    file.fieldname === 'imageFile' ||
+    file.fieldname === 'image' ||
+    file.fieldname === 'instrumentImage'
+  ) {
     const allowedImageMimeTypes = [
       'image/jpeg',
       'image/png',
@@ -81,6 +89,7 @@ const upload = multer({
   { name: 'sdsFile', maxCount: 1 },
   { name: 'imageFile', maxCount: 1 },
   { name: 'image', maxCount: 1 },
+  { name: 'instrumentImage', maxCount: 1 },
 ]);
 
 const uploadSds = (req, res, next) => {
@@ -113,6 +122,9 @@ const uploadSds = (req, res, next) => {
         req.imageFile = req.files.imageFile[0];
       } else if (req.files.image && req.files.image.length > 0) {
         req.imageFile = req.files.image[0];
+      }
+      if (req.files.instrumentImage && req.files.instrumentImage.length > 0) {
+        req.instrumentImage = req.files.instrumentImage[0];
       }
     }
 

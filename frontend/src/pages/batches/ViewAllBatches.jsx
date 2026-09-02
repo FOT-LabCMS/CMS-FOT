@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Truck,
@@ -683,30 +683,69 @@ const EditBatchModal = ({ batch, onClose, onSuccess }) => {
   );
 };
 
+const PAGE_SIZE = 10;
+
 const ViewAllBatches = () => {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: PAGE_SIZE, totalPages: 1 });
+  const [statusCounts, setStatusCounts] = useState({});
   const [qrModalBatch, setQrModalBatch] = useState(null);
   const [editingBatch, setEditingBatch] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Debounce search input (300ms)
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleStatusChange = (filter) => {
+    setCurrentPage(1);
+    setStatusFilter(filter);
+  };
+
+  // Fetch paginated batches from backend
+  useEffect(() => {
+    let cancelled = false;
+
     const fetchBatches = async () => {
       try {
         setLoading((previous) => previous || batches.length === 0);
         setError(null);
-        const response = await api.get("/batches");
+
+        const params = new URLSearchParams();
+        params.set("page", String(currentPage));
+        params.set("limit", String(PAGE_SIZE));
+        if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+        if (statusFilter !== "All") params.set("status", statusFilter);
+
+        const response = await api.get(`/batches?${params.toString()}`);
+
+        if (cancelled) return;
+
         if (response.data?.success) {
           setBatches(response.data.batches);
+          if (response.data.pagination) {
+            setPagination(response.data.pagination);
+          }
+          if (response.data.statusCounts) {
+            setStatusCounts(response.data.statusCounts);
+          }
         } else {
           throw new Error("Failed to fetch batches from the server.");
         }
       } catch (err) {
+        if (cancelled) return;
         setError(
           err.response?.data?.message ||
             err.message ||
@@ -714,71 +753,25 @@ const ViewAllBatches = () => {
         );
         console.error("Error fetching batches:", err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchBatches();
     const refreshTimer = window.setInterval(fetchBatches, 30000);
 
-    return () => window.clearInterval(refreshTimer);
-  }, [batches.length]);
-
-  const statusCounts = useMemo(() => {
-    const counts = { All: batches.length };
-    batches.forEach((batch) => {
-      const { text } = getStatus(batch);
-      counts[text] = (counts[text] || 0) + 1;
-    });
-    return counts;
-  }, [batches]);
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshTimer);
+    };
+  }, [currentPage, debouncedSearch, statusFilter, batches.length]);
 
   const expiredCount = useMemo(
-    () =>
-      batches.filter(
-        (batch) => !batch.isDisposed && getStatus(batch).text === "Expired",
-      ).length,
-    [batches],
+    () => statusCounts.Expired || 0,
+    [statusCounts],
   );
 
-  const filteredBatches = useMemo(() => {
-    return batches.filter((batch) => {
-      const matchesSearch =
-        batch.chemical?.canonicalName
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        batch.chemical?.binCardNumber
-          ?.toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        batch.supplier?.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesStatus =
-        statusFilter === "All" || getStatus(batch).text === statusFilter;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [batches, searchTerm, statusFilter]);
-
-  // Reset to first page whenever filters or search change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
-
-  const PAGE_SIZE = 10;
-
-  const sortedFilteredBatches = useMemo(() => {
-    return [...filteredBatches].sort(
-      (a, b) => new Date(b.receivedDate) - new Date(a.receivedDate),
-    );
-  }, [filteredBatches]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedFilteredBatches.length / PAGE_SIZE));
-
-  const paginatedBatches = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return sortedFilteredBatches.slice(start, start + PAGE_SIZE);
-  }, [sortedFilteredBatches, currentPage]);
+  const totalPages = pagination.totalPages;
 
   const canViewQrCode =
     user && (user.role === "ADMIN" || user.role === "TECHNICAL_OFFICER");
@@ -816,7 +809,7 @@ const ViewAllBatches = () => {
       );
     }
 
-    if (filteredBatches.length === 0) {
+    if (batches.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center gap-4 rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)] py-20 text-center text-[var(--color-text-secondary)]">
           <Truck size={40} />
@@ -880,7 +873,7 @@ const ViewAllBatches = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
-              {paginatedBatches.map((batch) => {
+              {batches.map((batch) => {
                 const status = getStatus(batch);
                 return (
                   <tr
@@ -899,12 +892,54 @@ const ViewAllBatches = () => {
                     <td className="whitespace-nowrap px-4 py-4 text-[var(--color-text-secondary)]">
                       {batch.batchNumber}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-[var(--color-text-secondary)]">
-                      <span className="font-semibold text-[var(--color-text-primary)]">
-                        {parseFloat(batch.currentQuantity)}
-                      </span>{" "}
-                      / {parseFloat(batch.quantityReceived)}{" "}
-                      {batch.chemical?.baseUnit}
+                    <td className="px-4 py-4 text-[var(--color-text-secondary)]">
+                      <div className="whitespace-nowrap font-semibold text-[var(--color-text-primary)]">
+                        {parseFloat(batch.currentQuantity)} /{" "}
+                        {parseFloat(batch.quantityReceived)}{" "}
+                        {batch.chemical?.baseUnit}
+                      </div>
+                      <div className="mt-1.5 flex w-40 items-center gap-2">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
+                          <div
+                            className={`h-full rounded-full ${
+                              status.text === "Good"
+                                ? "bg-green-500"
+                                : status.text === "Expiring Soon"
+                                  ? "bg-yellow-500"
+                                  : status.text === "Expired"
+                                    ? "bg-red-500"
+                                    : status.text === "Low Stock"
+                                      ? "bg-orange-500"
+                                      : status.text === "Out of Stock"
+                                        ? "bg-zinc-400"
+                                        : status.text === "Disposed"
+                                          ? "bg-purple-500"
+                                          : "bg-[var(--color-primary)]"
+                            } color-transition`}
+                            style={{
+                              width: `${
+                                Number(batch.quantityReceived) > 0
+                                  ? Math.min(
+                                      100,
+                                      (Number(batch.currentQuantity) /
+                                        Number(batch.quantityReceived)) *
+                                        100,
+                                    )
+                                  : 0
+                              }%`,
+                            }}
+                          />
+                        </div>
+                        <span className="shrink-0 whitespace-nowrap text-xs font-medium text-[var(--color-text-muted)]">
+                          {Number(batch.quantityReceived) > 0
+                            ? `${Math.round(
+                                (Number(batch.currentQuantity) /
+                                  Number(batch.quantityReceived)) *
+                                  100,
+                              )}%`
+                            : "0%"}
+                        </span>
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-[var(--color-text-secondary)]">
                       {batch.supplier || "N/A"}
@@ -970,11 +1005,11 @@ const ViewAllBatches = () => {
               </span>
               {"–"}
               <span className="font-semibold text-[var(--color-text-primary)]">
-                {Math.min(currentPage * PAGE_SIZE, sortedFilteredBatches.length)}
+                {Math.min(currentPage * PAGE_SIZE, pagination.total)}
               </span>
               {" of "}
               <span className="font-semibold text-[var(--color-text-primary)]">
-                {sortedFilteredBatches.length}
+                {pagination.total}
               </span>{" "}
               batches
             </p>
@@ -1092,7 +1127,7 @@ const ViewAllBatches = () => {
                 </div>
               </div>
               <button
-                onClick={() => setStatusFilter("Expired")}
+                onClick={() => handleStatusChange("Expired")}
                 className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-red-700 active:bg-red-800"
               >
                 <Trash2 size={14} />
@@ -1156,7 +1191,7 @@ const ViewAllBatches = () => {
                 return (
                   <button
                     key={label}
-                    onClick={() => setStatusFilter(label)}
+                    onClick={() => handleStatusChange(label)}
                     className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold color-transition ${
                       isActive
                         ? activeClass

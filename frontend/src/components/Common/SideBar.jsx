@@ -25,6 +25,7 @@ import {
   PanelLeftOpen,
   QrCode,
   Scan,
+  Microscope,
 } from "lucide-react";
 
 const ROLE_LABELS = {
@@ -72,6 +73,24 @@ const MAIN_MENU_ITEMS = [
       {
         label: "Deactivated Chemicals",
         path: "/chemicals/deactivated",
+        roles: ["ADMIN", "TECHNICAL_OFFICER"],
+      },
+    ],
+  },
+  {
+    label: "Instruments",
+    icon: Microscope,
+    pathPrefix: "/instruments",
+    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+    children: [
+      {
+        label: "View All Instruments",
+        path: "/instruments/list",
+        roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+      },
+      {
+        label: "Add New Instrument",
+        path: "/instruments/add",
         roles: ["ADMIN", "TECHNICAL_OFFICER"],
       },
     ],
@@ -449,7 +468,7 @@ const SidebarContent = ({
             navigate(userRole === "LECTURER" ? "/chemicals/list" : "/dashboard");
             closeMobileMenu();
           }}
-          className={`flex items-center text-left min-w-0 ${isCollapsed ? "justify-center" : "gap-3 flex-1"}`}
+          className={`flex cursor-pointer items-center text-left min-w-0 ${isCollapsed ? "justify-center" : "gap-3 flex-1"}`}
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-md)] border shadow-[var(--shadow-sm)]">
             <img

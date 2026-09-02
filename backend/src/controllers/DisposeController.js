@@ -183,21 +183,64 @@ const viewreturnedchemicals = async (req, res) => {
 };
 const viewnotreturnedchemicals = async (req, res) => {
   try {
-    const notReturnedChemicals = await Dispose.findAll({
-      where: { returnedStatus: "RELEASED" },
-      include: [
-        {
-          model: Chemical,
-          as: "chemical",
-          attributes: [
-            "densityValue",
-            "densityUnit",
-            "stockDimension",
-            "physicalState",
-            "baseUnit",
-          ],
+    const { page, limit, search } = req.query;
+    const isPaginated = page !== undefined && limit !== undefined;
+
+    const where = { returnedStatus: "RELEASED" };
+    if (search && String(search).trim()) {
+      const term = `%${String(search).trim()}%`;
+      where[Op.or] = [
+        { chemicalName: { [Op.iLike]: term } },
+        { batchNumber: { [Op.iLike]: term } },
+        { binCardNumber: { [Op.iLike]: term } },
+        { userName: { [Op.iLike]: term } },
+        { stuRegisterNum: { [Op.iLike]: term } },
+      ];
+    }
+
+    const include = [
+      {
+        model: Chemical,
+        as: "chemical",
+        attributes: [
+          "densityValue",
+          "densityUnit",
+          "stockDimension",
+          "physicalState",
+          "baseUnit",
+        ],
+      },
+    ];
+
+    if (isPaginated) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 5));
+      const offset = (pageNum - 1) * limitNum;
+
+      const { count, rows } = await Dispose.findAndCountAll({
+        where,
+        include,
+        distinct: true,
+        order: [["dateReleased", "DESC"]],
+        offset,
+        limit: limitNum,
+      });
+
+      return res.json({
+        notReturnedChemicals: rows,
+        pagination: {
+          total: count,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.max(1, Math.ceil(count / limitNum)),
         },
-      ],
+      });
+    }
+
+    const notReturnedChemicals = await Dispose.findAll({
+      where,
+      include,
+      order: [["dateReleased", "DESC"]],
     });
     if (notReturnedChemicals.length === 0) {
       return res
