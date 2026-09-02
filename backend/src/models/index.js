@@ -11,6 +11,7 @@ const Location = require("./Location")(sequelize, DataTypes);
 const Dispose = require("./Dispose")(sequelize, DataTypes);
 const AuditLog = require("./AuditLog")(sequelize, DataTypes);
 const Notification = require("./Notification")(sequelize, DataTypes);
+const Instrument = require("./Instrument")(sequelize, DataTypes);
 
 // --- Centralized Model Associations ---
 
@@ -90,4 +91,4 @@ User.hasMany(Notification, {
 });
 
 // --- Exports ---
-module.exports = { sequelize, User, Chemical, Batch, Location, Dispose, AuditLog, Notification };
+module.exports = { sequelize, User, Chemical, Batch, Location, Dispose, AuditLog, Notification, Instrument };

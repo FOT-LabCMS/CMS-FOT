@@ -138,6 +138,56 @@ const deleteImageFile = async (storageKeyOrUrl) => {
   return false;
 };
 
+/**
+ * Get the Instrument Images subfolder path and ensure it exists on disk.
+ */
+const getInstrumentUploadDir = () => {
+  const instrDir = path.join(getUploadsRoot(), 'instruments');
+  if (!fs.existsSync(instrDir)) {
+    fs.mkdirSync(instrDir, { recursive: true });
+  }
+  return instrDir;
+};
+
+/**
+ * Safely resolve an instrument image storage path within the instruments directory.
+ */
+const resolveInstrumentImageFilePath = (storageKeyOrUrl) => {
+  if (!storageKeyOrUrl || typeof storageKeyOrUrl !== 'string') {
+    return null;
+  }
+  const safeFilename = path.basename(storageKeyOrUrl.trim());
+  if (!safeFilename) {
+    return null;
+  }
+
+  const instrDir = getInstrumentUploadDir();
+  const resolvedPath = path.resolve(instrDir, safeFilename);
+
+  const normalizedInstrDir = path.resolve(instrDir);
+  if (!resolvedPath.startsWith(normalizedInstrDir + path.sep) && resolvedPath !== normalizedInstrDir) {
+    throw new Error('Security Error: Path traversal attempt detected.');
+  }
+
+  return resolvedPath;
+};
+
+/**
+ * Safely remove an instrument image file from disk.
+ */
+const deleteInstrumentImageFile = async (storageKeyOrUrl) => {
+  try {
+    const filePath = resolveInstrumentImageFilePath(storageKeyOrUrl);
+    if (filePath && fs.existsSync(filePath)) {
+      await fsPromises.unlink(filePath);
+      return true;
+    }
+  } catch (err) {
+    console.warn(`[storageService] Warning: Failed to delete instrument image file "${storageKeyOrUrl}":`, err.message);
+  }
+  return false;
+};
+
 module.exports = {
   getUploadsRoot,
   getSdsUploadDir,
@@ -148,6 +198,9 @@ module.exports = {
   getImageUploadDir,
   resolveImageFilePath,
   deleteImageFile,
+  getInstrumentUploadDir,
+  resolveInstrumentImageFilePath,
+  deleteInstrumentImageFile,
 };
 
 

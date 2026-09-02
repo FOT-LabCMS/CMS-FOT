@@ -19,6 +19,7 @@ const auditLogRoutes = require("./routes/AuditLogRoute.js");
 const usageRoutes = require("./routes/UsageRoute.js");
 const notificationRoutes = require("./routes/NotificationRoute.js");
 const reportRoutes = require("./routes/ReportRoute.js");
+const instrumentRoutes = require("./routes/InstrumentRoute.js");
 const {
   notifyExpiredBatches,
   notifyExpiringBatches,
@@ -28,6 +29,7 @@ const {
   getUploadsRoot,
   getSdsUploadDir,
   getImageUploadDir,
+  getInstrumentUploadDir,
 } = require("./services/storageService.js");
 
 const app = express();
@@ -70,6 +72,7 @@ app.use(express.json());
 // Ensure upload directories exist on server startup
 getSdsUploadDir();
 getImageUploadDir();
+getInstrumentUploadDir();
 
 // Serve uploaded files statically from configurable persistent storage root
 app.use("/uploads", express.static(getUploadsRoot()));
@@ -89,6 +92,7 @@ app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/usage", usageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/instruments", instrumentRoutes);
 
 const startExpiryNotificationScheduler = () => {
   const oneDayInMilliseconds = 24 * 60 * 60 * 1000;

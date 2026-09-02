@@ -25,6 +25,7 @@ import {
   PanelLeftOpen,
   QrCode,
   Scan,
+  Microscope,
 } from "lucide-react";
 
 const ROLE_LABELS = {
@@ -72,6 +73,24 @@ const MAIN_MENU_ITEMS = [
       {
         label: "Deactivated Chemicals",
         path: "/chemicals/deactivated",
+        roles: ["ADMIN", "TECHNICAL_OFFICER"],
+      },
+    ],
+  },
+  {
+    label: "Instruments",
+    icon: Microscope,
+    pathPrefix: "/instruments",
+    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+    children: [
+      {
+        label: "View All Instruments",
+        path: "/instruments/list",
+        roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+      },
+      {
+        label: "Add New Instrument",
+        path: "/instruments/add",
         roles: ["ADMIN", "TECHNICAL_OFFICER"],
       },
     ],
