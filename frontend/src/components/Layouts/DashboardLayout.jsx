@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../Common/SideBar";
-import Footer from "../Common/Footer"
 
 const DashboardLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -22,7 +21,6 @@ const DashboardLayout = () => {
 
       <main className={`min-h-screen transition-[margin-left] duration-300 ease-in-out ${isCollapsed ? "lg:ml-20" : "lg:ml-72"}`}>
         <Outlet />
-        <Footer />
       </main>
     </div>
   );

@@ -9,7 +9,6 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import Footer from "../components/Common/Footer";
 import appConfig from "../config/appConfig";
 
 const Instruments = () => {
@@ -145,9 +144,6 @@ const Instruments = () => {
           </div>
         </div>
       </main>
-
-      {/* ---------------- Footer ---------------- */}
-      <Footer />
     </div>
   );
 };

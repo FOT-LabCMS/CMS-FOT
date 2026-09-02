@@ -11,7 +11,6 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import ChemicalCard from "../components/Common/ChemicalCard";
-import Footer from "../components/Common/Footer";
 import appConfig from "../config/appConfig";
 
 const AVAILABILITY_FILTERS = [
@@ -228,9 +227,6 @@ const Home = () => {
           </div>
         </div>
       </main>
-
-      {/* ---------------- Footer ---------------- */}
-      <Footer />
     </div>
   );
 };
