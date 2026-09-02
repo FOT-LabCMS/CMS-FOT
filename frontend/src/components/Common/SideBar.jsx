@@ -449,7 +449,7 @@ const SidebarContent = ({
             navigate(userRole === "LECTURER" ? "/chemicals/list" : "/dashboard");
             closeMobileMenu();
           }}
-          className={`flex items-center text-left min-w-0 ${isCollapsed ? "justify-center" : "gap-3 flex-1"}`}
+          className={`flex cursor-pointer items-center text-left min-w-0 ${isCollapsed ? "justify-center" : "gap-3 flex-1"}`}
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-md)] border shadow-[var(--shadow-sm)]">
             <img
