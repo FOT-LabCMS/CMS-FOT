@@ -34,10 +34,12 @@ import ScanQRPage from "./pages/scanner/ScanQRPage";
 import ViewInstruments from "./pages/instruments/ViewInstruments";
 import AddInstrument from "./pages/instruments/AddInstrument";
 import InstrumentDetails from "./pages/instruments/InstrumentDetails";
+import ScrollToTop from "./components/Common/ScrollToTop";
 
 function App() {
   return (
     <AuthProvider>
+      <ScrollToTop />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />

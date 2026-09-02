@@ -35,6 +35,7 @@ const Landing = () => {
   };
 
   const handleInstrumentsClick = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     navigate("/instruments");
   };
 
@@ -199,7 +200,7 @@ const Landing = () => {
               </span>
 
               <span className="luxury-shimmer mt-2 block bg-gradient-to-r from-[#f9f1d8] via-[#d6aa5e] to-[#f1dfb0] bg-clip-text text-transparent">
-                Faculty Laboratory
+                Faculty Laboratory Chemical
               </span>
 
               <span className="block text-white/90">

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Microscope,
   ArrowLeft,
@@ -15,6 +15,10 @@ import Header from "../components/Common/Header";
 const Instruments = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
 
   const handleBack = () => {
     if (window.history.state?.idx > 0 || window.history.length > 1) {
