@@ -6,6 +6,7 @@ const {
   notifyLowStockBatch,
   notifyLowStockBatches,
 } = require('../services/notificationService.js');
+const { logAction } = require('../services/auditLogService.js');
 
 const BATCH_INCLUDES = [
   {
@@ -189,6 +190,22 @@ const addBatch = async (req, res) => {
     await notifyExpiringBatches();
     await notifyLowStockBatch(newBatch.id);
 
+    await logAction({
+      userId: req.user.id,
+      userName: req.user.fullName,
+      actionType: 'CREATE_BATCH',
+      entityType: 'Batch',
+      entityId: newBatch.id,
+      details: {
+        batchNumber: newBatch.batchNumber,
+        chemicalId: newBatch.chemicalId,
+        quantityReceived: newBatch.quantityReceived,
+        currentQuantity: newBatch.currentQuantity,
+        expiryDate: newBatch.expiryDate,
+      },
+      ipAddress: req.ip,
+    });
+
     res.status(201).json({
       success: true,
       message: 'New batch added successfully.',
@@ -281,7 +298,9 @@ const updateBatch = async (req, res) => {
       locationId,
     } = req.body;
 
-    const batch = await Batch.findByPk(id);
+    const batch = await Batch.findByPk(id, {
+      include: [{ model: Chemical, as: 'chemical', attributes: ['canonicalName'] }],
+    });
 
     if (!batch) {
       return res.status(404).json({ success: false, message: 'Batch not found.' });
@@ -354,6 +373,19 @@ const updateBatch = async (req, res) => {
     await notifyExpiredBatches();
     await notifyExpiringBatches();
     await notifyLowStockBatch(batch.id);
+
+    await logAction({
+      userId: req.user.id,
+      userName: req.user.fullName,
+      actionType: 'UPDATE_BATCH',
+      entityType: 'Batch',
+      entityId: batch.id,
+      details: {
+        batchNumber: batch.batchNumber,
+        chemicalName: batch.chemical?.canonicalName || 'N/A',
+      },
+      ipAddress: req.ip,
+    });
 
     const updatedBatch = await Batch.findByPk(id, {
       include: [
@@ -578,6 +610,21 @@ const disposeBatch = async (req, res) => {
       isDisposed: true,
       disposalRemark: remark.trim(),
       disposedAt: new Date(),
+    });
+
+    await logAction({
+      userId: req.user.id,
+      userName: req.user.fullName,
+      actionType: 'DISPOSE_EXPIRED_BATCH',
+      entityType: 'Batch',
+      entityId: batch.id,
+      details: {
+        batchNumber: batch.batchNumber,
+        chemicalName: batch.chemical?.canonicalName || 'N/A',
+        expiryDate: batch.expiryDate,
+        disposalRemark: remark.trim(),
+      },
+      ipAddress: req.ip,
     });
 
     const updatedBatch = await Batch.findByPk(id, {
