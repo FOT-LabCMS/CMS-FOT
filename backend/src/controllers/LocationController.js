@@ -199,10 +199,184 @@ const getPublicLocationTree = async (req, res) => {
   }
 };
 
+/**
+ * Update an existing location (name, type, parentLocationId).
+ */
+const updateLocation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, type, parentLocationId } = req.body;
+
+    if (!name || !type) {
+      return res.status(400).json({
+        success: false,
+        message: 'Location name and type are required.',
+      });
+    }
+
+    const location = await Location.findByPk(id);
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: 'Location not found.',
+      });
+    }
+
+    const parentId = (parentLocationId && parentLocationId.trim() !== '') ? parentLocationId : null;
+
+    // A location cannot be its own parent
+    if (parentId === id) {
+      return res.status(400).json({
+        success: false,
+        message: 'A location cannot be its own parent.',
+      });
+    }
+
+    // Check if new parent is a descendant of this location to prevent circular reference
+    if (parentId) {
+      const getDescendantIds = async (rootId) => {
+        const children = await Location.findAll({
+          where: { parentLocationId: rootId },
+          attributes: ['id'],
+        });
+        const ids = children.map((c) => c.id);
+        for (const child of children) {
+          const subIds = await getDescendantIds(child.id);
+          ids.push(...subIds);
+        }
+        return ids;
+      };
+
+      const descendantIds = await getDescendantIds(id);
+      if (descendantIds.includes(parentId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot move a location inside one of its own sub-locations.',
+        });
+      }
+    }
+
+    // Check for duplicate name at the same level (excluding self)
+    const existingDuplicate = await Location.findOne({
+      where: {
+        id: { [Op.ne]: id },
+        name: { [Op.iLike]: name.trim() },
+        parentLocationId: parentId,
+      },
+    });
+
+    if (existingDuplicate) {
+      return res.status(409).json({
+        success: false,
+        message: `A location named "${name.trim()}" already exists at this level.`,
+      });
+    }
+
+    location.name = name.trim();
+    location.type = type;
+    location.parentLocationId = parentId;
+    await location.save();
+
+    // Audit Log: Location Update
+    await logAction({
+      userId: req.user?.id,
+      userName: req.user?.fullName,
+      actionType: "UPDATE_LOCATION",
+      entityType: "Location",
+      entityId: location.id,
+      details: {
+        name: location.name,
+        type: location.type,
+        parentLocationId: location.parentLocationId,
+      },
+      ipAddress: req.ip,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Location updated successfully.',
+      location,
+    });
+  } catch (error) {
+    console.error('Error updating location:', error);
+    if (error.name === 'SequelizeValidationError') {
+      const messages = error.errors.map((e) => e.message);
+      return res.status(400).json({ success: false, message: messages.join('. ') });
+    }
+    res.status(500).json({ success: false, message: 'Internal server error while updating the location.' });
+  }
+};
+
+/**
+ * Delete an existing location.
+ */
+const deleteLocation = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const location = await Location.findByPk(id);
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: 'Location not found.',
+      });
+    }
+
+    // Check for sub-locations
+    const childCount = await Location.count({
+      where: { parentLocationId: id },
+    });
+    if (childCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete "${location.name}" because it contains ${childCount} sub-location(s). Please remove or reassign them first.`,
+      });
+    }
+
+    // Check for chemical batches stored here
+    const batchCount = await Batch.count({
+      where: { locationId: id },
+    });
+    if (batchCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete "${location.name}" because it contains ${batchCount} chemical batch(es). Please move them to another location first.`,
+      });
+    }
+
+    await location.destroy();
+
+    // Audit Log: Location Deletion
+    await logAction({
+      userId: req.user?.id,
+      userName: req.user?.fullName,
+      actionType: "DELETE_LOCATION",
+      entityType: "Location",
+      entityId: id,
+      details: {
+        name: location.name,
+        type: location.type,
+        parentLocationId: location.parentLocationId,
+      },
+      ipAddress: req.ip,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Location "${location.name}" was successfully deleted.`,
+    });
+  } catch (error) {
+    console.error('Error deleting location:', error);
+    res.status(500).json({ success: false, message: 'Internal server error while deleting the location.' });
+  }
+};
+
 module.exports = {
   getAllLocations,
   getLocationStats,
   addLocation,
+  updateLocation,
+  deleteLocation,
   getLocationById,
   getPublicLocationTree,
 };
