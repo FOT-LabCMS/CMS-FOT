@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Plus, Loader2, ServerCrash, Search } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import LocationCard from '../../components/Common/LocationCard';
 import LocationNode from '../../components/locations/LocationNode';
-// import EditLocationModal from '../../components/locations/EditLocationModal'; // For future use
+import EditLocationModal from '../../components/locations/EditLocationModal';
+import DeleteLocationModal from '../../components/locations/DeleteLocationModal';
 
 const buildTree = (locations) => {
   const locationMap = {};
@@ -31,6 +32,8 @@ const ViewLocations = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingLocation, setEditingLocation] = useState(null);
+  const [deletingLocation, setDeletingLocation] = useState(null);
+  const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
     const fetchLocations = async () => {
@@ -65,13 +68,28 @@ const ViewLocations = () => {
     setEditingLocation(location);
   };
 
-  const handleCloseModal = () => {
+  const handleDeleteClick = (location) => {
+    setDeletingLocation(location);
+  };
+
+  const handleCloseModals = () => {
     setEditingLocation(null);
+    setDeletingLocation(null);
   };
 
   const handleUpdateSuccess = (updatedLocation) => {
     setLocations(prev => prev.map(l => l.id === updatedLocation.id ? updatedLocation : l));
-    handleCloseModal();
+    setEditingLocation(null);
+    setFeedback({ type: 'success', message: `Location "${updatedLocation.name}" updated successfully.` });
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
+  const handleDeleteSuccess = (deletedId) => {
+    const deletedName = locations.find(l => l.id === deletedId)?.name || 'Location';
+    setLocations(prev => prev.filter(l => l.id !== deletedId));
+    setDeletingLocation(null);
+    setFeedback({ type: 'success', message: `"${deletedName}" deleted successfully.` });
+    setTimeout(() => setFeedback(null), 4000);
   };
 
   const renderContent = () => {
@@ -110,7 +128,12 @@ const ViewLocations = () => {
       return (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredLocations.map((location) => (
-            <LocationCard key={location.id} location={location} onEdit={handleEditClick} />
+            <LocationCard
+              key={location.id}
+              location={location}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+            />
           ))}
         </div>
       );
@@ -119,7 +142,12 @@ const ViewLocations = () => {
     return (
       <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
         {locationTree.map(node => (
-          <LocationNode key={node.id} node={node} onEdit={handleEditClick} />
+          <LocationNode
+            key={node.id}
+            node={node}
+            onEdit={handleEditClick}
+            onDelete={handleDeleteClick}
+          />
         ))}
       </div>
     );
@@ -184,16 +212,34 @@ const ViewLocations = () => {
             </div>
           </div>
 
+          {/* Feedback banner */}
+          {feedback && (
+            <div className="mb-4 flex items-center gap-2 rounded-[var(--radius-md)] border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 animate-in fade-in duration-200">
+              <span>{feedback.message}</span>
+            </div>
+          )}
+
           {/* Content Area */}
           {renderContent()}
 
-          {/* {editingLocation && (
+          {/* Edit Location Modal Popup */}
+          {editingLocation && (
             <EditLocationModal
               location={editingLocation}
-              onClose={handleCloseModal}
+              allLocations={locations}
+              onClose={handleCloseModals}
               onSuccess={handleUpdateSuccess}
             />
-          )} */}
+          )}
+
+          {/* Delete Location Confirmation Popup */}
+          {deletingLocation && (
+            <DeleteLocationModal
+              location={deletingLocation}
+              onClose={handleCloseModals}
+              onSuccess={handleDeleteSuccess}
+            />
+          )}
         </div>
       </main>
     </div>
