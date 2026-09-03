@@ -7,7 +7,7 @@ const { notifyLowStockBatch } = require("../services/notificationService.js");
 
 const createreleaserecord = async (req, res) => {
   const {
-    chemicalCode,
+    binCardNumber,
     stuRegisterNum,
     userName,
     batchNumber,
@@ -17,7 +17,7 @@ const createreleaserecord = async (req, res) => {
     supervisorName,
   } = req.body;
   if (
-    !chemicalCode ||
+    !binCardNumber ||
     !batchNumber ||
     !dateReleased ||
     !purpose ||
@@ -29,7 +29,7 @@ const createreleaserecord = async (req, res) => {
   }
   try {
     const chemical = await Chemical.findOne({
-      where: { chemicalCode: chemicalCode },
+      where: { binCardNumber: binCardNumber },
     });
     if (!chemical) {
       return res.status(404).json({ message: "Chemical not found" });
@@ -41,7 +41,7 @@ const createreleaserecord = async (req, res) => {
       return res.status(404).json({ message: "Batch not found" });
     }
     const dispose = await Dispose.create({
-      chemicalCode: chemicalCode,
+      binCardNumber: binCardNumber,
       chemicalName: chemical.canonicalName,
       batchNumber: batchNumber,
       dateReleased: dateReleased,
@@ -60,7 +60,7 @@ const createreleaserecord = async (req, res) => {
       entityType: "Dispose",
       entityId: dispose.id,
       details: {
-        chemicalCode: dispose.chemicalCode,
+        binCardNumber: dispose.binCardNumber,
         batchNumber: dispose.batchNumber,
         purpose: dispose.purpose,
       },
@@ -104,7 +104,7 @@ const updateqty = async (req, res) => {
 
     if (inputUnit === "g") {
       const chemical = await Chemical.findOne({
-        where: { chemicalCode: dispose.chemicalCode },
+        where: { binCardNumber: dispose.binCardNumber },
         attributes: ["densityValue", "densityUnit", "stockDimension"],
       });
 
@@ -147,7 +147,7 @@ const updateqty = async (req, res) => {
       entityType: "Dispose",
       entityId: dispose.id,
       details: {
-        chemicalCode: dispose.chemicalCode,
+        binCardNumber: dispose.binCardNumber,
         batchNumber: dispose.batchNumber,
         quantityUsed: dispose.quantityUsed,
         stockDeducted: volumeToDeduct.toFixed(4),
@@ -183,21 +183,64 @@ const viewreturnedchemicals = async (req, res) => {
 };
 const viewnotreturnedchemicals = async (req, res) => {
   try {
-    const notReturnedChemicals = await Dispose.findAll({
-      where: { returnedStatus: "RELEASED" },
-      include: [
-        {
-          model: Chemical,
-          as: "chemical",
-          attributes: [
-            "densityValue",
-            "densityUnit",
-            "stockDimension",
-            "physicalState",
-            "baseUnit",
-          ],
+    const { page, limit, search } = req.query;
+    const isPaginated = page !== undefined && limit !== undefined;
+
+    const where = { returnedStatus: "RELEASED" };
+    if (search && String(search).trim()) {
+      const term = `%${String(search).trim()}%`;
+      where[Op.or] = [
+        { chemicalName: { [Op.iLike]: term } },
+        { batchNumber: { [Op.iLike]: term } },
+        { binCardNumber: { [Op.iLike]: term } },
+        { userName: { [Op.iLike]: term } },
+        { stuRegisterNum: { [Op.iLike]: term } },
+      ];
+    }
+
+    const include = [
+      {
+        model: Chemical,
+        as: "chemical",
+        attributes: [
+          "densityValue",
+          "densityUnit",
+          "stockDimension",
+          "physicalState",
+          "baseUnit",
+        ],
+      },
+    ];
+
+    if (isPaginated) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 5));
+      const offset = (pageNum - 1) * limitNum;
+
+      const { count, rows } = await Dispose.findAndCountAll({
+        where,
+        include,
+        distinct: true,
+        order: [["dateReleased", "DESC"]],
+        offset,
+        limit: limitNum,
+      });
+
+      return res.json({
+        notReturnedChemicals: rows,
+        pagination: {
+          total: count,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.max(1, Math.ceil(count / limitNum)),
         },
-      ],
+      });
+    }
+
+    const notReturnedChemicals = await Dispose.findAll({
+      where,
+      include,
+      order: [["dateReleased", "DESC"]],
     });
     if (notReturnedChemicals.length === 0) {
       return res
@@ -214,8 +257,8 @@ const viewnotreturnedchemicals = async (req, res) => {
 const getformdata = async (req, res) => {
   try {
     const chemicals = await Chemical.findAll({
-      attributes: ["id", "chemicalCode", "canonicalName"],
-      order: [["chemicalCode", "ASC"]],
+      attributes: ["id", "binCardNumber", "canonicalName"],
+      order: [["binCardNumber", "ASC"]],
     });
     res.json({ chemicals });
   } catch (error) {
@@ -225,10 +268,10 @@ const getformdata = async (req, res) => {
 };
 const getbatchbychemicalid = async (req, res) => {
   try {
-    const { chemicalId } = req.params;
+    const { binCardNumber } = req.params;
 
     const chemical = await Chemical.findOne({
-      where: { chemicalCode: chemicalId },
+      where: { binCardNumber: binCardNumber },
     });
 
     if (!chemical) {

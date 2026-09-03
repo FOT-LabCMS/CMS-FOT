@@ -1,5 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import "./App.css";
+import Landing from "./pages/Landing";
+import Instruments from "./pages/Instruments";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AddChemical from "./pages/chemicals/AddChemical";
@@ -28,23 +30,51 @@ import NotificationsPage from "./pages/NotificationsPage";
 import ChemicalWiseReport from "./pages/reports/ChemicalWise";
 import UsageReport from "./pages/reports/UsageReport";
 import ViewSdsLibrary from "./pages/chemicals/sds/ViewSdsLibrary";
+import ScanQRPage from "./pages/scanner/ScanQRPage";
+import ViewInstruments from "./pages/instruments/ViewInstruments";
+import AddInstrument from "./pages/instruments/AddInstrument";
+import InstrumentDetails from "./pages/instruments/InstrumentDetails";
+import ScrollToTop from "./components/Common/ScrollToTop";
 
 function App() {
   return (
     <AuthProvider>
+      <ScrollToTop />
       <Routes>
-        <Route path="/" element={<Home />} />
+        {/* Public Routes */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/instruments" element={<Instruments />} />
+        <Route path="/instruments/:id" element={<InstrumentDetails />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/chemicals/:id" element={<ChemicalDetails />} />
         <Route path="/reset-password" element={<PasswordReset />} />
+        <Route path="/chemicals/:id" element={<ChemicalDetails />} />
+
+        {/* Protected Home Route - Available for Authenticated users including COMMON */}
         <Route
+          path="/home"
           element={
             <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Protected Management Routes for Staff (ADMIN, TECHNICAL_OFFICER, LECTURER) */}
+        <Route
+          element={
+            <ProtectedRoute roles={["ADMIN", "TECHNICAL_OFFICER", "LECTURER"]}>
               <DashboardLayout />
             </ProtectedRoute>
           }
         >
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute roles={["ADMIN", "TECHNICAL_OFFICER"]}>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/chemicals/add-chemical" element={<AddChemical />} />
           <Route path="/chemicals/list" element={<ViewChemicals />} />
           <Route
@@ -109,9 +139,34 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/sds/library" element={<ViewSdsLibrary />} />
           <Route
-            path="/sds/library"
-            element={<ViewSdsLibrary />}
+            path="/scan"
+            element={
+              <ProtectedRoute
+                roles={["ADMIN", "TECHNICAL_OFFICER", "LECTURER"]}
+              >
+                <ScanQRPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instruments/list"
+            element={
+              <ProtectedRoute
+                roles={["ADMIN", "TECHNICAL_OFFICER", "LECTURER"]}
+              >
+                <ViewInstruments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instruments/add"
+            element={
+              <ProtectedRoute roles={["ADMIN", "TECHNICAL_OFFICER"]}>
+                <AddInstrument />
+              </ProtectedRoute>
+            }
           />
         </Route>
       </Routes>

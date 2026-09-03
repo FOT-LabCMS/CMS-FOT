@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   Loader2,
   ServerCrash,
@@ -7,6 +7,7 @@ import {
   Truck,
   FlaskConical,
   Box,
+  Boxes,
   Calendar,
   Scale,
   MapPin,
@@ -19,13 +20,16 @@ import {
   User,
   Hash,
   AlertTriangle,
-} from 'lucide-react';
-import { format } from 'date-fns';
-import api from '../../api/axiosInstance';
-import { useAuth } from '../../context/AuthContext';
-import { QRCodeSVG } from 'qrcode.react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+  Trash2,
+  CheckCircle2,
+  FileText,
+} from "lucide-react";
+import { format } from "date-fns";
+import api from "../../api/axiosInstance";
+import { useAuth } from "../../context/AuthContext";
+import { QRCodeSVG } from "qrcode.react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const DetailItem = ({ label, value, children, icon: Icon }) => {
   if (!value && !children) {
@@ -51,8 +55,8 @@ const DetailItem = ({ label, value, children, icon: Icon }) => {
 const getStatus = (expiryDate) => {
   if (!expiryDate) {
     return {
-      text: 'No Expiry',
-      color: 'bg-gray-100 text-gray-800 border-gray-300',
+      text: "No Expiry",
+      color: "bg-gray-100 text-gray-800 border-gray-300",
     };
   }
 
@@ -64,35 +68,35 @@ const getStatus = (expiryDate) => {
 
   if (expiry < today) {
     return {
-      text: 'Expired',
-      color: 'bg-red-100 text-red-800 border-red-400',
+      text: "Expired",
+      color: "bg-red-100 text-red-800 border-red-400",
     };
   }
 
   if (expiry <= thirtyDaysFromNow) {
     return {
-      text: 'Expiring Soon',
-      color: 'bg-yellow-100 text-yellow-800 border-yellow-400',
+      text: "Expiring Soon",
+      color: "bg-yellow-100 text-yellow-800 border-yellow-400",
     };
   }
 
   return {
-    text: 'Good',
-    color: 'bg-green-100 text-green-800 border-green-400',
+    text: "Good",
+    color: "bg-green-100 text-green-800 border-green-400",
   };
 };
 
 const formatDateTime = (value) => {
-  if (!value) return 'N/A';
-  return format(new Date(value), 'MMM dd, yyyy p');
+  if (!value) return "N/A";
+  return format(new Date(value), "MMM dd, yyyy p");
 };
 
 const getUsageStatusStyle = (status) => {
-  if (status === 'RETURNED') {
-    return 'border-green-300 bg-green-100 text-green-800';
+  if (status === "RETURNED") {
+    return "border-green-300 bg-green-100 text-green-800";
   }
 
-  return 'border-yellow-300 bg-yellow-100 text-yellow-800';
+  return "border-yellow-300 bg-yellow-100 text-yellow-800";
 };
 
 const ViewBatchDetail = () => {
@@ -105,15 +109,56 @@ const ViewBatchDetail = () => {
 
   const { user } = useAuth();
   const canViewQrCode =
-    user &&
-    (user.role === 'ADMIN' || user.role === 'TECHNICAL_OFFICER');
+    user && (user.role === "ADMIN" || user.role === "TECHNICAL_OFFICER");
+  const canDisposeBatch = canViewQrCode;
+
+  const [disposalRemark, setDisposalRemark] = useState("");
+  const [isDisposing, setIsDisposing] = useState(false);
+  const [disposeError, setDisposeError] = useState("");
+  const [disposeSuccess, setDisposeSuccess] = useState(false);
+
+  const scrollToDispose = () => {
+    const el = document.getElementById("dispose-section");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const handleDispose = async () => {
+    if (!disposalRemark.trim()) {
+      setDisposeError("Please enter a disposal remark before disposing.");
+      return;
+    }
+    setIsDisposing(true);
+    setDisposeError("");
+    setDisposeSuccess(false);
+    try {
+      const response = await api.post(`/batches/${id}/dispose`, {
+        remark: disposalRemark,
+      });
+      if (response.data?.success) {
+        setDisposeSuccess(true);
+        setBatch(response.data.batch);
+      } else {
+        throw new Error(response.data?.message || "Failed to dispose batch.");
+      }
+    } catch (err) {
+      setDisposeError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to dispose batch.",
+      );
+    } finally {
+      setIsDisposing(false);
+    }
+  };
 
   const handlePrint = () => {
-    const printContent = document.getElementById('qr-print-area')?.innerHTML;
+    const printContent = document.getElementById("qr-print-area")?.innerHTML;
     if (!printContent) return;
 
-    const printWindow = window.open('', '', 'height=600,width=800');
-    printWindow.document.write('<html><head><title>Print QR Code</title>');
+    const printWindow = window.open("", "", "height=600,width=800");
+    printWindow.document.write("<html><head><title>Print QR Code</title>");
     printWindow.document.write(`
       <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; }
@@ -123,7 +168,7 @@ const ViewBatchDetail = () => {
       </style>
     `);
     printWindow.document.write(
-      '</head><body>' + printContent + '</body></html>',
+      "</head><body>" + printContent + "</body></html>",
     );
     printWindow.document.close();
     printWindow.focus();
@@ -135,7 +180,7 @@ const ViewBatchDetail = () => {
   };
 
   const handleDownloadPdf = async () => {
-    const qrElement = document.getElementById('qr-print-area');
+    const qrElement = document.getElementById("qr-print-area");
     if (!qrElement) return;
 
     setIsDownloading(true);
@@ -144,21 +189,20 @@ const ViewBatchDetail = () => {
       const canvas = await html2canvas(qrElement, {
         scale: 3,
         useCORS: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: "#ffffff",
       });
 
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL("image/png");
 
       const pdfWidth = 57;
       const pdfHeight = 32;
       const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
+        orientation: "landscape",
+        unit: "mm",
         format: [pdfWidth, pdfHeight],
       });
 
       const imgProps = pdf.getImageProperties(imgData);
-      const pdfAspectRatio = pdfWidth / pdfHeight;
       const imgAspectRatio = imgProps.width / imgProps.height;
 
       let finalImgWidth = pdfWidth;
@@ -172,19 +216,12 @@ const ViewBatchDetail = () => {
       const x = (pdfWidth - finalImgWidth) / 2;
       const y = (pdfHeight - finalImgHeight) / 2;
 
-      pdf.addImage(
-        imgData,
-        'PNG',
-        x,
-        y,
-        finalImgWidth,
-        finalImgHeight,
-      );
+      pdf.addImage(imgData, "PNG", x, y, finalImgWidth, finalImgHeight);
       pdf.save(
-        `QR-Label-${batch.chemical?.chemicalCode || 'CHEM'}-${batch.batchNumber}.pdf`,
+        `QR-Label-${batch.chemical?.binCardNumber || "CHEM"}-${batch.batchNumber}.pdf`,
       );
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error("Error generating PDF:", error);
     } finally {
       setIsDownloading(false);
     }
@@ -203,13 +240,13 @@ const ViewBatchDetail = () => {
         if (response.data?.success) {
           setBatch(response.data.batch);
         } else {
-          throw new Error('Failed to fetch batch details.');
+          throw new Error("Failed to fetch batch details.");
         }
       } catch (err) {
         setError(
           err.response?.data?.message ||
             err.message ||
-            'Could not find the requested batch.',
+            "Could not find the requested batch.",
         );
       } finally {
         setLoading(false);
@@ -217,7 +254,10 @@ const ViewBatchDetail = () => {
     };
 
     fetchBatch();
-    const refreshTimer = window.setInterval(() => fetchBatch({ silent: true }), 30000);
+    const refreshTimer = window.setInterval(
+      () => fetchBatch({ silent: true }),
+      30000,
+    );
 
     return () => window.clearInterval(refreshTimer);
   }, [id]);
@@ -243,7 +283,7 @@ const ViewBatchDetail = () => {
         <p className="max-w-md">{error}</p>
         <button
           type="button"
-          onClick={() => navigate('/stock/batches')}
+          onClick={() => navigate("/stock/batches")}
           className="mt-4 inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-5 py-3 text-sm font-bold text-[var(--color-text-inverse)]"
         >
           <ArrowLeft size={18} />
@@ -256,6 +296,11 @@ const ViewBatchDetail = () => {
   if (!batch) return null;
 
   const status = getStatus(batch.expiryDate);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isExpired = batch.expiryDate && new Date(batch.expiryDate) < today;
+  const isDisposed = batch.isDisposed;
   const usageRecords = batch.usages || [];
   const totalUsed = usageRecords.reduce(
     (sum, usage) => sum + Number(usage.quantityUsed || 0),
@@ -273,14 +318,32 @@ const ViewBatchDetail = () => {
               <div className="pointer-events-none absolute -bottom-20 right-32 h-40 w-40 rounded-full bg-[var(--color-accent)] opacity-10" />
 
               <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => navigate('/stock/batches')}
-                  className="mb-5 inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
-                >
-                  <ArrowLeft size={17} />
-                  Back to List
-                </button>
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/stock/batches")}
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-primary-light)] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
+                  >
+                    <ArrowLeft size={17} />
+                    Back to List
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate("/disposal/request", {
+                        state: {
+                          binCardNumber: batch.chemical?.binCardNumber,
+                          batchNumber: batch.batchNumber,
+                        },
+                      })
+                    }
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-4 py-2 text-sm font-bold text-[var(--color-primary-dark)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-accent-light)]"
+                  >
+                    <Boxes size={16} />
+                    Chemical Request
+                  </button>
+                </div>
 
                 <div className="max-w-3xl">
                   <div className="mb-3 flex items-center gap-2">
@@ -291,11 +354,11 @@ const ViewBatchDetail = () => {
                   </div>
 
                   <h1 className="break-words text-2xl font-extrabold leading-tight text-[var(--color-text-inverse)] sm:text-3xl lg:text-4xl">
-                    {batch.chemical?.canonicalName || 'N/A'}
+                    {batch.chemical?.canonicalName || "N/A"}
                   </h1>
 
                   <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-[var(--color-text-inverse)] opacity-80 sm:text-base">
-                    Viewing details for Bin card number:{' '}
+                    Viewing details for Batch number:{" "}
                     <strong className="font-bold text-[var(--color-accent-light)]">
                       {batch.batchNumber}
                     </strong>
@@ -304,6 +367,34 @@ const ViewBatchDetail = () => {
               </div>
             </div>
           </header>
+
+          {/* Expired & Needs Disposal — Prominent Alert Banner */}
+          {canDisposeBatch && isExpired && !isDisposed && (
+            <div className="mb-6 flex flex-col gap-3 rounded-xl border-2 border-red-400 bg-red-50 p-4 shadow-md sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 ring-4 ring-red-200">
+                  <AlertTriangle className="text-red-600" size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-red-800">
+                    ⚠️ This batch has expired and requires disposal
+                  </p>
+                  <p className="mt-0.5 text-xs text-red-600">
+                    Expired batches must not be used. Please add a disposal
+                    remark and confirm disposal to remove it from active
+                    inventory.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={scrollToDispose}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow transition-colors hover:bg-red-700 active:bg-red-800"
+              >
+                <Trash2 size={15} />
+                Dispose This Batch
+              </button>
+            </div>
+          )}
 
           {/* Main Content */}
           <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(330px,0.85fr)]">
@@ -319,13 +410,19 @@ const ViewBatchDetail = () => {
 
                 <div className="px-4 sm:px-5">
                   <dl className="divide-y divide-[var(--color-border)]">
+                    <DetailItem label="Batch Number" icon={Box}>
+                      <span className="inline-flex items-center rounded-md bg-[var(--color-primary-dark)] px-3 py-1 font-mono text-sm font-extrabold tracking-widest text-[var(--color-accent-light)] ring-1 ring-inset ring-[var(--color-primary-light)]">
+                        {batch.batchNumber}
+                      </span>
+                    </DetailItem>
+
                     <DetailItem label="Chemical" icon={FlaskConical}>
                       <Link
                         to={`/chemicals/${batch.chemical.id}`}
                         className="break-words text-[var(--color-primary)] hover:underline"
                       >
                         {batch.chemical.canonicalName} (
-                        {batch.chemical.chemicalCode})
+                        {batch.chemical.binCardNumber})
                       </Link>
                     </DetailItem>
 
@@ -335,15 +432,10 @@ const ViewBatchDetail = () => {
                       icon={Truck}
                     />
                     <DetailItem
-                      label="Bin Card Number"
-                      value={batch.batchNumber}
-                      icon={Box}
-                    />
-                    <DetailItem
                       label="Received Date"
                       value={format(
                         new Date(batch.receivedDate),
-                        'MMMM dd, yyyy',
+                        "MMMM dd, yyyy",
                       )}
                       icon={Calendar}
                     />
@@ -351,11 +443,8 @@ const ViewBatchDetail = () => {
                       label="Expiry Date"
                       value={
                         batch.expiryDate
-                          ? format(
-                              new Date(batch.expiryDate),
-                              'MMMM dd, yyyy',
-                            )
-                          : 'N/A'
+                          ? format(new Date(batch.expiryDate), "MMMM dd, yyyy")
+                          : "N/A"
                       }
                       icon={Calendar}
                     />
@@ -377,7 +466,7 @@ const ViewBatchDetail = () => {
 
                   <span className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
                     {usageRecords.length} record
-                    {usageRecords.length === 1 ? '' : 's'}
+                    {usageRecords.length === 1 ? "" : "s"}
                   </span>
                 </header>
 
@@ -393,7 +482,9 @@ const ViewBatchDetail = () => {
                       </p>
                     </div>
                   ) : (
-                    <div className={`space-y-4 ${usageRecords.length > 3 ? 'max-h-[520px] overflow-y-auto pr-2' : ''}`}>
+                    <div
+                      className={`space-y-4 ${usageRecords.length > 3 ? "max-h-[520px] overflow-y-auto pr-2" : ""}`}
+                    >
                       {usageRecords.map((usage) => (
                         <article
                           key={usage.id}
@@ -434,7 +525,7 @@ const ViewBatchDetail = () => {
 
                               {usage.remark && (
                                 <p className="mt-3 break-words rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-xs font-medium leading-5 text-[var(--color-text-secondary)]">
-                                  <span className="font-bold">Remark:</span>{' '}
+                                  <span className="font-bold">Remark:</span>{" "}
                                   {usage.remark}
                                 </p>
                               )}
@@ -448,16 +539,20 @@ const ViewBatchDetail = () => {
                               <p className="mt-1 break-words text-xl font-extrabold text-[var(--color-primary)]">
                                 {usage.quantityUsed
                                   ? `${parseFloat(usage.quantityUsed)} ${batch.chemical?.baseUnit}`
-                                  : 'Pending'}
+                                  : "Pending"}
                               </p>
 
                               <div className="mt-3 space-y-2 border-t border-[var(--color-border)] pt-3 text-xs leading-5 text-[var(--color-text-secondary)]">
                                 <p className="break-words">
-                                  <span className="font-semibold">Released:</span>{' '}
+                                  <span className="font-semibold">
+                                    Released:
+                                  </span>{" "}
                                   {formatDateTime(usage.dateReleased)}
                                 </p>
                                 <p className="break-words">
-                                  <span className="font-semibold">Returned:</span>{' '}
+                                  <span className="font-semibold">
+                                    Returned:
+                                  </span>{" "}
                                   {formatDateTime(usage.dateReturned)}
                                 </p>
                               </div>
@@ -514,7 +609,7 @@ const ViewBatchDetail = () => {
                     <DetailItem label="Recorded Usage">
                       {`${totalUsed
                         .toFixed(2)
-                        .replace(/\.?0+$/, '')} ${batch.chemical?.baseUnit}`}
+                        .replace(/\.?0+$/, "")} ${batch.chemical?.baseUnit}`}
                     </DetailItem>
                   </dl>
                 </div>
@@ -565,10 +660,7 @@ const ViewBatchDetail = () => {
               {canViewQrCode && (
                 <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
                   <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
-                    <QrCode
-                      size={20}
-                      className="text-[var(--color-primary)]"
-                    />
+                    <QrCode size={20} className="text-[var(--color-primary)]" />
                     <h2 className="text-base font-bold text-[var(--color-text-primary)]">
                       QR Code & Label
                     </h2>
@@ -615,14 +707,122 @@ const ViewBatchDetail = () => {
                         ) : (
                           <Download size={16} />
                         )}
-                        {isDownloading ? 'Downloading...' : 'Download PDF'}
+                        {isDownloading ? "Downloading..." : "Download PDF"}
                       </button>
                     </div>
                   </div>
                 </section>
               )}
 
-              
+              {/* Dispose Expired Batch section */}
+              {canDisposeBatch && isExpired && (
+                <section
+                  id="dispose-section"
+                  className={`overflow-hidden rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] ${
+                    !isDisposed
+                      ? "border-2 border-red-400 bg-red-50 ring-4 ring-red-100"
+                      : "border border-red-300 bg-red-50"
+                  }`}
+                >
+                  <header className="flex items-center gap-3 border-b border-red-200 bg-red-100 p-4 sm:p-5">
+                    <Trash2 size={20} className="text-red-700" />
+                    <h2 className="text-base font-bold text-red-800">
+                      {isDisposed ? "Batch Disposed" : "Dispose Expired Batch"}
+                    </h2>
+                  </header>
+
+                  <div className="p-4 sm:p-5">
+                    {isDisposed ? (
+                      // Already disposed – show read-only info
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle2 size={18} className="shrink-0" />
+                          <p className="text-sm font-semibold">
+                            This batch has been disposed.
+                          </p>
+                        </div>
+                        {batch.disposedAt && (
+                          <p className="text-xs text-[var(--color-text-secondary)]">
+                            <span className="font-semibold">Disposed on:</span>{" "}
+                            {format(
+                              new Date(batch.disposedAt),
+                              "MMMM dd, yyyy p",
+                            )}
+                          </p>
+                        )}
+                        {batch.disposalRemark && (
+                          <div className="rounded-[var(--radius-md)] border border-red-200 bg-white p-3">
+                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-red-700">
+                              <FileText size={13} /> Disposal Remark
+                            </p>
+                            <p className="mt-1.5 text-sm leading-5 text-[var(--color-text-primary)]">
+                              {batch.disposalRemark}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      // Not yet disposed – show action form
+                      <div className="space-y-4">
+                        <p className="text-sm leading-5 text-red-700">
+                          This batch has <strong>expired</strong> and cannot be
+                          released. Add a remark and confirm disposal to remove
+                          it from active inventory.
+                        </p>
+
+                        <div>
+                          <label
+                            htmlFor="disposalRemark"
+                            className="mb-2 block text-sm font-semibold text-red-800"
+                          >
+                            Disposal Remark{" "}
+                            <span className="text-red-500">*</span>
+                          </label>
+                          <textarea
+                            id="disposalRemark"
+                            rows={3}
+                            value={disposalRemark}
+                            onChange={(e) => {
+                              setDisposalRemark(e.target.value);
+                              setDisposeError("");
+                            }}
+                            placeholder="Describe the reason for disposal (e.g. expired stock, contaminated, unusable)..."
+                            className="w-full resize-none rounded-[var(--radius-md)] border border-red-300 bg-white px-3 py-2.5 text-sm font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
+                          />
+                        </div>
+
+                        {disposeError && (
+                          <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-red-400 bg-white p-3 text-sm font-medium text-red-700">
+                            <AlertTriangle size={16} className="shrink-0" />
+                            {disposeError}
+                          </div>
+                        )}
+
+                        {disposeSuccess && (
+                          <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-green-400 bg-green-50 p-3 text-sm font-medium text-green-700">
+                            <CheckCircle2 size={16} className="shrink-0" />
+                            Batch successfully disposed.
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={handleDispose}
+                          disabled={isDisposing}
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-red-600 px-4 py-3 text-sm font-bold text-white color-transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isDisposing ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                          {isDisposing ? "Disposing..." : "Confirm Disposal"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
             </aside>
           </div>
         </div>

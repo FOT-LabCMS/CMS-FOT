@@ -19,7 +19,12 @@ const ProtectedRoute = ({ children, roles }) => {
   // If roles are specified, check if the user has one of the required roles
   if (roles && roles.length > 0 && !roles.includes(user?.role)) {
     // User is authenticated but does not have the required role.
-    // Redirect to a "not authorized" page or the dashboard.
+    // Check if the user is a lecturer and redirect them to ViewChemicals (/chemicals/list)
+    if (user?.role === 'LECTURER') {
+      return <Navigate to="/chemicals/list" replace />;
+    }
+    
+    // For all other roles, redirect to the dashboard
     return <Navigate to="/dashboard" replace />;
   }
 

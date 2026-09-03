@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   IdCard,
   Loader2,
@@ -19,8 +21,11 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
+import appConfig from "../../config/appConfig";
 
 const ROLE_FILTERS = ["ALL", "LECTURER", "TECHNICAL_OFFICER", "ADMIN"];
+
+const PAGE_SIZE = 8;
 
 const formatRole = (role) =>
   role
@@ -67,46 +72,79 @@ const ViewUsers = () => {
   const [loadError, setLoadError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: PAGE_SIZE,
+    totalPages: 1,
+  });
 
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
+  // Debounce search input (300ms)
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleRoleChange = (value) => {
+    setCurrentPage(1);
+    setRoleFilter(value);
+  };
+
+  // Fetch paginated users from backend
+  useEffect(() => {
+    let cancelled = false;
+
     const fetchUsers = async () => {
       try {
-        setIsLoading(true);
+        setIsLoading((previous) => previous || users.length === 0);
         setLoadError("");
-        const response = await api.get("/users/viewusers");
-        setUsers(response.data?.users || response.data || []);
+
+        const params = new URLSearchParams();
+        params.set("page", String(currentPage));
+        params.set("limit", String(PAGE_SIZE));
+        if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+        if (roleFilter !== "ALL") params.set("role", roleFilter);
+
+        const response = await api.get(`/users/viewusers?${params.toString()}`);
+        if (cancelled) return;
+
+        const data = response.data?.users || response.data || [];
+        setUsers(data);
+        if (response.data?.pagination) {
+          setPagination(response.data.pagination);
+        }
       } catch (error) {
+        if (cancelled) return;
         setLoadError(
           error.response?.data?.error ||
             error.response?.data?.message ||
             "Unable to load users. Please try again.",
         );
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     fetchUsers();
-  }, []);
 
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
-      const term = searchTerm.trim().toLowerCase();
-      const matchesSearch =
-        !term ||
-        user.fullName?.toLowerCase().includes(term) ||
-        user.email?.toLowerCase().includes(term) ||
-        user.institutionalId?.toLowerCase().includes(term);
-      return matchesRole && matchesSearch;
-    });
-  }, [users, searchTerm, roleFilter]);
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, debouncedSearch, roleFilter, refreshKey, users.length]);
+
+  const totalUsers = pagination.total;
 
   const handleDeleteConfirm = async () => {
     if (!userToDelete) return;
@@ -120,8 +158,7 @@ const ViewUsers = () => {
       await api.delete(`/users/deleteuser/${userToDelete.id}`, {
         data: { password: adminPassword },
       });
-      const response = await api.get("/users/viewusers");
-      setUsers(response.data?.users || response.data || []);
+      setRefreshKey((k) => k + 1);
       setUserToDelete(null);
       setAdminPassword("");
     } catch (error) {
@@ -178,8 +215,8 @@ const ViewUsers = () => {
                         Total accounts
                       </p>
                       <p className="mt-1 text-sm font-medium text-[var(--color-text-inverse)]">
-                        {isLoading ? "—" : users.length} user
-                        {users.length === 1 ? "" : "s"}
+                        {isLoading ? "—" : totalUsers} user
+                        {totalUsers === 1 ? "" : "s"}
                       </p>
                     </div>
                   </div>
@@ -208,7 +245,7 @@ const ViewUsers = () => {
               <div className="relative sm:w-56">
                 <select
                   value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
+                  onChange={(e) => handleRoleChange(e.target.value)}
                   className="w-full appearance-none rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-2.5 pl-4 pr-10 text-sm font-medium text-[var(--color-text-primary)] color-transition focus:border-[var(--color-primary)]"
                 >
                   {ROLE_FILTERS.map((r) => (
@@ -252,7 +289,7 @@ const ViewUsers = () => {
                 Loading users...
               </p>
             </div>
-          ) : filteredUsers.length === 0 ? (
+          ) : users.length === 0 ? (
             /* Empty state */
             <div className="flex flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] p-16 text-center">
               <UserRoundX
@@ -298,7 +335,7 @@ const ViewUsers = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--color-border)]">
-                    {filteredUsers.map((user) => (
+                    {users.map((user) => (
                       <tr
                         key={user.id}
                         className="color-transition hover:bg-[var(--color-surface-muted)]"
@@ -339,7 +376,7 @@ const ViewUsers = () => {
 
               {/* Mobile cards */}
               <section className="space-y-3 md:hidden">
-                {filteredUsers.map((user) => (
+                {users.map((user) => (
                   <div
                     key={user.id}
                     className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]"
@@ -384,6 +421,68 @@ const ViewUsers = () => {
                   </div>
                 ))}
               </section>
+
+              {/* Pagination bar */}
+              {pagination.totalPages > 1 && (
+                <div className="mt-4 flex items-center justify-between rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-[var(--shadow-sm)] sm:px-6">
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Showing{" "}
+                    <span className="font-semibold text-[var(--color-text-primary)]">
+                      {(currentPage - 1) * PAGE_SIZE + 1}
+                    </span>
+                    {"–"}
+                    <span className="font-semibold text-[var(--color-text-primary)]">
+                      {Math.min(currentPage * PAGE_SIZE, pagination.total)}
+                    </span>
+                    {" of "}
+                    <span className="font-semibold text-[var(--color-text-primary)]">
+                      {pagination.total}
+                    </span>{" "}
+                    users
+                  </p>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1 || isLoading}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40"
+                      title="Previous page"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+
+                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          disabled={isLoading}
+                          className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-[var(--radius-sm)] border px-2 text-xs font-semibold transition-colors ${
+                            page === currentPage
+                              ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                              : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ),
+                    )}
+
+                    <button
+                      onClick={() =>
+                        setCurrentPage((p) =>
+                          Math.min(pagination.totalPages, p + 1),
+                        )
+                      }
+                      disabled={currentPage === pagination.totalPages || isLoading}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40"
+                      title="Next page"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -424,7 +523,7 @@ const ViewUsers = () => {
               <span className="font-semibold text-[var(--color-text-primary)]">
                 {userToDelete.fullName}
               </span>{" "}
-              ({userToDelete.institutionalId}) will lose access to FLCMS
+              ({userToDelete.institutionalId}) will lose access to {appConfig.appName}
               immediately. This action cannot be undone.
             </p>
 

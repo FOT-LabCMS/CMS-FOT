@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -18,11 +18,11 @@ import {
   ShieldAlert,
   User,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../../api/axiosInstance";
 
 const INITIAL_FORM = {
-  chemicalCode: "",
+  binCardNumber: "",
   batchNumber: "",
   dateReleased: "",
   purpose: "",
@@ -210,8 +210,13 @@ const SearchableSelect = ({
 };
 const DisplosaReq = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [form, setForm] = useState(INITIAL_FORM);
+  const [form, setForm] = useState(() => ({
+    ...INITIAL_FORM,
+    binCardNumber: location.state?.binCardNumber || "",
+    batchNumber: location.state?.batchNumber || "",
+  }));
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState(null);
@@ -233,9 +238,9 @@ const DisplosaReq = () => {
 
         setChemicalOptions(
           (data.chemicals || []).map((c) => ({
-            value: c.chemicalCode,
+            value: c.binCardNumber,
             label: c.canonicalName,
-            sublabel: c.chemicalCode,
+            sublabel: c.binCardNumber,
           })),
         );
       } catch (error) {
@@ -253,16 +258,16 @@ const DisplosaReq = () => {
   }, []);
 
   useEffect(() => {
-    if (!form.chemicalCode) {
-      setBatchOptions([]);
+    if (!form.binCardNumber) {
       return;
     }
 
+    let isMounted = true;
     const fetchBatches = async () => {
       try {
         setIsBatchLoading(true);
         const response = await api.get(
-          `/dispose/getbatchbychemicalid/${encodeURIComponent(form.chemicalCode)}`,
+          `/dispose/getbatchbybinCardNumber/${encodeURIComponent(form.binCardNumber)}`,
         );
         const data = response.data;
 
@@ -275,35 +280,48 @@ const DisplosaReq = () => {
           return new Date(a.expiryDate) - new Date(b.expiryDate);
         });
 
-        setBatchOptions(
-          sortedBatches.map((b) => ({
-            value: b.batchNumber,
-            label: b.batchNumber,
-            sublabel: (() => {
-              const qty = parseFloat(b.currentQuantity);
-              const unit = b.chemical?.baseUnit ?? "";
-              const formatted = qty % 1 === 0 ? `${qty.toFixed(0)}` : `${qty}`;
-              return `${formatted}${unit ? ` ${unit}` : ""} available${b.expiryDate ? ` · Expires ${b.expiryDate}` : ""}`;
-            })(),
-          })),
-        );
-      } catch (error) {
-        setBatchOptions([]);
-        setErrors((prev) => ({
-          ...prev,
-          batchNumber: "Unable to load batches for this chemical.",
-        }));
+        if (isMounted) {
+          setBatchOptions(
+            sortedBatches.map((b) => ({
+              value: b.batchNumber,
+              label: b.batchNumber,
+              sublabel: (() => {
+                const qty = parseFloat(b.currentQuantity);
+                const unit = b.chemical?.baseUnit ?? "";
+                const formatted = qty % 1 === 0 ? `${qty.toFixed(0)}` : `${qty}`;
+                return `${formatted}${unit ? ` ${unit}` : ""} available${b.expiryDate ? ` · Expires ${b.expiryDate}` : ""}`;
+              })(),
+            })),
+          );
+        }
+      } catch {
+        if (isMounted) {
+          setBatchOptions([]);
+          setErrors((prev) => ({
+            ...prev,
+            batchNumber: "Unable to load batches for this chemical.",
+          }));
+        }
       } finally {
-        setIsBatchLoading(false);
+        if (isMounted) {
+          setIsBatchLoading(false);
+        }
       }
     };
 
     fetchBatches();
-  }, [form.chemicalCode]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [form.binCardNumber]);
 
   const handleChemicalChange = (value) => {
-    setForm((prev) => ({ ...prev, chemicalCode: value, batchNumber: "" }));
-    setErrors((prev) => ({ ...prev, chemicalCode: "", batchNumber: "" }));
+    if (!value) {
+      setBatchOptions([]);
+    }
+    setForm((prev) => ({ ...prev, binCardNumber: value, batchNumber: "" }));
+    setErrors((prev) => ({ ...prev, binCardNumber: "", batchNumber: "" }));
     setSubmitMessage(null);
   };
 
@@ -322,8 +340,8 @@ const DisplosaReq = () => {
   const validateForm = () => {
     const nextErrors = {};
 
-    if (!form.chemicalCode) nextErrors.chemicalCode = "Select a chemical.";
-    if (!form.batchNumber) nextErrors.batchNumber = "Select a bin card number.";
+    if (!form.binCardNumber) nextErrors.binCardNumber = "Select a chemical.";
+    if (!form.batchNumber) nextErrors.batchNumber = "Select a batch number.";
     if (!form.dateReleased)
       nextErrors.dateReleased = "Release date is required.";
     if (!form.purpose.trim())
@@ -389,7 +407,7 @@ const DisplosaReq = () => {
   };
 
   const selectedChemicalLabel =
-    chemicalOptions.find((c) => c.value === form.chemicalCode)?.label ||
+    chemicalOptions.find((c) => c.value === form.binCardNumber)?.label ||
     "No chemical selected";
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
@@ -483,7 +501,7 @@ const DisplosaReq = () => {
                   <div className="grid gap-5 md:grid-cols-2">
                     <div>
                       <InputLabel
-                        htmlFor="chemicalCode"
+                        htmlFor="binCardNumber"
                         required
                         description="Loaded from the chemical inventory."
                       >
@@ -492,35 +510,35 @@ const DisplosaReq = () => {
                       <SearchableSelect
                         icon={Beaker}
                         options={chemicalOptions}
-                        value={form.chemicalCode}
+                        value={form.binCardNumber}
                         onChange={handleChemicalChange}
                         placeholder="Select a chemical"
                         loading={isFormDataLoading}
-                        error={errors.chemicalCode}
+                        error={errors.binCardNumber}
                         emptyText="No chemicals found."
                       />
-                      <ErrorMessage message={errors.chemicalCode} />
+                      <ErrorMessage message={errors.binCardNumber} />
                     </div>
 
                     <div>
                       <InputLabel
-                        htmlFor="binCardNumber"
+                        htmlFor="batchNumber"
                         required
                         description={
-                          form.chemicalCode
-                            ? "Bin card numbers available for the selected chemical."
+                          form.binCardNumber
+                            ? "Batch numbers available for the selected chemical."
                             : "Select a chemical first."
                         }
                       >
-                        Bin Card Number
+                        Batch Number
                       </InputLabel>
                       <SearchableSelect
                         icon={Boxes}
                         options={batchOptions}
                         value={form.batchNumber}
                         onChange={handleBatchChange}
-                        placeholder="Select a bin card number"
-                        disabled={!form.chemicalCode}
+                        placeholder="Select a batch number"
+                        disabled={!form.binCardNumber}
                         loading={isBatchLoading}
                         error={errors.batchNumber}
                         emptyText="No batches available for this chemical."

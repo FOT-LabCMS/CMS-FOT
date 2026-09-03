@@ -1,5 +1,31 @@
 const { Notification } = require('../models');
 
+// In-memory per-user page cache: key -> { data, timestamp }
+const notificationCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const buildCacheKey = (userId, params) => {
+  return `notification:${userId}:${JSON.stringify(params)}`;
+};
+
+const getCachedPage = (key) => {
+  const entry = notificationCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL) {
+    notificationCache.delete(key);
+    return null;
+  }
+  return entry.data;
+};
+
+const setCachedPage = (key, data) => {
+  notificationCache.set(key, { data, timestamp: Date.now() });
+};
+
+const clearNotificationCache = () => {
+  notificationCache.clear();
+};
+
 /**
  * Get notifications for the currently logged-in user.
  * Supports pagination and filtering by read status.
@@ -7,31 +33,45 @@ const { Notification } = require('../models');
 const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 15, filter = 'all' } = req.query; // filter can be 'all' or 'unread'
+    const { page = 1, limit = 10, filter = 'all' } = req.query; // filter can be 'all' or 'unread'
 
-    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    const cacheKey = buildCacheKey(userId, { page, limit, filter });
+    const cached = getCachedPage(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+    const offset = (pageNum - 1) * limitNum;
     const where = { userId };
 
     if (filter === 'unread') {
       where.isRead = false;
+    } else if (filter === 'read') {
+      where.isRead = true;
     }
 
     const { count, rows } = await Notification.findAndCountAll({
       where,
-      limit: parseInt(limit, 10),
+      limit: limitNum,
       offset,
       order: [['createdAt', 'DESC']],
     });
 
-    res.status(200).json({
+    const response = {
       success: true,
       data: rows,
       pagination: {
         totalItems: count,
-        totalPages: Math.ceil(count / limit),
-        currentPage: parseInt(page, 10),
+        totalPages: Math.ceil(count / limitNum),
+        currentPage: pageNum,
+        limit: limitNum,
       },
-    });
+    };
+
+    setCachedPage(cacheKey, response);
+    res.status(200).json(response);
   } catch (error) {
     console.error('Error fetching notifications:', error);
     res.status(500).json({ success: false, message: 'Internal server error while fetching notifications.' });
@@ -72,6 +112,8 @@ const markAsRead = async (req, res) => {
     notification.isRead = true;
     await notification.save();
 
+    clearNotificationCache();
+
     res.status(200).json({ success: true, message: 'Notification marked as read.', notification });
   } catch (error) {
     console.error('Error marking notification as read:', error);
@@ -85,6 +127,9 @@ const markAsRead = async (req, res) => {
 const markAllAsRead = async (req, res) => {
   try {
     const [affectedCount] = await Notification.update({ isRead: true }, { where: { userId: req.user.id, isRead: false } });
+
+    clearNotificationCache();
+
     res.status(200).json({ success: true, message: `${affectedCount} notifications marked as read.` });
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
@@ -97,4 +142,5 @@ module.exports = {
   getUnreadCount,
   markAsRead,
   markAllAsRead,
+  clearNotificationCache,
 };

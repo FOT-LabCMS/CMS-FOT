@@ -104,7 +104,7 @@ const SearchableSelect = ({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search chemical or Bin Card Number..."
+              placeholder="Search chemical or Batch Number..."
               className="w-full rounded-[var(--radius-sm)] bg-[var(--color-surface-muted)] py-2 pl-8 pr-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none"
             />
           </div>
@@ -130,11 +130,13 @@ const SearchableSelect = ({
                       : ""
                   }`}
                 >
-                  <span className={`truncate font-bold ${
-                    option.value === value
-                      ? "text-[var(--color-primary)]"
-                      : "text-[var(--color-text-primary)]"
-                  }`}>
+                  <span
+                    className={`truncate font-bold ${
+                      option.value === value
+                        ? "text-[var(--color-primary)]"
+                        : "text-[var(--color-text-primary)]"
+                    }`}
+                  >
                     {option.label}
                   </span>
                   <span className="truncate text-xs text-[var(--color-text-muted)]">
@@ -219,35 +221,8 @@ const batchwise = () => {
   const [isUsageLoading, setIsUsageLoading] = useState(false);
   const [usageError, setUsageError] = useState("");
 
-  const fetchBatchList = async () => {
-    try {
-      setIsListLoading(true);
-      setListError("");
-      const response = await api.get("/usage/batch-details");
-      const batches = response.data?.batchDetails || [];
-
-      setBatchOptions(
-        batches.map((b) => ({
-          value: b.batchNumber,
-          label: b.batchNumber,
-          sublabel: b.chemical?.canonicalName || "Unnamed chemical",
-        })),
-      );
-    } catch (error) {
-      setListError(
-        error.response?.data?.message ||
-          "Unable to load the batch list. Please refresh.",
-      );
-    } finally {
-      setIsListLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBatchList();
-  }, []);
-
   const handleSelectBatch = async (batchNumber) => {
+    if (!batchNumber) return;
     setSelectedBatch(batchNumber);
     setUsageData(null);
     setUsageError("");
@@ -267,6 +242,38 @@ const batchwise = () => {
       setIsUsageLoading(false);
     }
   };
+
+  const fetchBatchList = async () => {
+    try {
+      setIsListLoading(true);
+      setListError("");
+      const response = await api.get("/usage/batch-details");
+      const batches = response.data?.batchDetails || [];
+
+      const options = batches.map((b) => ({
+        value: b.batchNumber,
+        label: b.batchNumber,
+        sublabel: b.chemical?.canonicalName || "Unnamed chemical",
+      }));
+
+      setBatchOptions(options);
+
+      if (options.length > 0) {
+        handleSelectBatch(options[0].value);
+      }
+    } catch (error) {
+      setListError(
+        error.response?.data?.message ||
+          "Unable to load the batch list. Please refresh.",
+      );
+    } finally {
+      setIsListLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBatchList();
+  }, []);
 
   const usagePercent =
     usageData && usageData.quantityReceived > 0
@@ -358,7 +365,7 @@ const batchwise = () => {
               Select a batch
             </label>
             <p className="mb-3 text-xs leading-5 text-[var(--color-text-muted)]">
-              Search by chemical name or bin card number.
+              Search by chemical name or batch number.
             </p>
             <SearchableSelect
               options={batchOptions}
@@ -428,7 +435,7 @@ const batchwise = () => {
                         {usageData.chemicalName}
                       </p>
                       <p className="mt-0.5 text-xs text-[var(--color-text-inverse)] opacity-50">
-                        {usageData.chemicalCode}
+                        {usageData.binCardNumber}
                       </p>
                     </div>
 
@@ -461,8 +468,10 @@ const batchwise = () => {
                     <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-[var(--color-text-inverse)]/80">
                       <span>{usagePercent.toFixed(1)}% used</span>
                       <span>
-                        {fmt3dp(usageData.currentQuantity)}{usageData.unit ? ` ${usageData.unit}` : ""} remaining of{" "}
-                        {fmt3dp(usageData.quantityReceived)}{usageData.unit ? ` ${usageData.unit}` : ""}
+                        {fmt3dp(usageData.currentQuantity)}
+                        {usageData.unit ? ` ${usageData.unit}` : ""} remaining
+                        of {fmt3dp(usageData.quantityReceived)}
+                        {usageData.unit ? ` ${usageData.unit}` : ""}
                       </span>
                     </div>
                     <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/10">
@@ -527,15 +536,15 @@ const batchwise = () => {
                 <dl className="grid gap-4 sm:grid-cols-2">
                   <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
                     <dt className="text-sm text-[var(--color-text-secondary)]">
-                      Chemical code
+                      Bin Card Number
                     </dt>
                     <dd className="text-sm font-bold text-[var(--color-text-primary)]">
-                      {usageData.chemicalCode}
+                      {usageData.binCardNumber}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
                     <dt className="text-sm text-[var(--color-text-secondary)]">
-                      Bin Card Number
+                      Batch Number
                     </dt>
                     <dd className="text-sm font-bold text-[var(--color-text-primary)]">
                       {usageData.batchNumber}

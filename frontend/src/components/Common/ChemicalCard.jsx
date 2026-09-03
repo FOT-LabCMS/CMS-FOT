@@ -1,23 +1,40 @@
-import React from 'react';
-import { Beaker, FileText, MoreHorizontal, Pencil, Eye, Undo2, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import React from "react";
+import {
+  Beaker,
+  FileText,
+  MoreHorizontal,
+  Pencil,
+  Undo2,
+  Trash2,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { getChemicalImageUrl } from "../../utils/chemicalImage";
 
 const PHYSICAL_STATE_BADGE = {
-  LIQUID: 'bg-blue-100 text-blue-800 border-blue-300',
-  SOLID: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  GAS: 'bg-green-100 text-green-800 border-green-300',
-  OTHER: 'bg-gray-100 text-gray-800 border-gray-300',
+  LIQUID: "bg-blue-100 text-blue-800 border-blue-300",
+  SOLID: "bg-yellow-100 text-yellow-800 border-yellow-300",
+  GAS: "bg-green-100 text-green-800 border-green-300",
+  OTHER: "bg-gray-100 text-gray-800 border-gray-300",
 };
 
-const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated = false, isPublicView = false }) => {
+const ChemicalCard = ({
+  chemical,
+  onEdit,
+  onDelete,
+  onReactivate,
+  isDeactivated = false,
+  isPublicView = false,
+}) => {
   const { user } = useAuth();
-  const canModify = user?.role === 'ADMIN' || user?.role === 'TECHNICAL_OFFICER';
+  const canModify =
+    user?.role === "ADMIN" || user?.role === "TECHNICAL_OFFICER";
 
   const {
     id,
-    chemicalCode,
     canonicalName,
+    binCardNumber,
+    imageUrl,
     formula,
     physicalState,
     stockDimension,
@@ -26,33 +43,48 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
     totalStock,
   } = chemical;
 
+  const resolvedImageUrl = getChemicalImageUrl(imageUrl);
+
   return (
-    <div
-      className={`flex flex-col rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] transition-all duration-300 ${
+    <Link
+      to={`/chemicals/${id}`}
+      className={`flex cursor-pointer flex-col rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] transition-all duration-300 ${
         isDeactivated
-          ? 'opacity-70'
-          : 'hover:shadow-[var(--shadow-md)] hover:-translate-y-1'
+          ? "opacity-70"
+          : "hover:shadow-[var(--shadow-md)] hover:-translate-y-1"
       }`}
     >
       {/* Card Header */}
       <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
-            <Beaker size={20} />
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-md)] bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
+            {resolvedImageUrl ? (
+              <img
+                src={resolvedImageUrl}
+                alt={canonicalName}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            ) : (
+              <Beaker size={20} />
+            )}
           </div>
-          <div>
-            <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-bold text-[var(--color-text-primary)] truncate">
               {canonicalName}
             </h3>
-            <p className="text-xs font-semibold text-[var(--color-accent-dark)]">
-              {chemicalCode}
+            <p className="text-xs font-semibold text-[var(--color-accent-dark)] truncate">
+              {binCardNumber}
             </p>
           </div>
         </div>
         <button
           type="button"
           aria-label="More options"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-text-muted)] color-transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]"
+          onClick={(e) => e.preventDefault()}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] color-transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]"
         >
           <MoreHorizontal size={18} />
         </button>
@@ -61,10 +93,20 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
       {/* Card Body */}
       <div className="flex-1 p-4">
         <dl className="space-y-3 text-sm">
+          {binCardNumber && (
+            <div className="flex justify-between">
+              <dt className="text-[var(--color-text-secondary)]">
+                Bin Card Number
+              </dt>
+              <dd className="font-semibold text-[var(--color-primary)]">
+                {binCardNumber}
+              </dd>
+            </div>
+          )}
           <div className="flex justify-between">
             <dt className="text-[var(--color-text-secondary)]">Formula</dt>
             <dd className="font-medium text-[var(--color-text-primary)]">
-              {formula || 'N/A'}
+              {formula || "N/A"}
             </dd>
           </div>
           <div className="flex justify-between">
@@ -110,17 +152,13 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
 
       {/* Card Footer */}
       <div className="flex items-center justify-end gap-2 border-t border-[var(--color-border)] p-3">
-        <Link
-          to={`/chemicals/${id}`}
-          className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text-primary)] color-transition hover:bg-[var(--color-surface-muted)]"
-        >
-          <Eye size={14} />
-          View
-        </Link>
         {isDeactivated && !isPublicView && canModify && (
           <button
             type="button"
-            onClick={() => onReactivate(chemical)}
+            onClick={(e) => {
+              e.preventDefault();
+              onReactivate(chemical);
+            }}
             className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-green-600 px-3 py-2 text-xs font-semibold text-white color-transition hover:bg-green-700"
           >
             <Undo2 size={14} />
@@ -131,7 +169,10 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
           <>
             <button
               type="button"
-              onClick={() => onEdit(chemical)}
+              onClick={(e) => {
+                e.preventDefault();
+                onEdit(chemical);
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-primary-light)]"
             >
               <Pencil size={14} />
@@ -139,7 +180,10 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
             </button>
             <button
               type="button"
-              onClick={() => onDelete(chemical)}
+              onClick={(e) => {
+                e.preventDefault();
+                onDelete(chemical);
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-red-600/10 px-3 py-2 text-xs font-semibold text-red-600 color-transition hover:bg-red-600 hover:text-white"
             >
               <Trash2 size={14} />
@@ -147,7 +191,7 @@ const ChemicalCard = ({ chemical, onEdit, onDelete, onReactivate, isDeactivated 
           </>
         )}
       </div>
-    </div>
+    </Link>
   );
 };
 

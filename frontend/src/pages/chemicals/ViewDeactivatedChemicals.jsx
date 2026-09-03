@@ -1,48 +1,53 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Archive, ArrowLeft, Loader2, Search, ServerCrash } from 'lucide-react';
+import { Archive, ArrowLeft, Loader2, Search, ServerCrash, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import ChemicalCard from '../../components/Common/ChemicalCard';
 import EditChemicalModal from '../../components/chemicals/EditChemicalModal';
 import DeleteConfirmationModal from '../../components/Common/DeleteConfirmationModal';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+
+const PAGE_SIZE = 8;
 
 const ViewDeactivatedChemicals = () => {
   const navigate = useNavigate();
-  const [chemicals, setChemicals] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [editingChemical, setEditingChemical] = useState(null);
   const [reactivatingChemical, setReactivatingChemical] = useState(null);
   const [isReactivateProcessing, setIsReactivateProcessing] = useState(false);
+  const queryClient = useQueryClient();
 
+  // Debounce search input (300ms)
   useEffect(() => {
-    const fetchChemicals = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await api.get('/chemicals/inactive'); // Fetch inactive chemicals
-        if (response.data?.success) {
-          setChemicals(response.data.chemicals);
-        } else {
-          throw new Error('Failed to fetch deactivated chemicals from the server.');
-        }
-      } catch (err) {
-        setError(err.response?.data?.message || err.message || 'An unknown error occurred.');
-        console.error("Error fetching deactivated chemicals:", err);
-      } finally {
-        setLoading(false);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const { data, isLoading: loading, error, isPlaceholderData } = useQuery({
+    queryKey: ['deactivatedChemicals', currentPage, debouncedSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set('page', String(currentPage));
+      params.set('limit', String(PAGE_SIZE));
+      if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+
+      const response = await api.get(`/chemicals/inactive?${params.toString()}`);
+      if (response.data?.success) {
+        return response.data;
       }
-    };
+      throw new Error('Failed to fetch deactivated chemicals from the server.');
+    },
+    placeholderData: keepPreviousData,
+  });
 
-    fetchChemicals();
-  }, []);
-
-  const filteredChemicals = chemicals.filter(
-    (chemical) =>
-      chemical.canonicalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      chemical.chemicalCode.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const chemicals = data?.chemicals || [];
+  const pagination = data?.pagination || { total: chemicals.length, page: 1, limit: PAGE_SIZE, totalPages: 1 };
+  const totalPages = pagination.totalPages;
 
   const handleEditClick = (chemical) => {
     setEditingChemical(chemical);
@@ -52,10 +57,8 @@ const ViewDeactivatedChemicals = () => {
     setEditingChemical(null);
   };
 
-  const handleUpdateSuccess = (updatedChemical) => {
-    // Even if updated, it remains in this list until reactivated.
-    // So we just update the local state.
-    setChemicals(prev => prev.map(c => c.id === updatedChemical.id ? updatedChemical : c));
+  const handleUpdateSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['deactivatedChemicals'] });
     handleCloseModal();
   };
 
@@ -69,8 +72,8 @@ const ViewDeactivatedChemicals = () => {
     setIsReactivateProcessing(true);
     try {
       await api.patch(`/chemicals/${reactivatingChemical.id}/reactivate`);
-      // Remove the reactivated chemical from the list
-      setChemicals(prev => prev.filter(c => c.id !== reactivatingChemical.id));
+      queryClient.invalidateQueries({ queryKey: ['deactivatedChemicals'] });
+      queryClient.invalidateQueries({ queryKey: ['chemicals'] });
       setReactivatingChemical(null);
     } catch (err) {
       // You could show an error toast here
@@ -97,12 +100,14 @@ const ViewDeactivatedChemicals = () => {
         <div className="rounded-[var(--radius-lg)] border border-[var(--color-danger)] bg-[var(--color-surface)] py-20 text-center text-[var(--color-danger)]">
           <ServerCrash size={40} className="mx-auto" />
           <h3 className="mt-4 text-lg font-semibold">Failed to Load Data</h3>
-          <p className="mx-auto mt-2 max-w-md">{error}</p>
+          <p className="mx-auto mt-2 max-w-md">
+            {error.response?.data?.message || error.message}
+          </p>
         </div>
       );
     }
 
-    if (filteredChemicals.length === 0) {
+    if (chemicals.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center gap-4 rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)] py-20 text-center text-[var(--color-text-secondary)]">
           <Archive size={40} />
@@ -113,17 +118,75 @@ const ViewDeactivatedChemicals = () => {
     }
 
     return (
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredChemicals.map((chemical) => (
-          <ChemicalCard
-            key={chemical.id}
-            chemical={chemical}
-            onEdit={handleEditClick}
-            onReactivate={handleReactivateClick}
-            isDeactivated
-          />
-        ))}
-      </div>
+      <>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {chemicals.map((chemical) => (
+            <ChemicalCard
+              key={chemical.id}
+              chemical={chemical}
+              onEdit={handleEditClick}
+              onReactivate={handleReactivateClick}
+              isDeactivated
+            />
+          ))}
+        </div>
+
+        {/* Pagination bar */}
+        {totalPages > 1 && (
+          <div className={`mt-6 flex flex-col items-center justify-between gap-3 sm:flex-row ${isPlaceholderData ? 'opacity-60' : ''}`}>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Showing{" "}
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {(currentPage - 1) * PAGE_SIZE + 1}
+              </span>
+              {"–"}
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {Math.min(currentPage * PAGE_SIZE, pagination.total)}
+              </span>
+              {" of "}
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {pagination.total}
+              </span>{" "}
+              chemicals
+            </p>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || isPlaceholderData}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40"
+                title="Previous page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  disabled={isPlaceholderData}
+                  className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-[var(--radius-sm)] border px-2 text-xs font-semibold transition-colors ${
+                    page === currentPage
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                      : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || isPlaceholderData}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40"
+                title="Next page"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+      </>
     );
   };
 

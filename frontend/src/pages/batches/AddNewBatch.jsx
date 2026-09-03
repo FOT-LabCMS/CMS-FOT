@@ -81,7 +81,7 @@ const SuccessModal = ({ batch, onAddNew, onViewList }) => {
           <div id="qr-code-for-print" className="mt-6 flex flex-col items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
             <QRCodeSVG value={qrValue} size={150} includeMargin={true} />
             <h1 className="mt-3 font-bold text-[var(--color-text-primary)]">{batch.chemical?.canonicalName}</h1>
-            <p className="text-sm text-[var(--color-text-secondary)]">Bin Card Number: {batch.batchNumber}</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">Batch Number: {batch.batchNumber}</p>
           </div>
 
           <button onClick={handlePrint} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]">
@@ -215,7 +215,7 @@ const AddNewBatch = () => {
   const validateForm = () => {
     const nextErrors = {};
     if (!formData.chemicalId) nextErrors.chemicalId = "Please select a chemical.";
-    if (!formData.batchNumber.trim()) nextErrors.batchNumber = "Bin Card Number is required.";
+    if (!formData.batchNumber.trim()) nextErrors.batchNumber = "Batch Number is required.";
     if (!formData.quantityReceived) {
       nextErrors.quantityReceived = "Received quantity is required.";
     } else if (Number(formData.quantityReceived) <= 0) {
@@ -352,7 +352,7 @@ const AddNewBatch = () => {
                         </option>
                         {chemicals.map((chem) => (
                           <option key={chem.id} value={chem.id}>
-                            {chem.canonicalName} ({chem.chemicalCode})
+                            {chem.canonicalName} ({chem.binCardNumber})
                           </option>
                         ))}
                       </select>
@@ -381,10 +381,10 @@ const AddNewBatch = () => {
                     <ErrorMessage message={errors.supplier} />
                   </div>
 
-                  {/* Bin Card Number */}
+                  {/* Batch Number */}
                   <div>
                     <InputLabel htmlFor="batchNumber" required description="The unique number identifying this specific batch.">
-                      Bin Card Number
+                      Batch Number
                     </InputLabel>
                     <div className="relative">
                       <Hash size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />

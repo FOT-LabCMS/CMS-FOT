@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -99,7 +99,7 @@ const BatchCard = ({ batch, baseUnit }) => {
             <Layers size={16} />
           </div>
           <p className="text-sm font-bold text-[var(--color-text-primary)]">
-            Bin Card No {batch.batchNumber}
+            Batch No {batch.batchNumber}
           </p>
         </div>
         <ExpiryBadge expiryDate={batch.expiryDate} />
@@ -188,28 +188,11 @@ const ChemicalWise = () => {
 
   const [isPreviewingFull, setIsPreviewingFull] = useState(false);
   const [fullPreviewError, setFullPreviewError] = useState("");
+  const autoSelectedRef = useRef(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchChemicals = async () => {
-    try {
-      setIsListLoading(true);
-      setListError("");
-      const response = await api.get("/chemicals/");
-      setChemicals(response.data?.chemicals || response.data || []);
-    } catch (error) {
-      setListError(
-        error.response?.data?.message || "Unable to load the chemical list.",
-      );
-    } finally {
-      setIsListLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchChemicals();
-  }, []);
-
-  const handleSelectChemical = async (chemicalCode) => {
-    setSelectedCode(chemicalCode);
+  const handleSelectChemical = async (binCardNumber) => {
+    setSelectedCode(binCardNumber);
     setDetail(null);
     setDetailError("");
     setDownloadError("");
@@ -217,7 +200,7 @@ const ChemicalWise = () => {
     try {
       setIsDetailLoading(true);
       const response = await api.get(
-        `/reports/chemical/${encodeURIComponent(chemicalCode)}`,
+        `/reports/chemical/${encodeURIComponent(binCardNumber)}`,
       );
       setDetail(response.data);
     } catch (error) {
@@ -229,6 +212,48 @@ const ChemicalWise = () => {
       setIsDetailLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchChemicals = async () => {
+      try {
+        setIsListLoading((previous) => previous || chemicals.length === 0);
+        setListError("");
+        const response = await api.get("/chemicals/");
+        const list = response.data?.chemicals || response.data || [];
+        setChemicals(list);
+
+        // On first successful load, automatically select the first chemical
+        if (!autoSelectedRef.current && list.length > 0) {
+          autoSelectedRef.current = true;
+          setSelectedCode(list[0].binCardNumber);
+          setDetailError("");
+          setDownloadError("");
+          setIsDetailLoading(true);
+          try {
+            const detailResponse = await api.get(
+              `/reports/chemical/${encodeURIComponent(list[0].binCardNumber)}`,
+            );
+            setDetail(detailResponse.data);
+          } catch (detailErr) {
+            setDetailError(
+              detailErr.response?.data?.message ||
+                "Unable to load report details for this chemical.",
+            );
+          } finally {
+            setIsDetailLoading(false);
+          }
+        }
+      } catch (error) {
+        setListError(
+          error.response?.data?.message || "Unable to load the chemical list.",
+        );
+      } finally {
+        setIsListLoading(false);
+      }
+    };
+
+    fetchChemicals();
+  }, [refreshKey, chemicals.length]);
 
   const handlePreview = async () => {
     if (!selectedCode) return;
@@ -249,7 +274,7 @@ const ChemicalWise = () => {
           window.URL.revokeObjectURL(blobUrl),
         );
       }
-    } catch (error) {
+    } catch {
       setPreviewError("Unable to generate the PDF preview. Please try again.");
     } finally {
       setIsPreviewing(false);
@@ -275,7 +300,7 @@ const ChemicalWise = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
+    } catch {
       setDownloadError("Unable to generate the PDF report. Please try again.");
     } finally {
       setIsDownloading(false);
@@ -298,7 +323,7 @@ const ChemicalWise = () => {
           window.URL.revokeObjectURL(blobUrl),
         );
       }
-    } catch (error) {
+    } catch {
       setFullPreviewError("Unable to generate the full status report preview. Please try again.");
     } finally {
       setIsPreviewingFull(false);
@@ -322,7 +347,7 @@ const ChemicalWise = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
+    } catch {
       setFullDownloadError("Unable to generate the full status report. Please try again.");
     } finally {
       setIsDownloadingFull(false);
@@ -335,7 +360,7 @@ const ChemicalWise = () => {
     return chemicals.filter(
       (c) =>
         c.canonicalName?.toLowerCase().includes(term) ||
-        c.chemicalCode?.toLowerCase().includes(term),
+        c.binCardNumber?.toLowerCase().includes(term),
     );
   }, [chemicals, searchTerm]);
 
@@ -488,7 +513,7 @@ const ChemicalWise = () => {
                     </p>
                     <button
                       type="button"
-                      onClick={fetchChemicals}
+                      onClick={() => setRefreshKey((prev) => prev + 1)}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-primary)] underline"
                     >
                       <RefreshCw size={12} />
@@ -515,18 +540,18 @@ const ChemicalWise = () => {
                   <div className="max-h-[70vh] overflow-y-auto lg:max-h-[calc(100vh-260px)]">
                     {filteredChemicals.map((chem) => (
                       <button
-                        key={chem.chemicalCode || chem.id}
+                        key={chem.binCardNumber || chem.id}
                         type="button"
-                        onClick={() => handleSelectChemical(chem.chemicalCode)}
+                        onClick={() => handleSelectChemical(chem.binCardNumber)}
                         className={`flex w-full items-center gap-3 border-b border-[var(--color-border)] px-4 py-3 text-left color-transition last:border-b-0 hover:bg-[var(--color-primary-tint)] ${
-                          selectedCode === chem.chemicalCode
+                          selectedCode === chem.binCardNumber
                             ? "bg-[var(--color-primary-tint)]"
                             : ""
                         }`}
                       >
                         <div
                           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] ${
-                            selectedCode === chem.chemicalCode
+                            selectedCode === chem.binCardNumber
                               ? "bg-[var(--color-primary)] text-[var(--color-text-inverse)]"
                               : "bg-[var(--color-primary-tint)] text-[var(--color-primary)]"
                           }`}
@@ -536,7 +561,7 @@ const ChemicalWise = () => {
                         <div className="min-w-0 flex-1">
                           <p
                             className={`truncate text-sm font-semibold ${
-                              selectedCode === chem.chemicalCode
+                              selectedCode === chem.binCardNumber
                                 ? "text-[var(--color-primary)]"
                                 : "text-[var(--color-text-primary)]"
                             }`}
@@ -544,7 +569,7 @@ const ChemicalWise = () => {
                             {chem.canonicalName}
                           </p>
                           <p className="truncate text-xs text-[var(--color-text-muted)]">
-                            {chem.chemicalCode}
+                            {chem.binCardNumber}
                           </p>
                         </div>
                       </button>
@@ -608,7 +633,7 @@ const ChemicalWise = () => {
                       <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
                         <div className="min-w-0">
                           <span className="inline-flex rounded-full bg-[var(--color-accent)] px-2.5 py-1 text-xs font-bold text-[var(--color-primary-dark)]">
-                            {detail.chemicalCode}
+                            {detail.binCardNumber}
                           </span>
                           <h2 className="mt-3 truncate text-xl font-extrabold text-[var(--color-text-inverse)] sm:text-2xl">
                             {detail.canonicalName}

@@ -15,6 +15,7 @@ import RecentReturnActivity from "../components/dashboard/RecentReturnActivity.j
 import UnassignedStock from "../components/dashboard/UnassignedStock.jsx";
 import ExpiryWatchlist from "../components/dashboard/ExpiryWatchlist.jsx";
 import DashboardMetricCards from "../components/dashboard/DashboardMetricCards.jsx";
+import appConfig from "../config/appConfig";
 
 const inputDate = (date) => {
   const year = date.getFullYear();
@@ -52,7 +53,7 @@ const Dashboard = () => {
 
   const invalidRange = dateFromInput(startDate) > dateFromInput(endDate);
 
-  const displayName = user?.fullName || user?.name || user?.institutionalId || "FLCMS User";
+  const displayName = user?.fullName || user?.name || user?.institutionalId || `${appConfig.appName} User`;
 
   const applyPreset = (value) => {
     const end = new Date();

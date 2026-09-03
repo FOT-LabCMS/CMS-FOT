@@ -1,13 +1,9 @@
-import React, { useState } from "react";
-import {
-  Lock,
-  Eye,
-  EyeOff,
-  User,
-  ArrowLeft,
-} from "lucide-react";
+import { useState } from "react";
+import { Lock, Eye, EyeOff, User, ArrowLeft } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 import { useAuth } from "../context/AuthContext";
+import appConfig from "../config/appConfig";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -19,8 +15,6 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const location = useLocation();
-
-  const from = location.state?.from?.pathname || "/dashboard";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,8 +28,33 @@ const Login = () => {
     }
 
     try {
-      await login(institutionalId, password);
-      navigate(from, { replace: true });
+      const response = await login(institutionalId, password);
+      let userRole = null;
+      if (response?.data?.token) {
+        try {
+          const decoded = jwtDecode(response.data.token);
+          userRole = decoded?.role;
+        } catch {
+          // Ignore decode error
+        }
+      }
+      const defaultRoute =
+        userRole === "COMMON"
+          ? "/home"
+          : userRole === "LECTURER"
+            ? "/chemicals/list"
+            : "/dashboard";
+      const fromPath = location.state?.from?.pathname;
+      const targetRoute =
+        userRole === "COMMON"
+          ? "/home"
+          : fromPath &&
+              fromPath !== "/dashboard" &&
+              fromPath !== "/home" &&
+              fromPath !== "/"
+            ? fromPath
+            : defaultRoute;
+      navigate(targetRoute, { replace: true });
     } catch (err) {
       if (err.response?.status === 403) {
         setError("User account is deleted");
@@ -43,7 +62,7 @@ const Login = () => {
       }
       setError(
         err.response?.data?.error ||
-          "Login failed. Please check your credentials."
+          "Login failed. Please check your credentials.",
       );
     } finally {
       setLoading(false);
@@ -56,7 +75,6 @@ const Login = () => {
           LEFT BRAND PANEL (Luxury Green & Gold with Animations)
           ============================================================ */}
       <div className="hidden lg:flex lg:w-[48%] relative overflow-hidden bg-[#062c1e] flex-col items-center justify-center text-center border-r-[5px] border-[#b99b5a]/80 shadow-[10px_0_20px_rgba(0,0,0,0.3)] z-10">
-        
         {/* CSS Animations */}
         <style>{`
           @keyframes floatParticle {
@@ -96,38 +114,134 @@ const Login = () => {
 
         {/* --- Background Animated Elements Container --- */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-          
           {/* Base Radial Glows */}
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[radial-gradient(circle,_rgba(26,92,64,0.6)_0%,_transparent_70%)]" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-[radial-gradient(circle,_rgba(203,163,90,0.15)_0%,_transparent_70%)]" />
 
           {/* 1. Floating Sparkles (Particles) */}
-          <div className="particle-gold" style={{ left: '15%', top: '85%', width: '4px', height: '4px', animationDelay: '0s' }}></div>
-          <div className="particle-gold" style={{ left: '35%', top: '95%', width: '3px', height: '3px', animationDelay: '2.5s' }}></div>
-          <div className="particle-gold" style={{ left: '75%', top: '70%', width: '5px', height: '5px', animationDelay: '1.2s' }}></div>
-          <div className="particle-green" style={{ left: '65%', top: '85%', width: '4px', height: '4px', animationDelay: '4s' }}></div>
-          <div className="particle-green" style={{ left: '25%', top: '45%', width: '5px', height: '5px', animationDelay: '3s' }}></div>
-          <div className="particle-green" style={{ left: '85%', top: '35%', width: '3px', height: '3px', animationDelay: '5.5s' }}></div>
-          <div className="particle-gold" style={{ left: '45%', top: '25%', width: '4px', height: '4px', animationDelay: '6s' }}></div>
+          <div
+            className="particle-gold"
+            style={{
+              left: "15%",
+              top: "85%",
+              width: "4px",
+              height: "4px",
+              animationDelay: "0s",
+            }}
+          ></div>
+          <div
+            className="particle-gold"
+            style={{
+              left: "35%",
+              top: "95%",
+              width: "3px",
+              height: "3px",
+              animationDelay: "2.5s",
+            }}
+          ></div>
+          <div
+            className="particle-gold"
+            style={{
+              left: "75%",
+              top: "70%",
+              width: "5px",
+              height: "5px",
+              animationDelay: "1.2s",
+            }}
+          ></div>
+          <div
+            className="particle-green"
+            style={{
+              left: "65%",
+              top: "85%",
+              width: "4px",
+              height: "4px",
+              animationDelay: "4s",
+            }}
+          ></div>
+          <div
+            className="particle-green"
+            style={{
+              left: "25%",
+              top: "45%",
+              width: "5px",
+              height: "5px",
+              animationDelay: "3s",
+            }}
+          ></div>
+          <div
+            className="particle-green"
+            style={{
+              left: "85%",
+              top: "35%",
+              width: "3px",
+              height: "3px",
+              animationDelay: "5.5s",
+            }}
+          ></div>
+          <div
+            className="particle-gold"
+            style={{
+              left: "45%",
+              top: "25%",
+              width: "4px",
+              height: "4px",
+              animationDelay: "6s",
+            }}
+          ></div>
 
           {/* 2. Molecular Structure (Top Left) */}
-          <svg className="absolute top-8 left-8 molecule-anim w-56 h-56 opacity-80" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <g stroke="#4ade80" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            className="absolute top-8 left-8 molecule-anim w-56 h-56 opacity-80"
+            viewBox="0 0 200 200"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <g
+              stroke="#4ade80"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               {/* Main hexagons */}
-              <polygon points="50,40 70,30 90,40 90,60 70,70 50,60" fill="rgba(74, 222, 128, 0.05)" />
-              <polygon points="90,60 110,50 130,60 130,80 110,90 90,80" fill="rgba(74, 222, 128, 0.05)" />
+              <polygon
+                points="50,40 70,30 90,40 90,60 70,70 50,60"
+                fill="rgba(74, 222, 128, 0.05)"
+              />
+              <polygon
+                points="90,60 110,50 130,60 130,80 110,90 90,80"
+                fill="rgba(74, 222, 128, 0.05)"
+              />
               {/* Outer connections */}
               <line x1="70" y1="70" x2="60" y2="100" />
               <line x1="130" y1="80" x2="160" y2="75" />
               <line x1="50" y1="40" x2="25" y2="45" />
               <line x1="90" y1="40" x2="105" y2="20" />
               {/* Inner details (double bonds) */}
-              <line x1="55" y1="43" x2="55" y2="57" opacity="0.6"/>
-              <line x1="110" y1="55" x2="125" y2="64" opacity="0.6"/>
+              <line x1="55" y1="43" x2="55" y2="57" opacity="0.6" />
+              <line x1="110" y1="55" x2="125" y2="64" opacity="0.6" />
               {/* Glowing Nodes */}
-              <circle cx="60" cy="100" r="4" fill="#4ade80" className="drop-shadow-[0_0_8px_#4ade80]" />
-              <circle cx="160" cy="75" r="4.5" fill="#4ade80" className="drop-shadow-[0_0_8px_#4ade80]" />
-              <circle cx="25" cy="45" r="3.5" fill="#4ade80" className="drop-shadow-[0_0_8px_#4ade80]" />
+              <circle
+                cx="60"
+                cy="100"
+                r="4"
+                fill="#4ade80"
+                className="drop-shadow-[0_0_8px_#4ade80]"
+              />
+              <circle
+                cx="160"
+                cy="75"
+                r="4.5"
+                fill="#4ade80"
+                className="drop-shadow-[0_0_8px_#4ade80]"
+              />
+              <circle
+                cx="25"
+                cy="45"
+                r="3.5"
+                fill="#4ade80"
+                className="drop-shadow-[0_0_8px_#4ade80]"
+              />
               <circle cx="105" cy="20" r="3" fill="#4ade80" />
               <circle cx="70" cy="30" r="2.5" fill="#4ade80" />
               <circle cx="110" cy="90" r="3" fill="#4ade80" />
@@ -135,10 +249,29 @@ const Login = () => {
           </svg>
 
           {/* 3. Wavy Glowing Lines (Bottom Left to Center) */}
-          <svg className="absolute -bottom-10 -left-20 wave-anim w-[120%] h-[70%] opacity-60" viewBox="0 0 500 300" preserveAspectRatio="none" fill="none">
-            <path d="M -50 250 Q 150 100 550 280" stroke="url(#gradGreen)" strokeWidth="1.5" />
-            <path d="M -50 280 Q 200 150 550 320" stroke="url(#gradGreen)" strokeWidth="0.8" opacity="0.7" />
-            <path d="M 50 350 Q 250 200 500 250" stroke="url(#gradGold)" strokeWidth="2.5" opacity="0.5" />
+          <svg
+            className="absolute -bottom-10 -left-20 wave-anim w-[120%] h-[70%] opacity-60"
+            viewBox="0 0 500 300"
+            preserveAspectRatio="none"
+            fill="none"
+          >
+            <path
+              d="M -50 250 Q 150 100 550 280"
+              stroke="url(#gradGreen)"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M -50 280 Q 200 150 550 320"
+              stroke="url(#gradGreen)"
+              strokeWidth="0.8"
+              opacity="0.7"
+            />
+            <path
+              d="M 50 350 Q 250 200 500 250"
+              stroke="url(#gradGold)"
+              strokeWidth="2.5"
+              opacity="0.5"
+            />
             <defs>
               <linearGradient id="gradGreen" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#4ade80" stopOpacity="0.9" />
@@ -154,15 +287,41 @@ const Login = () => {
           </svg>
 
           {/* 4. Wavy Glowing Lines (Top Right crossing center) */}
-          <svg className="absolute top-0 -right-10 wave-anim w-[80%] h-[60%] opacity-40" viewBox="0 0 400 300" preserveAspectRatio="none" fill="none" style={{ animationDelay: '-6s' }}>
-            <path d="M 450 50 Q 200 150 -50 100" stroke="url(#gradGold2)" strokeWidth="1.5" />
-            <path d="M 450 80 Q 250 200 -50 150" stroke="url(#gradGreen2)" strokeWidth="0.8" />
+          <svg
+            className="absolute top-0 -right-10 wave-anim w-[80%] h-[60%] opacity-40"
+            viewBox="0 0 400 300"
+            preserveAspectRatio="none"
+            fill="none"
+            style={{ animationDelay: "-6s" }}
+          >
+            <path
+              d="M 450 50 Q 200 150 -50 100"
+              stroke="url(#gradGold2)"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M 450 80 Q 250 200 -50 150"
+              stroke="url(#gradGreen2)"
+              strokeWidth="0.8"
+            />
             <defs>
-              <linearGradient id="gradGold2" x1="100%" y1="0%" x2="0%" y2="100%">
+              <linearGradient
+                id="gradGold2"
+                x1="100%"
+                y1="0%"
+                x2="0%"
+                y2="100%"
+              >
                 <stop offset="0%" stopColor="#cba358" stopOpacity="0.8" />
                 <stop offset="100%" stopColor="#4ade80" stopOpacity="0" />
               </linearGradient>
-              <linearGradient id="gradGreen2" x1="100%" y1="0%" x2="0%" y2="100%">
+              <linearGradient
+                id="gradGreen2"
+                x1="100%"
+                y1="0%"
+                x2="0%"
+                y2="100%"
+              >
                 <stop offset="0%" stopColor="#4ade80" stopOpacity="0.8" />
                 <stop offset="100%" stopColor="#cba358" stopOpacity="0" />
               </linearGradient>
@@ -172,11 +331,10 @@ const Login = () => {
         {/* --- End of Background Animations --- */}
 
         <div className="relative z-10 flex flex-col items-center justify-center w-full px-12 py-12">
-          
           {/* Logo */}
           <div className="w-28 h-32 shrink-0 mb-6 flex items-center justify-center drop-shadow-[0_0_15px_rgba(212,175,55,0.2)]">
             <img
-              src="../public/faculty_logo.png"
+              src="/faculty_logo.png"
               alt="Faculty of Technology logo"
               className="w-full h-full object-contain"
             />
@@ -184,9 +342,9 @@ const Login = () => {
 
           {/* Title */}
           <h1 className="font-serif text-6xl md:text-7xl font-semibold text-transparent bg-clip-text bg-gradient-to-b from-[#f9f1d8] to-[#cba358] tracking-widest mb-2 drop-shadow-lg">
-            FOTCMS
+            {appConfig.appName}
           </h1>
-          
+
           <p className="text-[#cba358] text-sm md:text-base font-medium tracking-[0.2em] uppercase mb-10">
             Chemical Management System
           </p>
@@ -221,7 +379,6 @@ const Login = () => {
           RIGHT FORM PANEL (Marble White)
           ============================================================ */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-10 py-12 relative bg-gradient-to-br from-[#ffffff] to-[#f0f2f0]">
-        
         {/* Back Button */}
         <Link
           to="/"
@@ -233,18 +390,17 @@ const Login = () => {
 
         {/* Mobile Header (Only visible on small screens) */}
         <div className="lg:hidden flex flex-col items-center mb-10">
-           <img
-              src="../public/faculty_logo.png"
-              alt="Logo"
-              className="w-16 h-16 object-contain mb-4"
-            />
+          <img
+            src="/faculty_logo.png"
+            alt="Logo"
+            className="w-16 h-16 object-contain mb-4"
+          />
           <h1 className="font-serif text-4xl font-semibold text-[#062c1e] tracking-widest">
-            FOTCMS
+            {appConfig.appName}
           </h1>
         </div>
 
         <div className="w-full max-w-sm flex flex-col items-center">
-          
           {/* Form Header */}
           <h2 className="text-3xl font-serif text-[#062c1e] tracking-wide mb-1">
             MEMBER LOG IN
@@ -260,7 +416,6 @@ const Login = () => {
           )}
 
           <form className="w-full space-y-5" onSubmit={handleSubmit}>
-            
             {/* Username Input */}
             <div className="relative group">
               <User
@@ -335,7 +490,6 @@ const Login = () => {
               {loading ? "AUTHENTICATING..." : "LOG IN"}
             </button>
           </form>
-
         </div>
 
         {/* Footer Logos (Right bottom) */}
@@ -344,10 +498,13 @@ const Login = () => {
             Powered by Department of Bio Systems Technology
           </p>
           <div className="w-8 h-8 rounded-full border border-gray-200 p-1 bg-white flex items-center justify-center opacity-60">
-             <img src="../public/faculty_logo.png" alt="University Logo" className="w-full h-full object-contain" />
+            <img
+              src="/faculty_logo.png"
+              alt="University Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
         </div>
-
       </div>
     </div>
   );

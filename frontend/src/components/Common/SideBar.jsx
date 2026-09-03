@@ -4,27 +4,28 @@ import { useAuth } from "../../context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../api/axiosInstance";
 import PasswordReset from "../PasswordReset";
+import appConfig from "../../config/appConfig";
 import {
   LayoutDashboard,
   FlaskConical,
   Activity,
-  Warehouse,
   MapPin,
   FileText,
   Bell as BellIcon,
   ChartNoAxesCombined,
   Truck,
   Users,
-  Settings,
   ClipboardList,
   Menu,
   X,
   ChevronRight,
   LogOut,
-  ShieldCheck,
   Pencil,
   PanelLeftClose,
   PanelLeftOpen,
+  QrCode,
+  Scan,
+  Microscope,
 } from "lucide-react";
 
 const ROLE_LABELS = {
@@ -39,7 +40,19 @@ const MAIN_MENU_ITEMS = [
     label: "Dashboard",
     path: "/dashboard",
     icon: LayoutDashboard,
+    roles: ["ADMIN", "TECHNICAL_OFFICER"],
+  },
+  {
+    label: "QR Scanner",
+    path: "/scan",
+    icon: QrCode,
     roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+  },
+  {
+    label: "Alerts & Notifications",
+    path: "/notifications",
+    icon: BellIcon,
+    roles: ["ADMIN", "TECHNICAL_OFFICER"],
   },
   {
     label: "Chemicals",
@@ -60,6 +73,42 @@ const MAIN_MENU_ITEMS = [
       {
         label: "Deactivated Chemicals",
         path: "/chemicals/deactivated",
+        roles: ["ADMIN", "TECHNICAL_OFFICER"],
+      },
+    ],
+  },
+  {
+    label: "Batches",
+    icon: Truck,
+    pathPrefix: "/stock",
+    roles: ["ADMIN", "TECHNICAL_OFFICER"],
+    children: [
+      {
+        label: "Add New Batch",
+        path: "/stock/add",
+        roles: ["ADMIN", "TECHNICAL_OFFICER"],
+      },
+      {
+        label: "View All Batches",
+        path: "/stock/batches",
+        roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+      },
+    ],
+  },
+  {
+    label: "Instruments",
+    icon: Microscope,
+    pathPrefix: "/instruments",
+    roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+    children: [
+      {
+        label: "View All Instruments",
+        path: "/instruments/list",
+        roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
+      },
+      {
+        label: "Add New Instrument",
+        path: "/instruments/add",
         roles: ["ADMIN", "TECHNICAL_OFFICER"],
       },
     ],
@@ -130,30 +179,6 @@ const MAIN_MENU_ITEMS = [
         roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
       },
     ],
-  },
-  {
-    label: "Procurement & Stock",
-    icon: Truck,
-    pathPrefix: "/stock",
-    roles: ["ADMIN", "TECHNICAL_OFFICER"],
-    children: [
-      {
-        label: "Add New Batch",
-        path: "/stock/add",
-        roles: ["ADMIN", "TECHNICAL_OFFICER"],
-      },
-      {
-        label: "View All Batches",
-        path: "/stock/batches",
-        roles: ["ADMIN", "TECHNICAL_OFFICER", "LECTURER"],
-      },
-    ],
-  },
-  {
-    label: "Alerts & Notifications",
-    path: "/notifications",
-    icon: BellIcon,
-    roles: ["ADMIN", "TECHNICAL_OFFICER"],
   },
   {
     label: "Reports",
@@ -429,7 +454,7 @@ const SidebarContent = ({
 }) => {
   const navigate = useNavigate();
 
-  const userName = user?.fullName || "FOTCMS User";
+  const userName = user?.fullName || `${appConfig.appName} User`;
   const userRole = user?.role || "STUDENT";
   const department = user?.department || "Department of Biosystem Technology";
 
@@ -440,10 +465,10 @@ const SidebarContent = ({
         <button
           type="button"
           onClick={() => {
-            navigate("/dashboard");
+            navigate(userRole === "LECTURER" ? "/chemicals/list" : "/dashboard");
             closeMobileMenu();
           }}
-          className={`flex items-center text-left min-w-0 ${isCollapsed ? "justify-center" : "gap-3 flex-1"}`}
+          className={`flex cursor-pointer items-center text-left min-w-0 ${isCollapsed ? "justify-center" : "gap-3 flex-1"}`}
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-md)] border shadow-[var(--shadow-sm)]">
             <img
@@ -456,7 +481,7 @@ const SidebarContent = ({
           {!isCollapsed && (
             <div className="min-w-0 transition-opacity duration-300">
               <h1 className="truncate text-xl font-extrabold tracking-wide text-[var(--color-text-inverse)]">
-                FOTCMS
+                {appConfig.appName}
               </h1>
 
               <p className="mt-0.5 text-[10px] leading-4 text-[var(--color-text-inverse)]/65">
@@ -701,13 +726,20 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
         </button>
 
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-[var(--color-accent-light)]">
-            <FlaskConical size={20} />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)] shadow-[var(--shadow-sm)]">
+            <img
+              src="/faculty_logo.png"
+              alt="Faculty of Technology Logo"
+              className="h-full w-full object-cover"
+            />
           </div>
 
           <div>
             <p className="font-[var(--font-display)] text-base font-extrabold text-[var(--color-primary)]">
-              FLCMS
+              {appConfig.appName}
+            </p>
+            <p className="text-[9px] text-[var(--color-text-muted)]">
+              Faculty Laboratory
             </p>
             <p className="text-[9px] text-[var(--color-text-muted)]">
               Chemical Management System

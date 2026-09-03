@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -6,6 +6,8 @@ import {
   Boxes,
   Calendar,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   Clock,
   History,
@@ -18,6 +20,8 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
+
+const PAGE_SIZE = 5;
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -84,7 +88,6 @@ const ReturnModal = ({ record, onClose, onSuccess }) => {
   const chemicalInfo = record.chemical || {};
   const densityValue = Number(chemicalInfo.densityValue) || null;
   const densityUnit = chemicalInfo.densityUnit || null;
-  const stockDimension = chemicalInfo.stockDimension || null;
   const physicalState = chemicalInfo.physicalState || null;
   const baseUnit =
     chemicalInfo.baseUnit || record.unit || record.baseUnit || "";
@@ -164,10 +167,10 @@ const ReturnModal = ({ record, onClose, onSuccess }) => {
                 Mark as returned
               </p>
               <h3 className="truncate text-lg font-bold text-[var(--color-text-inverse)]">
-                {record.chemicalName || record.chemicalCode}
+                {record.chemicalName || record.binCardNumber}
               </h3>
               <p className="text-xs text-[var(--color-text-inverse)]/70">
-                Bin Card No : {record.batchNumber}
+                Batch No : {record.batchNumber}
               </p>
             </div>
           </div>
@@ -375,40 +378,69 @@ const ReturnedPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: PAGE_SIZE,
+    totalPages: 1,
+  });
   const [activeRecord, setActiveRecord] = useState(null);
   const [justReturnedId, setJustReturnedId] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
+  // Debounce search input (300ms)
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch paginated pending returns from backend
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchRecords = async () => {
+      try {
+        setIsLoading((previous) => previous || records.length === 0);
+        setLoadError("");
+
+        const params = new URLSearchParams();
+        params.set("page", String(currentPage));
+        params.set("limit", String(PAGE_SIZE));
+        if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+
+        const response = await api.get(
+          `/dispose/view/notreturned?${params.toString()}`,
+        );
+        if (cancelled) return;
+
+        const data = response.data?.notReturnedChemicals || response.data || [];
+        setRecords(data);
+        if (response.data?.pagination) {
+          setPagination(response.data.pagination);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setLoadError(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Unable to load pending returns. Please try again.",
+        );
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
     fetchRecords();
-  }, []);
 
-  const fetchRecords = async () => {
-    try {
-      setIsLoading(true);
-      setLoadError("");
-      const response = await api.get("/dispose/view/notreturned");
-      const data = response.data;
-      setRecords(data.notReturnedChemicals || []);
-    } catch (error) {
-      setLoadError(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Unable to load pending returns. Please try again.",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const filteredRecords = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return records;
-    return records.filter((r) =>
-      `${r.canonicalName || ""} ${r.chemicalCode || ""} ${r.batchCode || ""} ${r.userName || ""}`
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [records, searchTerm]);
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, debouncedSearch, refreshKey, records.length]);
 
   const handleReturnSuccess = (id) => {
     setJustReturnedId(id);
@@ -416,6 +448,7 @@ const ReturnedPage = () => {
     setTimeout(() => {
       setRecords((prev) => prev.filter((r) => r.id !== id));
       setJustReturnedId(null);
+      setRefreshKey((prev) => prev + 1);
     }, 900);
   };
   return (
@@ -471,8 +504,8 @@ const ReturnedPage = () => {
                         Awaiting return
                       </p>
                       <p className="mt-1 text-sm font-medium text-[var(--color-text-inverse)]">
-                        {isLoading ? "—" : records.length} bottle
-                        {records.length === 1 ? "" : "s"}
+                        {isLoading ? "—" : pagination.total} bottle
+                        {pagination.total === 1 ? "" : "s"}
                       </p>
                     </div>
                   </div>
@@ -523,21 +556,22 @@ const ReturnedPage = () => {
                 Loading pending returns...
               </p>
             </div>
-          ) : filteredRecords.length === 0 ? (
+          ) : records.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] p-16 text-center">
               <CheckCircle2 size={32} className="text-[var(--color-success)]" />
               <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                {records.length === 0 ? "All caught up!" : "No matches found"}
+                {pagination.total === 0 ? "All caught up!" : "No matches found"}
               </p>
               <p className="max-w-sm text-xs text-[var(--color-text-muted)]">
-                {records.length === 0
+                {pagination.total === 0
                   ? "There are no chemical bottles currently awaiting return."
                   : "Try a different search term."}
               </p>
             </div>
           ) : (
-            <section className="space-y-3">
-              {filteredRecords.map((record) => (
+            <>
+              <section className="space-y-3">
+                {records.map((record) => (
                 <div
                   key={record.id}
                   className={`overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--color-surface)] shadow-[var(--shadow-sm)] color-transition ${
@@ -555,7 +589,7 @@ const ReturnedPage = () => {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
-                            {record.canonicalName || record.chemicalCode}
+                            {record.canonicalName || record.binCardNumber}
                           </h3>
                           <span className="inline-flex rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-text-secondary)]">
                             {record.batchCode}
@@ -595,13 +629,76 @@ const ReturnedPage = () => {
                         className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)] color-transition hover:bg-[var(--color-primary-light)]"
                       >
                         <PackageCheck size={16} />
-                        Return
-                      </button>
-                    </div>
+                          Return
+                        </button>
+                      </div>
                   </div>
                 </div>
               ))}
-            </section>
+              </section>
+
+              {/* Pagination bar */}
+              {pagination.totalPages > 1 && (
+                <div className="mt-4 flex items-center justify-between rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-[var(--shadow-sm)] sm:px-6">
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Showing{" "}
+                    <span className="font-semibold text-[var(--color-text-primary)]">
+                      {(currentPage - 1) * PAGE_SIZE + 1}
+                    </span>
+                    {"–"}
+                    <span className="font-semibold text-[var(--color-text-primary)]">
+                      {Math.min(currentPage * PAGE_SIZE, pagination.total)}
+                    </span>
+                    {" of "}
+                    <span className="font-semibold text-[var(--color-text-primary)]">
+                      {pagination.total}
+                    </span>{" "}
+                    bottles
+                  </p>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1 || isLoading}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40"
+                      title="Previous page"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+
+                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          disabled={isLoading}
+                          className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-[var(--radius-sm)] border px-2 text-xs font-semibold transition-colors ${
+                            page === currentPage
+                              ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                              : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ),
+                    )}
+
+                    <button
+                      onClick={() =>
+                        setCurrentPage((p) =>
+                          Math.min(pagination.totalPages, p + 1),
+                        )
+                      }
+                      disabled={currentPage === pagination.totalPages || isLoading}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40"
+                      title="Next page"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

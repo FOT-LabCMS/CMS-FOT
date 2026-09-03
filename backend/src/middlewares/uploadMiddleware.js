@@ -1,38 +1,135 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-
-// Define the directory for SDS files
-const sdsDir = path.join(__dirname, '../../uploads/sds');
-
-// Ensure the upload directory exists
-fs.mkdirSync(sdsDir, { recursive: true });
+const { getSdsUploadDir, getImageUploadDir, getInstrumentUploadDir } = require('../services/storageService.js');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, sdsDir);
+    try {
+      if (file.fieldname === 'sdsFile') {
+        cb(null, getSdsUploadDir());
+      } else if (file.fieldname === 'instrumentImage') {
+        cb(null, getInstrumentUploadDir());
+      } else if (file.fieldname === 'imageFile' || file.fieldname === 'image') {
+        cb(null, getImageUploadDir());
+      } else {
+        cb(new Error(`Unexpected upload field: ${file.fieldname}`));
+      }
+    } catch (err) {
+      cb(err);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `sds-${uniqueSuffix}${path.extname(file.originalname)}`);
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (file.fieldname === 'sdsFile') {
+      cb(null, `sds-${uniqueSuffix}${ext}`);
+    } else if (file.fieldname === 'instrumentImage') {
+      cb(null, `instrument-${uniqueSuffix}${ext}`);
+    } else {
+      cb(null, `chemical-${uniqueSuffix}${ext}`);
+    }
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  // Allowed file types: pdf, doc, docx
-  const allowedTypes = /pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document/;
-  const mimetype = allowedTypes.test(file.mimetype);
+  if (file.fieldname === 'sdsFile') {
+    const allowedMimeTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    const allowedExts = ['.pdf', '.doc', '.docx'];
+    const ext = path.extname(file.originalname).toLowerCase();
 
-  if (mimetype) {
-    return cb(null, true);
+    if (allowedMimeTypes.includes(file.mimetype) || allowedExts.includes(ext)) {
+      return cb(null, true);
+    }
+
+    const err = new Error('File type not supported. Only PDF and Word documents are allowed for SDS.');
+    err.code = 'UNSUPPORTED_FILE_TYPE';
+    return cb(err, false);
   }
-  cb(new Error('File type not supported. Only PDF and Word documents are allowed.'), false);
+
+  if (
+    file.fieldname === 'imageFile' ||
+    file.fieldname === 'image' ||
+    file.fieldname === 'instrumentImage'
+  ) {
+    const allowedImageMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'image/svg+xml',
+      'image/bmp',
+      'image/avif',
+    ];
+    const allowedImageExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.bmp', '.avif'];
+    const ext = path.extname(file.originalname).toLowerCase();
+
+    if (allowedImageMimeTypes.includes(file.mimetype) || allowedImageExts.includes(ext)) {
+      return cb(null, true);
+    }
+
+    const err = new Error('Image file type not supported. Allowed formats: JPG, PNG, WEBP, GIF, SVG, BMP, AVIF.');
+    err.code = 'UNSUPPORTED_IMAGE_TYPE';
+    return cb(err, false);
+  }
+
+  const err = new Error(`Unexpected form field: ${file.fieldname}`);
+  err.code = 'UNEXPECTED_FIELD';
+  cb(err, false);
 };
 
-const uploadSds = multer({
+const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB file size limit
   fileFilter: fileFilter,
-}).single('sdsFile'); // 'sdsFile' is the name of the form field
+}).fields([
+  { name: 'sdsFile', maxCount: 1 },
+  { name: 'imageFile', maxCount: 1 },
+  { name: 'image', maxCount: 1 },
+  { name: 'instrumentImage', maxCount: 1 },
+]);
+
+const uploadSds = (req, res, next) => {
+  upload(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File size exceeds the 10 MB limit.',
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Upload error: ${err.message}`,
+      });
+    } else if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'File upload failed.',
+      });
+    }
+
+    // Set convenience references on req for backward compatibility and clean access
+    if (req.files) {
+      if (req.files.sdsFile && req.files.sdsFile.length > 0) {
+        req.file = req.files.sdsFile[0];
+        req.sdsFile = req.files.sdsFile[0];
+      }
+      if (req.files.imageFile && req.files.imageFile.length > 0) {
+        req.imageFile = req.files.imageFile[0];
+      } else if (req.files.image && req.files.image.length > 0) {
+        req.imageFile = req.files.image[0];
+      }
+      if (req.files.instrumentImage && req.files.instrumentImage.length > 0) {
+        req.instrumentImage = req.files.instrumentImage[0];
+      }
+    }
+
+    next();
+  });
+};
 
 module.exports = uploadSds;

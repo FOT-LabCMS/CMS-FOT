@@ -2,15 +2,16 @@ const { Chemical, Batch, Location, sequelize } = require('../models/index.js');
 const { Op } = require('sequelize');
 const { logAction } = require("../services/auditLogService.js");
 const { createNotification } = require("../services/notificationService.js");
+const {
+  calculateFileChecksum,
+  deleteSdsFile,
+  resolveSdsFilePath,
+  sdsFileExists,
+  deleteImageFile,
+} = require("../services/storageService.js");
 const axios = require('axios');
-const crypto = require('crypto');
-const fs = require('fs/promises');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
-
-const calculateFileChecksum = async (filePath) => {
-  const fileBuffer = await fs.readFile(filePath);
-  return crypto.createHash('sha256').update(fileBuffer).digest('hex');
-};
 
 const normalizeOptionalDate = (value) => {
   if (value === undefined) {
@@ -25,25 +26,7 @@ const normalizeOptionalDate = (value) => {
   return normalizedValue ? normalizedValue : null;
 };
 
-const getNextChemicalCode = async (req, res) => {
-  try {
-    // Count all existing chemicals to determine the next ID
-    const chemicalCount = await Chemical.count();
-    const nextId = chemicalCount + 1;
 
-    // Format the number with leading zeros to a length of 6
-    const paddedId = String(nextId).padStart(6, '0');
-    const nextCode = `CHE-${paddedId}`;
-
-    res.status(200).json({
-      success: true,
-      nextCode,
-    });
-  } catch (error) {
-    console.error('Error generating next chemical code:', error);
-    res.status(500).json({ success: false, message: 'Internal server error while generating chemical code.' });
-  }
-};
 
 const addChemical = async (req, res) => {
   try {
@@ -61,30 +44,65 @@ const addChemical = async (req, res) => {
 
     payload.sdsRevisionDate = normalizeOptionalDate(payload.sdsRevisionDate);
 
+    // Normalize binCardNumber and imageUrl
+    if (payload.binCardNumber !== undefined && payload.binCardNumber !== null) {
+      payload.binCardNumber = String(payload.binCardNumber).trim().toUpperCase();
+    }
+
+    if (payload.imageUrl !== undefined && payload.imageUrl !== null) {
+      const trimmedUrl = String(payload.imageUrl).trim();
+      payload.imageUrl = trimmedUrl ? trimmedUrl : null;
+    }
+
     // Basic validation for required fields based on the model
-    if (!payload.chemicalCode || !payload.canonicalName || !payload.stockDimension || !payload.baseUnit) {
+    if (!payload.canonicalName || !payload.stockDimension || !payload.baseUnit || !payload.binCardNumber) {
+      if (req.file) {
+        await deleteSdsFile(req.file.filename);
+      }
       return res.status(400).json({ 
         success: false,
-        message: 'Missing required fields. Chemical code, canonical name, stock dimension, and base unit are required.' 
+        message: 'Missing required fields. Canonical name, Bin Card Number (BST###), stock dimension, and base unit are required.' 
       });
     }
 
-    // Check if a chemical with the same code or name already exists (case-insensitive)
+    // Validate binCardNumber format (BST + 3 digits)
+    if (!/^BST\d{3}$/.test(payload.binCardNumber)) {
+      if (req.file) {
+        await deleteSdsFile(req.file.filename);
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Bin Card Number must follow the format BST followed by exactly 3 digits (e.g. BST001).',
+      });
+    }
+
+    // Check if a chemical with the same name or binCardNumber already exists (case-insensitive)
     const existingChemical = await Chemical.findOne({
       where: {
         [Op.or]: [
-          { chemicalCode: { [Op.iLike]: payload.chemicalCode.trim() } },
-          { canonicalName: { [Op.iLike]: payload.canonicalName.trim() } }
-        ]
+          { canonicalName: { [Op.iLike]: payload.canonicalName.trim() } },
+          { binCardNumber: payload.binCardNumber },
+        ],
       },
     });
 
     if (existingChemical) {
-      const field = existingChemical.chemicalCode.toLowerCase() === payload.chemicalCode.trim().toLowerCase() ? 'code' : 'name';
+      if (req.file) {
+        await deleteSdsFile(req.file.filename);
+      }
+      let field = 'Bin Card Number (BST###)';
+      if (existingChemical.canonicalName.toLowerCase() === payload.canonicalName.trim().toLowerCase()) {
+        field = 'canonical name';
+      }
       return res.status(409).json({ 
-        success: false,
-        message: `A chemical with this ${field} already exists.` 
+        success: false, 
+        message: `A chemical with that ${field} already exists.` 
       });
+    }
+
+    const imageFile = req.imageFile || (req.files && (req.files.imageFile?.[0] || req.files.image?.[0]));
+    if (imageFile) {
+      payload.imageUrl = `/uploads/images/${imageFile.filename}`;
     }
 
     // Add file info to the payload if a file was uploaded
@@ -95,7 +113,7 @@ const addChemical = async (req, res) => {
       payload.sdsFileSize = req.file.size;
       payload.sdsChecksum = await calculateFileChecksum(req.file.path);
       payload.sdsUploadedAt = new Date();
-      payload.sdsUploadedById = req.user.id; // From verifyToken middleware
+      payload.sdsUploadedById = req.user?.id; // From verifyToken middleware
     }
 
     // Create the new chemical in the database
@@ -112,9 +130,9 @@ const addChemical = async (req, res) => {
       severity: 'INFO',
       messageBuilder: {
         actor: (createdChemical) =>
-          `You added a new chemical: ${createdChemical.canonicalName} (${createdChemical.chemicalCode}).`,
+          `You added a new chemical: ${createdChemical.canonicalName} (${createdChemical.binCardNumber}).`,
         others: (actorName, createdChemical) =>
-          `${actorName} added a new chemical: ${createdChemical.canonicalName} (${createdChemical.chemicalCode}).`,
+          `${actorName} added a new chemical: ${createdChemical.canonicalName} (${createdChemical.binCardNumber}).`,
       },
     });
 
@@ -126,8 +144,9 @@ const addChemical = async (req, res) => {
       entityType: "Chemical",
       entityId: chemical.id,
       details: {
-        chemicalCode: chemical.chemicalCode,
         canonicalName: chemical.canonicalName,
+        binCardNumber: chemical.binCardNumber,
+        imageUrl: chemical.imageUrl,
         stockDimension: chemical.stockDimension,
         baseUnit: chemical.baseUnit,
       },
@@ -140,10 +159,21 @@ const addChemical = async (req, res) => {
       chemical,
     });
   } catch (error) {
+    if (req.file) {
+      await deleteSdsFile(req.file.filename);
+    }
+    const imageFile = req.imageFile || (req.files && (req.files.imageFile?.[0] || req.files.image?.[0]));
+    if (imageFile) {
+      await deleteImageFile(imageFile.filename);
+    }
     console.error('Error creating chemical:', error);
     if (error.name === 'SequelizeValidationError') {
       const messages = error.errors.map(e => e.message);
       return res.status(400).json({ success: false, message: messages.join('. ') });
+    }
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      const messages = error.errors.map(e => e.message);
+      return res.status(409).json({ success: false, message: messages.join('. ') || 'Duplicate entry already exists.' });
     }
     res.status(500).json({ success: false, message: 'Internal server error while creating chemical.' });
   }
@@ -151,7 +181,47 @@ const addChemical = async (req, res) => {
 
 const getAllChemicals = async (req, res) => {
   try {
+    const { page, limit, search } = req.query;
+    const isPaginated = page !== undefined && limit !== undefined;
+
+    const buildWhere = () => {
+      const where = { isActive: true };
+      if (search && search.trim()) {
+        const q = search.trim();
+        where[Op.or] = [
+          { canonicalName: { [Op.iLike]: `%${q}%` } },
+          { binCardNumber: { [Op.iLike]: `%${q}%` } },
+          { formula: { [Op.iLike]: `%${q}%` } },
+        ];
+      }
+      return where;
+    };
+
     // Only fetch active chemicals for the main list view
+    if (isPaginated) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 8));
+      const offset = (pageNum - 1) * limitNum;
+      const where = buildWhere();
+
+      const [chemicals, total] = await Promise.all([
+        Chemical.findAll({
+          where,
+          order: [['createdAt', 'DESC']],
+          offset,
+          limit: limitNum,
+        }),
+        Chemical.count({ where }),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / limitNum));
+      return res.status(200).json({
+        success: true,
+        chemicals,
+        pagination: { total, page: pageNum, limit: limitNum, totalPages },
+      });
+    }
+
     const chemicals = await Chemical.findAll({
       where: { isActive: true },
       order: [['createdAt', 'DESC']],
@@ -168,6 +238,46 @@ const getAllChemicals = async (req, res) => {
 
 const getInactiveChemicals = async (req, res) => {
   try {
+    const { page, limit, search } = req.query;
+    const isPaginated = page !== undefined && limit !== undefined;
+
+    const buildWhere = () => {
+      const where = { isActive: false };
+      if (search && search.trim()) {
+        const q = search.trim();
+        where[Op.or] = [
+          { canonicalName: { [Op.iLike]: `%${q}%` } },
+          { binCardNumber: { [Op.iLike]: `%${q}%` } },
+          { formula: { [Op.iLike]: `%${q}%` } },
+        ];
+      }
+      return where;
+    };
+
+    if (isPaginated) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 8));
+      const offset = (pageNum - 1) * limitNum;
+      const where = buildWhere();
+
+      const [chemicals, total] = await Promise.all([
+        Chemical.findAll({
+          where,
+          order: [['updatedAt', 'DESC']],
+          offset,
+          limit: limitNum,
+        }),
+        Chemical.count({ where }),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / limitNum));
+      return res.status(200).json({
+        success: true,
+        chemicals,
+        pagination: { total, page: pageNum, limit: limitNum, totalPages },
+      });
+    }
+
     const chemicals = await Chemical.findAll({
       where: { isActive: false },
       order: [['updatedAt', 'DESC']], // Order by when they were deactivated
@@ -189,7 +299,7 @@ const getPublicChemicals = async (req, res) => {
       order: [['canonicalName', 'ASC']],
       attributes: [
         "id",
-        "chemicalCode",
+        "binCardNumber",
         "canonicalName",
         "formula",
         "physicalState",
@@ -197,6 +307,7 @@ const getPublicChemicals = async (req, res) => {
         "stockDimension",
         "baseUnit",
         "sdsStorageKey",
+        "imageUrl",
         [
           sequelize.literal(`(
             SELECT COALESCE(SUM(b.current_quantity), 0)
@@ -286,21 +397,32 @@ const getChemicalById = async (req, res) => {
 
 const updateChemical = async (req, res) => {
   const { id } = req.params;
+  const imageFile = req.imageFile || (req.files && (req.files.imageFile?.[0] || req.files.image?.[0]));
   try {
     const chemical = await Chemical.findByPk(id);
 
     if (!chemical) {
+      if (req.file) {
+        await deleteSdsFile(req.file.filename);
+      }
+      if (imageFile) {
+        await deleteImageFile(imageFile.filename);
+      }
       return res.status(404).json({ success: false, message: 'Chemical not found.' });
     }
 
     // Store the state *before* the update for the audit log
     const beforeUpdate = {
       canonicalName: chemical.canonicalName,
+      binCardNumber: chemical.binCardNumber,
+      imageUrl: chemical.imageUrl,
       casNumber: chemical.casNumber,
       hazardCategory: chemical.hazardCategory,
       isActive: chemical.isActive,
     };
 
+    const oldSdsStorageKey = chemical.sdsStorageKey;
+    const oldImageUrl = chemical.imageUrl;
     const payload = { ...req.body };
 
     if (payload.synonyms && typeof payload.synonyms === 'string') {
@@ -324,6 +446,12 @@ const updateChemical = async (req, res) => {
         },
       });
       if (existingChemical) {
+        if (req.file) {
+          await deleteSdsFile(req.file.filename);
+        }
+        if (imageFile) {
+          await deleteImageFile(imageFile.filename);
+        }
         return res.status(409).json({
           success: false,
           message: `A chemical with the name "${payload.canonicalName}" already exists.`
@@ -331,18 +459,65 @@ const updateChemical = async (req, res) => {
       }
     }
 
+    // Handle binCardNumber update if provided
+    if (payload.binCardNumber !== undefined && payload.binCardNumber !== null) {
+      payload.binCardNumber = String(payload.binCardNumber).trim().toUpperCase();
+
+      if (!/^BST\d{3}$/.test(payload.binCardNumber)) {
+        if (req.file) await deleteSdsFile(req.file.filename);
+        if (imageFile) await deleteImageFile(imageFile.filename);
+        return res.status(400).json({
+          success: false,
+          message: 'Bin Card Number must follow the format BST followed by exactly 3 digits (e.g. BST001).',
+        });
+      }
+
+      if (payload.binCardNumber !== chemical.binCardNumber) {
+        const existingBin = await Chemical.findOne({
+          where: {
+            binCardNumber: payload.binCardNumber,
+            id: { [Op.ne]: id },
+          },
+        });
+        if (existingBin) {
+          if (req.file) await deleteSdsFile(req.file.filename);
+          if (imageFile) await deleteImageFile(imageFile.filename);
+          return res.status(409).json({
+            success: false,
+            message: `A chemical with Bin Card Number "${payload.binCardNumber}" already exists.`,
+          });
+        }
+      }
+    }
+
+    // Handle chemical image update
+    if (imageFile) {
+      payload.imageUrl = `/uploads/images/${imageFile.filename}`;
+    } else if (payload.removeImage === 'true' || payload.removeImage === true || payload.imageUrl === '') {
+      payload.imageUrl = null;
+    }
+
     if (req.file) {
-      // Note: This doesn't delete the old file. For a production system, you'd want a cleanup job.
       payload.sdsStorageKey = req.file.filename; // Store filename only, not the full path
       payload.sdsOriginalFilename = req.file.originalname;
       payload.sdsMimeType = req.file.mimetype;
       payload.sdsFileSize = req.file.size;
       payload.sdsChecksum = await calculateFileChecksum(req.file.path);
       payload.sdsUploadedAt = new Date();
-      payload.sdsUploadedById = req.user.id;
+      payload.sdsUploadedById = req.user?.id;
     }
 
     await chemical.update(payload);
+
+    // If replacement succeeded and an old file existed, remove the old file from disk
+    if (req.file && oldSdsStorageKey && oldSdsStorageKey !== req.file.filename) {
+      await deleteSdsFile(oldSdsStorageKey);
+    }
+
+    // If image replaced or removed, delete old image file if stored locally
+    if ((imageFile || payload.imageUrl === null) && oldImageUrl && oldImageUrl.startsWith('/uploads/images/')) {
+      await deleteImageFile(oldImageUrl);
+    }
 
     // Audit Log: Chemical Update
     await logAction({
@@ -364,10 +539,21 @@ const updateChemical = async (req, res) => {
       chemical,
     });
   } catch (error) {
+    if (req.file) {
+      // Discard newly uploaded file to avoid orphan and preserve old file
+      await deleteSdsFile(req.file.filename);
+    }
+    if (imageFile) {
+      await deleteImageFile(imageFile.filename);
+    }
     console.error(`Error updating chemical with ID ${id}:`, error);
     if (error.name === 'SequelizeValidationError') {
       const messages = error.errors.map(e => e.message);
       return res.status(400).json({ success: false, message: messages.join('. ') });
+    }
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      const messages = error.errors.map(e => e.message);
+      return res.status(409).json({ success: false, message: messages.join('. ') || 'Duplicate entry already exists.' });
     }
     res.status(500).json({ success: false, message: 'Internal server error while updating chemical.' });
   }
@@ -393,7 +579,7 @@ const softDeleteChemical = async (req, res) => {
       entityType: "Chemical",
       entityId: chemical.id,
       details: {
-        chemicalCode: chemical.chemicalCode,
+        binCardNumber: chemical.binCardNumber,
         canonicalName: chemical.canonicalName,
       },
       ipAddress: req.ip,
@@ -429,7 +615,7 @@ const reactivateChemical = async (req, res) => {
       entityType: "Chemical",
       entityId: chemical.id,
       details: {
-        chemicalCode: chemical.chemicalCode,
+        binCardNumber: chemical.binCardNumber,
         canonicalName: chemical.canonicalName,
       },
       ipAddress: req.ip,
@@ -448,6 +634,64 @@ const reactivateChemical = async (req, res) => {
 
 const getChemicalsWithSds = async (req, res) => {
   try {
+    const { page, limit, search } = req.query;
+    const isPaginated = page !== undefined && limit !== undefined;
+
+    const buildWhere = () => {
+      const where = {
+        sdsStorageKey: { [Op.ne]: null },
+        isActive: true,
+      };
+      if (search && search.trim()) {
+        const q = search.trim();
+        where[Op.or] = [
+          { canonicalName: { [Op.iLike]: `%${q}%` } },
+          { binCardNumber: { [Op.iLike]: `%${q}%` } },
+          { formula: { [Op.iLike]: `%${q}%` } },
+          { sdsOriginalFilename: { [Op.iLike]: `%${q}%` } },
+          { sdsChecksum: { [Op.iLike]: `%${q}%` } },
+        ];
+      }
+      return where;
+    };
+
+    if (isPaginated) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+      const offset = (pageNum - 1) * limitNum;
+      const where = buildWhere();
+
+      const [chemicals, total] = await Promise.all([
+        Chemical.findAll({
+          where,
+          order: [['canonicalName', 'ASC']],
+          offset,
+          limit: limitNum,
+          attributes: [
+            'id',
+            'binCardNumber',
+            'canonicalName',
+            'formula',
+            'sdsStorageKey',
+            'sdsOriginalFilename',
+            'sdsMimeType',
+            'sdsFileSize',
+            'sdsChecksum',
+            'sdsRevisionDate',
+            'sdsUploadedAt',
+          ],
+        }),
+        Chemical.count({ where }),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / limitNum));
+      return res.status(200).json({
+        success: true,
+        chemicals,
+        pagination: { total, page: pageNum, limit: limitNum, totalPages },
+      });
+    }
+
     const chemicals = await Chemical.findAll({
       where: {
         sdsStorageKey: { [Op.ne]: null },
@@ -456,7 +700,7 @@ const getChemicalsWithSds = async (req, res) => {
       order: [['canonicalName', 'ASC']],
       attributes: [
         'id',
-        'chemicalCode',
+        'binCardNumber',
         'canonicalName',
         'formula',
         'sdsStorageKey',
@@ -819,9 +1063,191 @@ const getChemicalStats = async (req, res) => {
   }
 };
 
+const downloadSds = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const chemical = await Chemical.findByPk(id);
+
+    if (!chemical) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chemical not found.',
+      });
+    }
+
+    if (!chemical.sdsStorageKey) {
+      return res.status(404).json({
+        success: false,
+        message: 'No SDS document is attached to this chemical.',
+      });
+    }
+
+    let filePath;
+    try {
+      filePath = resolveSdsFilePath(chemical.sdsStorageKey);
+    } catch (secErr) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid SDS storage key or path traversal detected.',
+      });
+    }
+
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'The requested SDS document file is missing from server storage.',
+      });
+    }
+
+    const downloadFilename =
+      chemical.sdsOriginalFilename || chemical.sdsStorageKey;
+
+    res.download(filePath, downloadFilename, (err) => {
+      if (err) {
+        console.error('Error during SDS download transmission:', err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            message: 'Failed to complete SDS file download.',
+          });
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error downloading SDS:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error while downloading SDS document.',
+      });
+    }
+  }
+};
+
+const resolveScanCode = async (req, res) => {
+  try {
+    let rawQuery = req.query.query || req.params.code || req.query.code;
+    if (!rawQuery || typeof rawQuery !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'A search query or QR code content is required.',
+      });
+    }
+
+    rawQuery = rawQuery.trim();
+
+    // 1. Check if the scanned value is a URL and extract ID/path
+    let extractedId = null;
+    const batchUrlMatch = rawQuery.match(/\/stock\/batches\/([0-9a-fA-F-]{36}|[^\/\?\#]+)/);
+    const chemicalUrlMatch = rawQuery.match(/\/chemicals\/([0-9a-fA-F-]{36}|[^\/\?\#]+)/);
+
+    if (batchUrlMatch) {
+      extractedId = batchUrlMatch[1];
+    } else if (chemicalUrlMatch) {
+      extractedId = chemicalUrlMatch[1];
+    }
+
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const targetId = extractedId || rawQuery;
+
+    // 2. If UUID, check Batch by PK, then Chemical by PK
+    if (uuidRegex.test(targetId)) {
+      const batch = await Batch.findByPk(targetId, {
+        include: [{ model: Chemical, as: 'chemical' }, { model: Location, as: 'location' }],
+      });
+      if (batch && batch.chemical) {
+        return res.status(200).json({
+          success: true,
+          matchType: 'BATCH_ID',
+          chemicalId: batch.chemicalId,
+          batchId: batch.id,
+          batch,
+          chemical: batch.chemical,
+        });
+      }
+
+      const chemical = await Chemical.findByPk(targetId);
+      if (chemical) {
+        return res.status(200).json({
+          success: true,
+          matchType: 'CHEMICAL_ID',
+          chemicalId: chemical.id,
+          batchId: null,
+          chemical,
+        });
+      }
+    }
+
+    // 3. Try matching Batch by batchNumber
+    const batchByNumber = await Batch.findOne({
+      where: {
+        batchNumber: { [Op.iLike]: targetId },
+      },
+      include: [{ model: Chemical, as: 'chemical' }, { model: Location, as: 'location' }],
+    });
+
+    if (batchByNumber && batchByNumber.chemical) {
+      return res.status(200).json({
+        success: true,
+        matchType: 'BATCH_NUMBER',
+        chemicalId: batchByNumber.chemicalId,
+        batchId: batchByNumber.id,
+        batch: batchByNumber,
+        chemical: batchByNumber.chemical,
+      });
+    }
+
+    // chemicalCode resolving is removed
+
+    // 5. Try matching Chemical by binCardNumber (e.g. BST001)
+    const chemicalByBin = await Chemical.findOne({
+      where: {
+        binCardNumber: { [Op.iLike]: targetId.toUpperCase() },
+      },
+    });
+
+    if (chemicalByBin) {
+      return res.status(200).json({
+        success: true,
+        matchType: 'BIN_CARD_NUMBER',
+        chemicalId: chemicalByBin.id,
+        batchId: null,
+        chemical: chemicalByBin,
+      });
+    }
+
+    // 6. Try matching Chemical by canonicalName
+    const chemicalByName = await Chemical.findOne({
+      where: {
+        canonicalName: { [Op.iLike]: `%${targetId}%` },
+      },
+    });
+
+    if (chemicalByName) {
+      return res.status(200).json({
+        success: true,
+        matchType: 'CHEMICAL_NAME',
+        chemicalId: chemicalByName.id,
+        batchId: null,
+        chemical: chemicalByName,
+      });
+    }
+
+    return res.status(404).json({
+      success: false,
+      message: `No chemical or batch found matching "${rawQuery}".`,
+    });
+  } catch (error) {
+    console.error('Error resolving scan code:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while resolving code.',
+    });
+  }
+};
+
 module.exports = {
   addChemical,
-  getNextChemicalCode,
   getAllChemicals,
   updateChemical,
   getChemicalById,
@@ -832,4 +1258,6 @@ module.exports = {
   getChemicalsWithSds,
   getPublicChemicals,
   getChemicalStats,
+  downloadSds,
+  resolveScanCode,
 };

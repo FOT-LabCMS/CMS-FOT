@@ -14,8 +14,7 @@ router.get('/', verifyToken, ChemicalController.getAllChemicals);
 // Public route to get a selection of chemicals for the homepage
 router.get('/public', ChemicalController.getPublicChemicals);
 
-// Route to get the next auto-generated chemical code
-router.get('/get-next-code', verifyToken, ChemicalController.getNextChemicalCode);
+
 
 // Route to get all inactive (soft-deleted) chemicals
 router.get('/inactive', verifyToken, ChemicalController.getInactiveChemicals);
@@ -31,6 +30,13 @@ router.post('/add-chemical', [verifyToken, uploadSds], ChemicalController.addChe
 
 // Route to update a chemical
 router.put('/:id', [verifyToken, uploadSds], ChemicalController.updateChemical);
+
+// Route to download chemical SDS document (authenticated)
+router.get('/:id/sds/download', verifyToken, ChemicalController.downloadSds);
+
+// Route to resolve scanned QR code or manual search code (Batch/Chemical/BinCard)
+router.get('/scan/resolve', verifyToken, ChemicalController.resolveScanCode);
+router.get('/scan/resolve/:code', verifyToken, ChemicalController.resolveScanCode);
 
 // Route to get a single chemical by ID
 router.get('/:id', ChemicalController.getChemicalById);

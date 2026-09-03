@@ -19,11 +19,23 @@ const auditLogRoutes = require("./routes/AuditLogRoute.js");
 const usageRoutes = require("./routes/UsageRoute.js");
 const notificationRoutes = require("./routes/NotificationRoute.js");
 const reportRoutes = require("./routes/ReportRoute.js");
+const instrumentRoutes = require("./routes/InstrumentRoute.js");
 const {
   notifyExpiredBatches,
   notifyExpiringBatches,
   notifyLowStockBatches,
 } = require("./services/notificationService.js");
+
+const {
+  verifyEmailConnection,
+} = require("./services/emailService.js");
+
+const {
+  getUploadsRoot,
+  getSdsUploadDir,
+  getImageUploadDir,
+  getInstrumentUploadDir,
+} = require("./services/storageService.js");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -62,8 +74,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Serve uploaded files statically. Multer stores files in backend/uploads.
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+// Ensure upload directories exist on server startup
+getSdsUploadDir();
+getImageUploadDir();
+getInstrumentUploadDir();
+
+// Serve uploaded files statically from configurable persistent storage root
+app.use("/uploads", express.static(getUploadsRoot()));
 
 app.get("/", (req, res) => {
   res.json({
@@ -80,6 +97,7 @@ app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/usage", usageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/instruments", instrumentRoutes);
 
 const startExpiryNotificationScheduler = () => {
   const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
@@ -117,6 +135,8 @@ const startServer = async () => {
     console.log("Connecting to the database...");
     await sequelize.authenticate();
     console.log("Database connection established successfully.✅");
+
+    await verifyEmailConnection();
 
     if (process.env.NODE_ENV === "development") {
       await db.sequelize.sync({ alter: true });

@@ -1,5 +1,5 @@
 /* =========================================================
-   FLCMS — Faculty Laboratory Chemical Management System
+   FOTCMS — Faculty Laboratory Chemical Management System
    Global design tokens. Every page should pull colors and
    fonts from these CSS variables — never hardcode hex values
    or font-families inside components.
@@ -15,7 +15,7 @@
   --color-primary-light: #2e6350; /* hover/lighter green */
   --color-primary-tint: #e7efea; /* pale green for subtle fills/badges */
 
-  --color-accent: #b8873a; /* brass/gold — FLCMS crest, highlights */
+  --color-accent: #b8873a; /* brass/gold — FOTCMS crest, highlights */
   --color-accent-light: #d6aa5e; /* lighter gold for hovers/gradients */
   --color-accent-dark: #8f6626; /* deep gold for text-on-light emphasis */
 
