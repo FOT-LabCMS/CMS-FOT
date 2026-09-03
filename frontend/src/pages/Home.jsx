@@ -1,17 +1,16 @@
 import { useState } from "react";
 import {
-  LogIn,
   FlaskConical,
   Loader2,
   ServerCrash,
   ShieldCheck,
   Search,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import ChemicalCard from "../components/Common/ChemicalCard";
 import appConfig from "../config/appConfig";
+import Header from "../components/Common/Header";
 
 const AVAILABILITY_FILTERS = [
   { id: "all", label: "All" },
@@ -148,36 +147,7 @@ const Home = () => {
   return (
     <div className="min-h-screen w-full flex flex-col bg-[var(--color-bg)] font-[family-name:var(--font-body)]">
       {/* ---------------- Header ---------------- */}
-      <header className="sticky top-0 z-40 w-full border-b border-[var(--color-primary-dark)] bg-[var(--color-primary)] shadow-[var(--shadow-md)] color-transition">
-        <div className="max-w-7xl mx-auto px-4 sm:px-7 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
-          {/* Faculty Logo */}
-          <div className="flex items-center gap-3 min-w-0">
-            <img
-              src="/faculty_logo.png"
-              alt="Faculty Logo"
-              className="h-12 w-12 shrink-0 object-cover shadow-sm sm:h-14 sm:w-14"
-            />
-            <div className="min-w-0">
-              <p className="font-[family-name:var(--font-display)] text-sm sm:text-base font-semibold text-[var(--color-text-inverse)] leading-tight truncate color-transition">
-                Faculty Laboratory Chemical Management System
-              </p>
-              <p className="text-[11px] sm:text-xs text-[var(--color-accent-light)] mt-1 truncate color-transition hidden sm:block">
-                Faculty Of Technology University of Ruhuna
-              </p>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-3">
-            <Link
-              to="/login"
-              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[var(--color-accent-light)] px-4 text-sm font-semibold text-[var(--color-text-inverse)] color-transition hover:bg-[var(--color-accent)] hover:text-[var(--color-primary-dark)] sm:px-5"
-            >
-              <LogIn className="w-4 h-4" strokeWidth={1.8} />
-              <span>Login</span>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* ---------------- Main content ---------------- */}
       <main className="flex-1 w-full">
