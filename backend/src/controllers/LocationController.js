@@ -2,6 +2,16 @@ const { Location, Batch, Chemical, sequelize } = require('../models/index.js');
 const { Op } = require('sequelize');
 const { logAction } = require('../services/auditLogService.js');
 
+// Hierarchy rules: child type -> allowed parent types
+const VALID_PARENT_TYPES = {
+  LAB: [],                        // LAB cannot have a parent
+  ROOM: ['LAB'],                  // ROOM must be inside a LAB
+  CABINET: ['ROOM'],              // CABINET must be inside a ROOM
+  SHELF: ['CABINET'],             // SHELF must be inside a CABINET
+  FRIDGE: ['ROOM', 'CABINET'],    // FRIDGE can be in a ROOM or CABINET
+  OTHER: ['LAB', 'ROOM', 'CABINET', 'SHELF', 'FRIDGE', 'OTHER'], // OTHER is flexible
+};
+
 const addLocation = async (req, res) => {
   try {
     const { name, type, parentLocationId } = req.body;
@@ -15,6 +25,38 @@ const addLocation = async (req, res) => {
 
     // Explicitly handle empty string for parentLocationId to ensure it's treated as NULL in the query
     const parentId = (parentLocationId && parentLocationId.trim() !== '') ? parentLocationId : null;
+
+    // Validate hierarchy: LAB must not have a parent, and other types must have a valid parent type.
+    if (type === 'LAB' && parentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'A Laboratory cannot have a parent location. Remove the parent to continue.',
+      });
+    }
+
+    if (type !== 'LAB') {
+      if (!parentId) {
+        return res.status(400).json({
+          success: false,
+          message: `A ${type} location must be placed inside a ${VALID_PARENT_TYPES[type].join(' or ')} location. Select a valid parent.`,
+        });
+      }
+
+      const parentLocation = await Location.findByPk(parentId);
+      if (!parentLocation) {
+        return res.status(400).json({
+          success: false,
+          message: 'The selected parent location does not exist.',
+        });
+      }
+
+      if (!VALID_PARENT_TYPES[type].includes(parentLocation.type)) {
+        return res.status(400).json({
+          success: false,
+          message: `A ${type} location cannot be placed inside a ${parentLocation.type} location. Expected parent type(s): ${VALID_PARENT_TYPES[type].join(' or ')}.`,
+        });
+      }
+    }
 
     const existingLocation = await Location.findOne({
       where: {
@@ -270,6 +312,38 @@ const updateLocation = async (req, res) => {
         success: false,
         message: `A location named "${name.trim()}" already exists at this level.`,
       });
+    }
+
+    // Validate hierarchy when updating (same rules as adding).
+    if (type === 'LAB' && parentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'A Laboratory cannot have a parent location. Remove the parent to continue.',
+      });
+    }
+
+    if (type !== 'LAB') {
+      if (!parentId) {
+        return res.status(400).json({
+          success: false,
+          message: `A ${type} location must be placed inside a ${VALID_PARENT_TYPES[type].join(' or ')} location. Select a valid parent.`,
+        });
+      }
+
+      const parentLocation = await Location.findByPk(parentId);
+      if (!parentLocation) {
+        return res.status(400).json({
+          success: false,
+          message: 'The selected parent location does not exist.',
+        });
+      }
+
+      if (!VALID_PARENT_TYPES[type].includes(parentLocation.type)) {
+        return res.status(400).json({
+          success: false,
+          message: `A ${type} location cannot be placed inside a ${parentLocation.type} location. Expected parent type(s): ${VALID_PARENT_TYPES[type].join(' or ')}.`,
+        });
+      }
     }
 
     location.name = name.trim();
