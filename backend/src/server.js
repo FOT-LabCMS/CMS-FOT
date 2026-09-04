@@ -48,6 +48,8 @@ app.set("trust proxy", 1);
 const allowedOrigins = [
   "http://localhost:5173", // Your local frontend
   "https://fotcms.onrender.com", // Your deployed frontend
+  "http://192.248.50.135:5173", // Your deployed frontend
+  "http://192.248.50.135:5001", // Backend direct access (for uploads)
   "http://192.248.50.135", // Your deployed frontend
   "http://teclcms.duckdns.org"
 ];
