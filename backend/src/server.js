@@ -82,7 +82,7 @@ getImageUploadDir();
 getInstrumentUploadDir();
 
 // Serve uploaded files statically from configurable persistent storage root
-app.use("/uploads", express.static(getUploadsRoot()));
+app.use("/api/uploads", express.static(getUploadsRoot()));
 
 app.get("/", (req, res) => {
   res.json({
