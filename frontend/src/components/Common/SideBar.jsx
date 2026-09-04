@@ -305,7 +305,7 @@ const SidebarLink = ({ item, closeMobileMenu, notificationCount = 0, isCollapsed
   );
 };
 
-const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole, isCollapsed = false }) => {
+const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole, isCollapsed = false, expandSidebar }) => {
   const { pathname } = useLocation();
   const isParentActive = pathname.startsWith(item.pathPrefix);
   const [isOpen, setIsOpen] = useState(isParentActive);
@@ -340,7 +340,9 @@ const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole, isCollapsed =
           if (!isCollapsed) {
             setIsOpen((prev) => !prev);
           } else {
-            setIsHovered((prev) => !prev);
+            // Expand the sidebar and open this menu
+            setIsOpen(true);
+            if (expandSidebar) expandSidebar();
           }
         }}
         className={[
@@ -403,7 +405,7 @@ const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole, isCollapsed =
         </div>
       )}
 
-      {/* Flyout Submenu (for collapsed state) */}
+      {/* Flyout Submenu (for collapsed state - hover only) */}
       {isCollapsed && isHovered && (
         <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 min-w-[220px] rounded-[var(--radius-md)] bg-[var(--color-primary-dark)] border border-white/10 p-2 shadow-[var(--shadow-lg)] transition-all duration-150 ease-out">
           <p className="px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-[var(--color-accent-light)] border-b border-white/5 mb-1.5">
@@ -451,6 +453,7 @@ const SidebarContent = ({
   isCollapsed = false,
   toggleSidebar,
   isMobile = false,
+  expandSidebar,
 }) => {
   const navigate = useNavigate();
 
@@ -508,7 +511,7 @@ const SidebarContent = ({
       </div>
 
       {/* Navigation */}
-      <div className={`flex-1 py-5 transition-all duration-300 ${isCollapsed ? "px-2 lg:overflow-y-visible overflow-y-auto" : "px-4 overflow-y-auto"}`}>
+      <div className={`flex-1 py-5 transition-all duration-300 ${isCollapsed ? "px-2 overflow-y-auto overflow-x-hidden" : "px-4 overflow-y-auto"}`}>
         <div>
           {!isCollapsed ? (
             <p className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-accent-light)]">
@@ -527,6 +530,7 @@ const SidebarContent = ({
                   closeMobileMenu={closeMobileMenu}
                   userRole={userRole}
                   isCollapsed={isCollapsed}
+                  expandSidebar={expandSidebar}
                 />
               ) : (
                 <SidebarLink
@@ -560,6 +564,7 @@ const SidebarContent = ({
                     closeMobileMenu={closeMobileMenu}
                     userRole={userRole}
                     isCollapsed={isCollapsed}
+                    expandSidebar={expandSidebar}
                   />
                 ) : (
                   <SidebarLink
@@ -775,6 +780,7 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
           isCollapsed={isCollapsed}
           toggleSidebar={toggleSidebar}
           isMobile={false}
+          expandSidebar={toggleSidebar}
         />
       </aside>
 

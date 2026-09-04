@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -12,21 +12,17 @@ import {
   FolderTree,
 } from "lucide-react";
 import api from "../../api/axiosInstance";
+import {
+  LOCATION_TYPES,
+  getValidParentOptions,
+  clearInvalidParent,
+} from "../../utils/locationHierarchy";
 
 const INITIAL_FORM = {
   name: "",
   type: "LAB",
   parentLocationId: "",
 };
-
-const LOCATION_TYPES = [
-  { value: "LAB", label: "Laboratory" },
-  { value: "ROOM", label: "Room" },
-  { value: "CABINET", label: "Cabinet / Cupboard" },
-  { value: "SHELF", label: "Shelf" },
-  { value: "FRIDGE", label: "Refrigerator / Freezer" },
-  { value: "OTHER", label: "Other" },
-];
 
 // Reusable components from other forms
 const InputLabel = ({ children, required = false, description, htmlFor }) => (
@@ -87,9 +83,23 @@ const AddLocation = () => {
     fetchLocations();
   }, []);
 
+  const parentOptions = useMemo(
+    () => getValidParentOptions(formData.type, locations),
+    [formData.type, locations],
+  );
+
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+
+      // When the type changes, clear the parent if it is no longer valid.
+      if (name === "type") {
+        next.parentLocationId = clearInvalidParent(value, prev.parentLocationId, locations);
+      }
+
+      return next;
+    });
     setErrors((prev) => ({ ...prev, [name]: "" }));
     setSubmitMessage(null);
   };
@@ -98,6 +108,9 @@ const AddLocation = () => {
     const nextErrors = {};
     if (!formData.name.trim()) nextErrors.name = "Location name is required.";
     if (!formData.type) nextErrors.type = "Location type is required.";
+    if (formData.type && formData.type !== "LAB" && !formData.parentLocationId) {
+      nextErrors.parentLocationId = `A ${formData.type} must have a ${(LOCATION_TYPES.find((t) => t.value === formData.type)?.label || "").toLowerCase()} parent.`;
+    }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -246,7 +259,7 @@ const AddLocation = () => {
 
                   {/* Parent Location */}
                   <div>
-                    <InputLabel htmlFor="parentLocationId" description="Optional. Nest this location inside another (e.g., a shelf inside a cabinet).">
+                    <InputLabel htmlFor="parentLocationId" description={formData.type === "LAB" ? "A Laboratory is always a top-level location." : `Only ${(LOCATION_TYPES.find((t) => t.value === formData.type)?.label || "").toLowerCase()} locations are available to select, based on the chosen type.`}>
                       Parent Location
                     </InputLabel>
                     <div className="relative">
@@ -256,20 +269,33 @@ const AddLocation = () => {
                         name="parentLocationId"
                         value={formData.parentLocationId}
                         onChange={handleChange}
-                        disabled={isLoading || locations.length === 0}
+                        disabled={isLoading || locations.length === 0 || formData.type === "LAB" || parentOptions.length === 0}
                         className="w-full appearance-none rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-3 pl-12 pr-10 text-sm font-medium text-[var(--color-text-primary)] color-transition disabled:cursor-not-allowed disabled:bg-[var(--color-surface-muted)] focus:border-[var(--color-primary)]"
                       >
-                        <option value="">
-                          {isLoading ? "Loading..." : "None (Top-level location)"}
-                        </option>
-                        {locations.map((loc) => (
-                          <option key={loc.id} value={loc.id}>
-                            {loc.name}
+                        {formData.type === "LAB" ? (
+                          <option value="">None (Laboratories are top-level)</option>
+                        ) : (
+                          <option value="">
+                            {isLoading
+                              ? "Loading..."
+                              : parentOptions.length === 0
+                                ? "No locations available for this type yet"
+                                : `Select a parent ${(LOCATION_TYPES.find((t) => t.value === formData.type)?.label || "").toLowerCase()}...`}
+                          </option>
+                        )}
+                        {parentOptions.map((loc) => (
+                          <option key={loc.id} value={loc.id} title={loc.path}>
+                            {loc.path}
                           </option>
                         ))}
                       </select>
                       <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
                     </div>
+                    {formData.type !== "LAB" && parentOptions.length > 0 && (
+                      <p className="mt-1.5 text-[11px] leading-4 text-[var(--color-text-muted)]">
+                        Strongly recommended — choosing a parent makes this location unambiguous.
+                      </p>
+                    )}
                     <ErrorMessage message={errors.parentLocationId} />
                   </div>
                 </div>
