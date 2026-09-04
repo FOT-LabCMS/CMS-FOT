@@ -21,6 +21,7 @@ const INITIAL_FORM = {
 
 const LOCATION_TYPES = [
   { value: "LAB", label: "Laboratory" },
+  { value: "ROOM", label: "Room" },
   { value: "CABINET", label: "Cabinet / Cupboard" },
   { value: "SHELF", label: "Shelf" },
   { value: "FRIDGE", label: "Refrigerator / Freezer" },

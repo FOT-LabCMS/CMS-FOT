@@ -278,10 +278,25 @@ const getbatchbychemicalid = async (req, res) => {
       return res.status(404).json({ message: "Chemical not found" });
     }
     const today = new Date().toISOString().split("T")[0];
+
+    // Batches that are currently out (released and not yet returned) must not
+    // be shown as available for a new request. A batch is out when it has at
+    // least one Dispose record with returnedStatus = 'RELEASED'.
+    const releasedBatchNumbers = (
+      await Dispose.findAll({
+        where: { returnedStatus: "RELEASED" },
+        attributes: ["batchNumber"],
+        raw: true,
+      })
+    ).map((record) => record.batchNumber);
+
     const batches = await Batch.findAll({
       where: {
         chemicalId: chemical.id,
         [Op.or]: [{ expiryDate: null }, { expiryDate: { [Op.gte]: today } }],
+        ...(releasedBatchNumbers.length > 0
+          ? { batchNumber: { [Op.notIn]: releasedBatchNumbers } }
+          : {}),
       },
       attributes: ["batchNumber", "expiryDate", "currentQuantity"],
       include: [
@@ -294,11 +309,13 @@ const getbatchbychemicalid = async (req, res) => {
       order: [["batchNumber", "ASC"]],
     });
     if (batches.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No batches found for the specified chemical" });
+      return res.json({
+        batches: [],
+        message:
+          "No batches are currently available for this chemical (all available batches are expired or currently out on release).",
+      });
     }
-    res.json({ batches });
+    res.json({ batches, message: null });
   } catch (error) {
     console.error("Error fetching batches by chemical ID:", error);
     res.status(500).json({ message: "Internal server error" });

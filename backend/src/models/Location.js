@@ -11,7 +11,7 @@ module.exports = function LocationModel(sequelize) {
       },
       name: { type: DataTypes.STRING(100), allowNull: false },
       type: {
-        type: DataTypes.ENUM("LAB", "CABINET", "SHELF", "FRIDGE", "OTHER"),
+        type: DataTypes.ENUM("LAB", "ROOM", "CABINET", "SHELF", "FRIDGE", "OTHER"),
         allowNull: false,
       },
       parentLocationId: {

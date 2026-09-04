@@ -12,5 +12,7 @@ router.get('/stats', verifyToken, LocationController.getLocationStats);
 router.get('/', verifyToken, LocationController.getAllLocations);
 router.post('/add', verifyToken, LocationController.addLocation);
 router.get('/:id', verifyToken, LocationController.getLocationById);
+router.put('/:id', verifyToken, LocationController.updateLocation);
+router.delete('/:id', verifyToken, LocationController.deleteLocation);
 
 module.exports = router;

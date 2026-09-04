@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Warehouse, Box, Refrigerator, ChevronRight, Eye, Pencil, FlaskConical } from 'lucide-react';
+import { MapPin, Warehouse, Box, Refrigerator, ChevronRight, Eye, Pencil, Trash2, FlaskConical } from 'lucide-react';
 
 const LOCATION_META = {
   LAB: { icon: Warehouse, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+  ROOM: { icon: Warehouse, color: 'text-green-600', bg: 'bg-green-100' },
   CABINET: { icon: Box, color: 'text-blue-600', bg: 'bg-blue-100' },
   SHELF: { icon: Box, color: 'text-sky-600', bg: 'bg-sky-100' },
   FRIDGE: { icon: Refrigerator, color: 'text-cyan-600', bg: 'bg-cyan-100' },
   OTHER: { icon: MapPin, color: 'text-gray-600', bg: 'bg-gray-100' },
 };
 
-const LocationNode = ({ node, onEdit, isPublicView = false }) => {
+const LocationNode = ({ node, onEdit, onDelete, isPublicView = false }) => {
   const [isOpen, setIsOpen] = useState(true);
   const meta = LOCATION_META[node.type] || LOCATION_META.OTHER;
   const Icon = meta.icon;
@@ -86,11 +87,21 @@ const LocationNode = ({ node, onEdit, isPublicView = false }) => {
             <button
               type="button"
               onClick={() => onEdit(node)}
-              className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-light)]"
+              className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-light)] transition-colors"
               title="Edit Location"
             >
               <Pencil size={16} />
             </button>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(node)}
+                className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-rose-600 text-white hover:bg-rose-700 transition-colors"
+                title="Delete Location"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -122,7 +133,7 @@ const LocationNode = ({ node, onEdit, isPublicView = false }) => {
               </div>
             )}
             {node.children.map((childNode) => (
-              <LocationNode key={childNode.id} node={childNode} onEdit={onEdit} isPublicView={isPublicView} />
+              <LocationNode key={childNode.id} node={childNode} onEdit={onEdit} onDelete={onDelete} isPublicView={isPublicView} />
             ))}
           </div>
         </div>
