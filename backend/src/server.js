@@ -26,9 +26,7 @@ const {
   notifyLowStockBatches,
 } = require("./services/notificationService.js");
 
-const {
-  verifyEmailConnection,
-} = require("./services/emailService.js");
+const { verifyEmailConnection } = require("./services/emailService.js");
 
 const {
   getUploadsRoot,
@@ -51,7 +49,7 @@ const allowedOrigins = [
   "http://192.248.50.135:5173", // Your deployed frontend
   "http://192.248.50.135:5001", // Backend direct access (for uploads)
   "http://192.248.50.135", // Your deployed frontend
-  "http://teclcms.duckdns.org"
+  "http://teclcms.duckdns.org",
 ];
 
 // Dynamically add the FRONTEND_URL from the .env file to the whitelist if it's not already there.
@@ -84,7 +82,7 @@ getImageUploadDir();
 getInstrumentUploadDir();
 
 // Serve uploaded files statically from configurable persistent storage root
-app.use("/uploads", express.static(getUploadsRoot()));
+app.use("/api/uploads", express.static(getUploadsRoot()));
 
 app.get("/", (req, res) => {
   res.json({
