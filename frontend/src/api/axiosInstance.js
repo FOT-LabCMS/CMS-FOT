@@ -1,11 +1,10 @@
 import axios from 'axios';
 
 // The base URL for your backend API.
-// It's good practice to use an environment variable for the server's root URL.
-const API_SERVER_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+const API_SERVER_URL = import.meta.env.VITE_API_BASE_URL;
 
 const api = axios.create({
-  baseURL: `${API_SERVER_URL}/api`,
+  baseURL: `${API_SERVER_URL}`,
 });
 
 export const INVENTORY_REFRESH_EVENT = 'flcms:inventory-refresh';
