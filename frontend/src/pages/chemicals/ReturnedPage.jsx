@@ -591,6 +591,9 @@ const ReturnedPage = () => {
                           <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
                             {record.canonicalName || record.binCardNumber}
                           </h3>
+                          <h3 className="text-sm text-[var(--color-text-muted)]">
+                            {record.batchNumber}
+                          </h3>
                           <span className="inline-flex rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-text-secondary)]">
                             {record.batchCode}
                           </span>

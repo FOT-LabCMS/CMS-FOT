@@ -293,13 +293,27 @@ const DisplosaReq = () => {
               })(),
             })),
           );
+          setForm((prev) => ({ ...prev, batchNumber: "" }));
+          if (sortedBatches.length === 0) {
+            setErrors((prev) => ({
+              ...prev,
+              batchNumber:
+                data.message ||
+                "No batches are currently available for this chemical.",
+            }));
+          } else {
+            setErrors((prev) => ({ ...prev, batchNumber: "" }));
+          }
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
           setBatchOptions([]);
+          setForm((prev) => ({ ...prev, batchNumber: "" }));
           setErrors((prev) => ({
             ...prev,
-            batchNumber: "Unable to load batches for this chemical.",
+            batchNumber:
+              error.response?.data?.message ||
+              "Unable to load batches for this chemical.",
           }));
         }
       } finally {
