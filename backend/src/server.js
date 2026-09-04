@@ -47,11 +47,11 @@ app.set("trust proxy", 1);
 // Define a whitelist of allowed origins
 const allowedOrigins = [
   "http://localhost:5173", // Your local frontend
-  "https://fotcms.onrender.com", // Your deployed frontend
   "http://192.248.50.135:5173", // Your deployed frontend
   "http://192.248.50.135:5001", // Backend direct access (for uploads)
   "http://192.248.50.135", // Your deployed frontend
-  "http://teclcms.duckdns.org"
+  "http://lab.tec.ruh.ac.lk",
+   "https://lab.tec.ruh.ac.lk"
 ];
 
 // Dynamically add the FRONTEND_URL from the .env file to the whitelist if it's not already there.
