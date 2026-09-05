@@ -9,13 +9,14 @@ import {
   Atom,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Footer from "../components/Common/Footer";
 import Header from "../components/Common/Header";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
 
   const cardRefs = useRef([]);
@@ -30,7 +31,9 @@ const Landing = () => {
         navigate("/dashboard");
       }
     } else {
-      navigate("/login");
+      // Preserve the `from` state (e.g. a scanned batch route that was
+      // protected) so the user returns to it after logging in.
+      navigate("/login", { state: location.state });
     }
   };
 

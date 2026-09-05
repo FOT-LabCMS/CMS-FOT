@@ -44,15 +44,21 @@ const Login = () => {
           : userRole === "LECTURER"
             ? "/chemicals/list"
             : "/dashboard";
-      const fromPath = location.state?.from?.pathname;
+      const from = location.state?.from;
+      const fromPath = from?.pathname || "";
+      const fromTarget = `${fromPath}${from?.search || ""}${from?.hash || ""}`;
+      const safeFrom =
+        fromPath &&
+        fromPath !== "/" &&
+        fromPath !== "/dashboard" &&
+        fromPath !== "/home" &&
+        fromPath !== "/login" &&
+        fromPath !== "/reset-password";
       const targetRoute =
         userRole === "COMMON"
           ? "/home"
-          : fromPath &&
-              fromPath !== "/dashboard" &&
-              fromPath !== "/home" &&
-              fromPath !== "/"
-            ? fromPath
+          : safeFrom
+            ? fromTarget
             : defaultRoute;
       navigate(targetRoute, { replace: true });
     } catch (err) {

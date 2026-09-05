@@ -673,7 +673,7 @@ const ViewBatchDetail = () => {
                         className="inline-flex max-w-full flex-col items-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-white p-4 shadow-[var(--shadow-sm)]"
                       >
                         <QRCodeSVG
-                          value={window.location.href}
+                          value={batch.id}
                           size={150}
                           includeMargin={true}
                         />
