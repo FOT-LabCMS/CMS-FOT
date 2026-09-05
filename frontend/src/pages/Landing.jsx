@@ -289,7 +289,7 @@ const Landing = () => {
 
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px_#4ade80]" />
 
-                    Active Portal
+                    Private Portal
 
                   </span>
 
@@ -461,84 +461,6 @@ const Landing = () => {
             </div>
 
           </div>
-        </section>
-
-        {/* ==========================================================
-            HIGHLIGHTS
-            ========================================================== */}
-
-        <section className="mx-auto w-full max-w-6xl px-4 pb-14 sm:px-6 sm:pb-20 lg:px-8">
-
-          <div className="highlight-panel relative overflow-hidden rounded-[1.5rem] border border-white/[0.09] bg-white/[0.035] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.2)] backdrop-blur-xl sm:p-7">
-
-            {/* Top shine */}
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#cba358]/50 to-transparent" />
-
-            {/* Moving shine */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.03] to-transparent animate-[panelShine_8s_ease-in-out_infinite]" />
-
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-5">
-
-              {/* Security */}
-              <div className="group flex items-center gap-3.5 rounded-xl p-2 transition-all duration-300 hover:bg-white/[0.025] sm:p-3">
-
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#cba358]/20 bg-[#cba358]/[0.07] text-[#cba358] transition-all duration-300 group-hover:scale-105 group-hover:rotate-3 group-hover:border-[#cba358]/40">
-                  <Shield className="h-5 w-5" />
-                </div>
-
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.14em] text-white sm:text-[11px]">
-                    Role-Based Security
-                  </h4>
-
-                  <p className="mt-1 text-[10px] leading-4 text-white/40 sm:text-[11px]">
-                    Regulated access for Common, Lecturer, and Admin staff.
-                  </p>
-                </div>
-
-              </div>
-
-              {/* Biosystem */}
-              <div className="group flex items-center gap-3.5 rounded-xl p-2 transition-all duration-300 hover:bg-white/[0.025] sm:p-3">
-
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#4ade80]/20 bg-[#4ade80]/[0.07] text-[#4ade80] transition-all duration-300 group-hover:scale-105 group-hover:-rotate-3 group-hover:border-[#4ade80]/40">
-                  <Atom className="h-5 w-5 animate-[atomFloat_5s_ease-in-out_infinite]" />
-                </div>
-
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.14em] text-white sm:text-[11px]">
-                    Biosystem Labs
-                  </h4>
-
-                  <p className="mt-1 text-[10px] leading-4 text-white/40 sm:text-[11px]">
-                    Department of Biosystems Technology facilities.
-                  </p>
-                </div>
-
-              </div>
-
-              {/* Ecosystem */}
-              <div className="group flex items-center gap-3.5 rounded-xl p-2 transition-all duration-300 hover:bg-white/[0.025] sm:p-3">
-
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] text-white transition-all duration-300 group-hover:scale-105 group-hover:rotate-3 group-hover:border-white/25">
-                  <Layers className="h-5 w-5" />
-                </div>
-
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.14em] text-white sm:text-[11px]">
-                    Unified Ecosystem
-                  </h4>
-
-                  <p className="mt-1 text-[10px] leading-4 text-white/40 sm:text-[11px]">
-                    Integrated management for chemicals & laboratory apparatus.
-                  </p>
-                </div>
-
-              </div>
-
-            </div>
-          </div>
-
         </section>
 
       </main>

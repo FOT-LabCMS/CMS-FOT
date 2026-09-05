@@ -282,6 +282,8 @@ const ChemicalDetails = () => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleteProcessing, setIsDeleteProcessing] = useState(false);
   const [isDownloadingSds, setIsDownloadingSds] = useState(false);
+  const [isConfirmingSdsDelete, setIsConfirmingSdsDelete] = useState(false);
+  const [isSdsDeleteProcessing, setIsSdsDeleteProcessing] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const { user, isAuthenticated } = useAuth();
 
@@ -337,6 +339,23 @@ const ChemicalDetails = () => {
       setIsConfirmingDelete(false);
     } finally {
       setIsDeleteProcessing(false);
+    }
+  };
+
+  const handleSdsDeleteRequest = async () => {
+    setIsSdsDeleteProcessing(true);
+    setError(null);
+    try {
+      const response = await api.delete(`/chemicals/${id}/sds`);
+      if (response.data?.success) {
+        setChemical(response.data.chemical);
+      }
+      setIsConfirmingSdsDelete(false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete the SDS document.');
+      setIsConfirmingSdsDelete(false);
+    } finally {
+      setIsSdsDeleteProcessing(false);
     }
   };
 
@@ -728,6 +747,17 @@ const ChemicalDetails = () => {
                             Download
                           </button>
                         </div>
+
+                        {isAuthenticated && (user.role === "ADMIN" || user.role === "TECHNICAL_OFFICER") && (
+                          <button
+                            type="button"
+                            onClick={() => setIsConfirmingSdsDelete(true)}
+                            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)] color-transition hover:bg-[var(--color-danger)] hover:text-[var(--color-text-inverse)]"
+                          >
+                            <Trash2 size={18} />
+                            Delete SDS
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-2 text-center text-[var(--color-text-muted)]">
@@ -751,6 +781,15 @@ const ChemicalDetails = () => {
         title="Deactivate Chemical"
         message={`Are you sure you want to deactivate "${chemical.canonicalName}"? This action will hide it from the main inventory list but will not remove historical data.`}
         confirmText="Yes, Deactivate"
+      />
+      <DeleteConfirmationModal
+        isOpen={isConfirmingSdsDelete}
+        onClose={() => setIsConfirmingSdsDelete(false)}
+        onConfirm={handleSdsDeleteRequest}
+        isProcessing={isSdsDeleteProcessing}
+        title="Delete SDS Document"
+        message={`Are you sure you want to delete the SDS document "${sdsFilename || 'the SDS document'}" for "${chemical.canonicalName}"? This will permanently remove the file from the SDS library and cannot be undone.`}
+        confirmText="Yes, Delete SDS"
       />
       {/* Full-size Image Preview Modal */}
       {isImageModalOpen && chemical?.imageUrl && (
