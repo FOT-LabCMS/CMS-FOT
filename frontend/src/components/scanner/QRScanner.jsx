@@ -229,6 +229,31 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
     setScanResult(null);
     setResolveError(null);
 
+    // getUserMedia is only exposed in secure contexts (HTTPS) or on
+    // localhost. On a plain HTTP server (e.g. a VPS accessed by IP) mobile
+    // browsers will not provide camera access at all, so fail fast with a
+    // clear message instead of a generic "unable to access camera" error.
+    const hostname =
+      typeof window !== "undefined" ? window.location.hostname : "";
+    const isLocalHost =
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1";
+    const mediaDevicesUnavailable =
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia;
+
+    if (mediaDevicesUnavailable) {
+      if (!isMountedRef.current || !shouldBeScanningRef.current) return;
+      setCameraError(
+        isLocalHost
+          ? "Camera is not available in this browser. Please use the 'Upload QR Image' or 'Manual Code Search' options instead."
+          : "Camera access requires a secure (HTTPS) connection. This page is currently being served over plain HTTP, so mobile browsers block the camera. Please access the application over HTTPS, or use the 'Upload QR Image' / 'Manual Code Search' options below."
+      );
+      setIsScanning(false);
+      return;
+    }
+
     // Stop any previously running instance
     try {
       if (scannerRef.current) {
@@ -311,11 +336,22 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
         return;
       }
       console.error("Camera startup error:", err);
-      setCameraError(
-        err.name === "NotAllowedError"
-          ? "Camera permission was denied. Please allow camera access in your browser settings or enter the code manually."
-          : "Unable to access camera. Please check camera connections or enter the code manually."
-      );
+      const name = err?.name || "";
+      let message;
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        message =
+          "Camera permission was denied. Please allow camera access in your browser settings, or use the 'Upload QR Image' / 'Manual Code Search' options instead.";
+      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+        message =
+          "No usable camera was found on this device. You can still use the 'Upload QR Image' / 'Manual Code Search' options.";
+      } else if (name === "NotReadableError" || name === "AbortError") {
+        message =
+          "The camera is currently unavailable (it may be in use by another application). Try again, or use the 'Upload QR Image' / 'Manual Code Search' options.";
+      } else {
+        message =
+          "Unable to access the camera. If the app is being served over plain HTTP, mobile browsers block camera access — please use HTTPS. You can also use the 'Upload QR Image' / 'Manual Code Search' options.";
+      }
+      setCameraError(message);
       setIsScanning(false);
       killVideoTracks();
     }

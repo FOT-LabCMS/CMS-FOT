@@ -74,7 +74,7 @@ const getStatus = (batch) => {
 };
 
 const QrCodeModal = ({ batch, onClose }) => {
-  const qrValue = `${window.location.origin}/stock/batches/${batch.id}`;
+  const qrValue = batch.id;
   const [isDownloading, setIsDownloading] = useState(false);
 
   const handlePrint = () => {

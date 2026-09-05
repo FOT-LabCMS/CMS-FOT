@@ -136,11 +136,6 @@ const Instruments = () => {
                   <h1 className="text-2xl font-extrabold leading-tight text-[var(--color-text-inverse)] sm:text-4xl lg:text-5xl">
                     Laboratory Instruments & Apparatus
                   </h1>
-                  <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--color-primary-tint)] sm:text-base">
-                    Browse scientific instruments, high-precision laboratory
-                    apparatus, calibration schedules, and reservation policies
-                    across faculty laboratories.
-                  </p>
                 </div>
               </div>
             </div>

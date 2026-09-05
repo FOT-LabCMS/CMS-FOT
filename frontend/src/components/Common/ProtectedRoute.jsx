@@ -23,8 +23,15 @@ const ProtectedRoute = ({ children, roles }) => {
     if (user?.role === 'LECTURER') {
       return <Navigate to="/chemicals/list" replace />;
     }
-    
-    // For all other roles, redirect to the dashboard
+
+    // Student / COMMON users have no access to staff-only routes. Send them
+    // to their own home page (/home) instead of the staff dashboard, which
+    // itself requires staff roles and would otherwise cause a redirect loop.
+    if (user?.role === 'STUDENT' || user?.role === 'COMMON') {
+      return <Navigate to="/home" replace />;
+    }
+
+    // For all other roles (ADMIN, TECHNICAL_OFFICER), redirect to the dashboard
     return <Navigate to="/dashboard" replace />;
   }
 
