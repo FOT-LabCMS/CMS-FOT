@@ -2,11 +2,8 @@ import {
   FlaskConical,
   Microscope,
   ArrowRight,
-  Shield,
   Sparkles,
-  Layers,
   CheckCircle2,
-  Atom,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
