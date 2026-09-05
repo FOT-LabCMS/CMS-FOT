@@ -30,6 +30,30 @@ import {
   Microscope,
 } from "lucide-react";
 
+const sidebarScrollbarStyles = `
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+  }
+`;
+
 const ROLE_LABELS = {
   ADMIN: "Admin",
   TECHNICAL_OFFICER: "Technical Officer",
@@ -241,7 +265,12 @@ const getInitials = (name = "") => {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 };
 
-const SidebarLink = ({ item, closeMobileMenu, notificationCount = 0, isCollapsed = false }) => {
+const SidebarLink = ({
+  item,
+  closeMobileMenu,
+  notificationCount = 0,
+  isCollapsed = false,
+}) => {
   const Icon = item.icon;
   const showNotificationBadge =
     item.path === "/notifications" && notificationCount > 0;
@@ -307,7 +336,13 @@ const SidebarLink = ({ item, closeMobileMenu, notificationCount = 0, isCollapsed
   );
 };
 
-const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole, isCollapsed = false, expandSidebar }) => {
+const CollapsibleSidebarLink = ({
+  item,
+  closeMobileMenu,
+  userRole,
+  isCollapsed = false,
+  expandSidebar,
+}) => {
   const { pathname } = useLocation();
   const isParentActive = pathname.startsWith(item.pathPrefix);
   const [isOpen, setIsOpen] = useState(isParentActive);
@@ -366,7 +401,7 @@ const CollapsibleSidebarLink = ({ item, closeMobileMenu, userRole, isCollapsed =
         >
           <Icon size={18} strokeWidth={2} />
         </span>
-        
+
         {!isCollapsed && (
           <>
             <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -466,11 +501,15 @@ const SidebarContent = ({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Logo */}
-      <div className={`border-b border-[var(--color-text-inverse)]/10 py-5 transition-all duration-300 flex ${isCollapsed ? "px-2 flex-col items-center gap-3" : "px-5 flex-row items-center justify-between"}`}>
+      <div
+        className={`border-b border-[var(--color-text-inverse)]/10 py-5 transition-all duration-300 flex ${isCollapsed ? "px-2 flex-col items-center gap-3" : "px-5 flex-row items-center justify-between"}`}
+      >
         <button
           type="button"
           onClick={() => {
-            navigate(userRole === "LECTURER" ? "/chemicals/list" : "/dashboard");
+            navigate(
+              userRole === "LECTURER" ? "/chemicals/list" : "/dashboard",
+            );
             closeMobileMenu();
           }}
           className={`flex cursor-pointer items-center text-left min-w-0 ${isCollapsed ? "justify-center" : "gap-3 flex-1"}`}
@@ -507,7 +546,11 @@ const SidebarContent = ({
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             className="hidden lg:flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-inverse)]/80 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-text-inverse)] transition-colors duration-200"
           >
-            {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+            {isCollapsed ? (
+              <PanelLeftOpen size={20} />
+            ) : (
+              <PanelLeftClose size={20} />
+            )}
           </button>
         )}
       </div>
@@ -598,10 +641,19 @@ const SidebarContent = ({
       </SimpleBar>
 
       {/* User panel */}
-      <div className={`border-t border-[var(--color-text-inverse)]/10 transition-all duration-300 ${isCollapsed ? "p-2" : "p-4"}`}>
-        <div className={`rounded-[var(--radius-md)] bg-[var(--color-text-inverse)]/5 transition-all duration-300 ${isCollapsed ? "p-2 flex flex-col items-center gap-2" : "p-3"}`}>
-          <div className={`flex items-center ${isCollapsed ? "flex-col justify-center gap-2" : "gap-3"}`}>
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-sm font-extrabold text-[var(--color-text-inverse)]" title={userName}>
+      <div
+        className={`border-t border-[var(--color-text-inverse)]/10 transition-all duration-300 ${isCollapsed ? "p-2" : "p-4"}`}
+      >
+        <div
+          className={`rounded-[var(--radius-md)] bg-[var(--color-text-inverse)]/5 transition-all duration-300 ${isCollapsed ? "p-2 flex flex-col items-center gap-2" : "p-3"}`}
+        >
+          <div
+            className={`flex items-center ${isCollapsed ? "flex-col justify-center gap-2" : "gap-3"}`}
+          >
+            <div
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-sm font-extrabold text-[var(--color-text-inverse)]"
+              title={userName}
+            >
               {getInitials(userName)}
             </div>
 
@@ -620,7 +672,7 @@ const SidebarContent = ({
                     {ROLE_LABELS[userRole] || userRole}
                   </span>
                 </div>
-                
+
                 <button
                   type="button"
                   onClick={openPasswordReset}
@@ -734,6 +786,7 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
 
   return (
     <>
+      <style>{sidebarScrollbarStyles}</style>
       {/* Mobile top bar */}
       <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 shadow-[var(--shadow-sm)] lg:hidden">
         <button
@@ -784,7 +837,9 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
       </header>
 
       {/* Desktop sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-40 hidden border-r border-white/10 bg-[var(--color-primary-dark)] shadow-[var(--shadow-lg)] lg:block transition-[width] duration-300 ease-in-out ${isCollapsed ? "w-20" : "w-72"}`}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 hidden border-r border-white/10 bg-[var(--color-primary-dark)] shadow-[var(--shadow-lg)] lg:block transition-[width] duration-300 ease-in-out ${isCollapsed ? "w-20" : "w-72"}`}
+      >
         <SidebarContent
           user={user}
           mainItems={mainItems}

@@ -104,7 +104,6 @@ const Landing = () => {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#061b13] font-[family-name:var(--font-body)] text-white selection:bg-[#cba358] selection:text-[#062c1e]">
-
       {/* ============================================================
           BACKGROUND SYSTEM
           ============================================================ */}
@@ -139,7 +138,6 @@ const Landing = () => {
           ============================================================ */}
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-
         <span className="absolute left-[8%] top-[18%] h-1 w-1 animate-[float_7s_ease-in-out_infinite] rounded-full bg-[#d6aa5e] shadow-[0_0_15px_#d6aa5e]" />
 
         <span className="absolute left-[20%] top-[48%] h-1.5 w-1.5 animate-[float_9s_ease-in-out_infinite_1s] rounded-full bg-[#4ade80] shadow-[0_0_18px_#4ade80]" />
@@ -155,7 +153,6 @@ const Landing = () => {
         <span className="absolute left-[52%] top-[15%] h-1 w-1 animate-[float_12s_ease-in-out_infinite_3s] rounded-full bg-white/40 shadow-[0_0_12px_white]" />
 
         <span className="absolute left-[70%] bottom-[32%] h-1.5 w-1.5 animate-[float_9s_ease-in-out_infinite_2s] rounded-full bg-[#d6aa5e]/70 shadow-[0_0_15px_#d6aa5e]" />
-
       </div>
 
       {/* ============================================================
@@ -171,17 +168,14 @@ const Landing = () => {
           ============================================================ */}
 
       <main className="relative z-10 flex w-full flex-1 flex-col">
-
         {/* ==========================================================
             HERO
             ========================================================== */}
 
         <section className="mx-auto flex w-full max-w-7xl flex-col items-center px-4 pb-10 pt-14 sm:px-6 sm:pb-16 sm:pt-20 lg:px-8 lg:pb-20 lg:pt-24">
-
           {/* Eyebrow */}
           <div className="landing-fade-up mb-7">
             <div className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-[#cba358]/30 bg-white/[0.045] px-4 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.2)] backdrop-blur-xl">
-
               {/* Shine */}
               <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
 
@@ -195,46 +189,33 @@ const Landing = () => {
 
           {/* Main heading */}
           <div className="landing-fade-up landing-delay-1 text-center">
-
             <h1 className="mx-auto max-w-5xl text-[2.25rem] font-serif font-bold leading-[1.08] tracking-[-0.035em] sm:text-5xl md:text-6xl lg:text-7xl">
-
-              <span className="block text-white">
-                Welcome to
-              </span>
+              <span className="block text-white">Welcome to</span>
 
               <span className="luxury-shimmer mt-2 block bg-gradient-to-r from-[#f9f1d8] via-[#d6aa5e] to-[#f1dfb0] bg-clip-text text-transparent">
                 Faculty Laboratory Chemical
               </span>
 
-              <span className="block text-white/90">
-                Management
-              </span>
-
+              <span className="block text-white/90">Management</span>
             </h1>
-
           </div>
 
           {/* Description */}
           <div className="landing-fade-up landing-delay-2">
-
             <p className="mx-auto mt-6 max-w-2xl text-center text-sm leading-7 text-white/55 sm:mt-7 sm:text-base sm:leading-8 lg:text-lg">
-              Select a laboratory division below to explore resources,
-              inventory catalogues, safety data, and apparatus portals.
+              Select a laboratory division below to explore resources, inventory
+              catalogues, safety data, and apparatus portals.
             </p>
-
           </div>
 
           {/* Decorative line */}
           <div className="landing-fade-up landing-delay-3 mt-8 flex items-center gap-3">
-
             <span className="h-px w-10 animate-[lineGlow_3s_ease-in-out_infinite] bg-gradient-to-r from-transparent to-[#cba358]/60 sm:w-16" />
 
             <span className="h-1.5 w-1.5 animate-[diamondPulse_3s_ease-in-out_infinite] rotate-45 border border-[#cba358] bg-[#cba358]/20" />
 
             <span className="h-px w-10 animate-[lineGlow_3s_ease-in-out_infinite] bg-gradient-to-l from-transparent to-[#cba358]/60 sm:w-16" />
-
           </div>
-
         </section>
 
         {/* ==========================================================
@@ -242,9 +223,7 @@ const Landing = () => {
             ========================================================== */}
 
         <section className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6 sm:pb-16 lg:px-8">
-
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-7">
-
             {/* ======================================================
                 CHEMICALS
                 ====================================================== */}
@@ -255,7 +234,6 @@ const Landing = () => {
               }}
               className="landing-card group relative flex flex-col overflow-hidden rounded-[1.75rem] border border-white/[0.10] bg-white/[0.045] p-6 shadow-[0_25px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl sm:p-8 lg:p-9"
             >
-
               {/* Mouse spotlight */}
               <div className="pointer-events-none absolute left-[var(--mouse-x,50%)] top-[var(--mouse-y,50%)] z-0 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#4ade80]/10 opacity-0 blur-[65px] transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -269,33 +247,25 @@ const Landing = () => {
               <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#4ade80]/50 to-transparent opacity-60 transition-opacity duration-500 group-hover:opacity-100" />
 
               <div className="relative z-10 flex flex-1 flex-col">
-
                 {/* Icon + badge */}
                 <div className="mb-8 flex items-start justify-between gap-4">
-
                   <div className="relative">
-
                     <div className="absolute inset-0 rounded-2xl bg-[#4ade80]/20 blur-xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
                     <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[#4ade80]/25 bg-gradient-to-br from-[#1b4332] to-[#092016] text-[#4ade80] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-all duration-500 group-hover:scale-105 group-hover:border-[#4ade80]/50 sm:h-16 sm:w-16">
-
                       <FlaskConical
                         className="h-7 w-7 animate-[iconFloat_4s_ease-in-out_infinite] sm:h-8 sm:w-8"
                         strokeWidth={1.6}
                       />
-
                     </div>
-
                   </div>
 
                   <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/[0.08] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-emerald-300 sm:text-[10px]">
-
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px_#4ade80]" />
 
                     Private Portal
 
                   </span>
-
                 </div>
 
                 {/* Title */}
@@ -311,12 +281,9 @@ const Landing = () => {
 
                 {/* Features */}
                 <ul className="mt-7 space-y-3.5">
-
                   <li className="flex items-start gap-3 text-xs leading-5 text-white/75 transition-transform duration-300 hover:translate-x-1">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#cba358]" />
-                    <span>
-                      Chemical catalogue & live availability search
-                    </span>
+                    <span>Chemical catalogue & live availability search</span>
                   </li>
 
                   <li className="flex items-start gap-3 text-xs leading-5 text-white/75 transition-transform duration-300 hover:translate-x-1">
@@ -328,11 +295,8 @@ const Landing = () => {
 
                   <li className="flex items-start gap-3 text-xs leading-5 text-white/75 transition-transform duration-300 hover:translate-x-1">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#cba358]" />
-                    <span>
-                      Stock tracking & batch management
-                    </span>
+                    <span>Stock tracking & batch management</span>
                   </li>
-
                 </ul>
 
                 {/* Button */}
@@ -341,18 +305,13 @@ const Landing = () => {
                   onClick={handleChemicalsClick}
                   className="group/button relative mt-8 inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl border border-[#cba358]/30 bg-gradient-to-r from-[#123c2b] via-[#1b513a] to-[#123c2b] px-5 py-3.5 text-sm font-bold text-[#f9f1d8] shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition-all duration-300 hover:border-[#cba358]/70 hover:from-[#cba358] hover:via-[#d6aa5e] hover:to-[#b8873a] hover:text-[#062c1e] hover:shadow-[0_10px_35px_rgba(203,163,90,0.30)] active:scale-[0.98] sm:py-4"
                 >
-
                   {/* Button shine */}
                   <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover/button:translate-x-full" />
 
-                  <span className="relative z-10">
-                    Explore Chemicals
-                  </span>
+                  <span className="relative z-10">Explore Chemicals</span>
 
                   <ArrowRight className="relative z-10 h-4 w-4 transition-transform duration-300 group-hover/button:translate-x-1" />
-
                 </button>
-
               </div>
             </div>
 
@@ -366,7 +325,6 @@ const Landing = () => {
               }}
               className="landing-card group relative flex flex-col overflow-hidden rounded-[1.75rem] border border-white/[0.10] bg-white/[0.045] p-6 shadow-[0_25px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl sm:p-8 lg:p-9"
             >
-
               {/* Mouse spotlight */}
               <div className="pointer-events-none absolute left-[var(--mouse-x,50%)] top-[var(--mouse-y,50%)] z-0 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#cba358]/10 opacity-0 blur-[65px] transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -380,29 +338,22 @@ const Landing = () => {
               <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#cba358]/50 to-transparent opacity-60 transition-opacity duration-500 group-hover:opacity-100" />
 
               <div className="relative z-10 flex flex-1 flex-col">
-
                 {/* Icon + badge */}
                 <div className="mb-8 flex items-start justify-between gap-4">
-
                   <div className="relative">
-
                     <div className="absolute inset-0 rounded-2xl bg-[#cba358]/20 blur-xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
                     <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[#cba358]/25 bg-gradient-to-br from-[#1b4332] to-[#092016] text-[#cba358] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-all duration-500 group-hover:scale-105 group-hover:border-[#cba358]/50 sm:h-16 sm:w-16">
-
                       <Microscope
                         className="h-7 w-7 animate-[iconFloat_4.5s_ease-in-out_infinite] sm:h-8 sm:w-8"
                         strokeWidth={1.6}
                       />
-
                     </div>
-
                   </div>
 
                   <span className="inline-flex items-center rounded-full border border-amber-400/20 bg-amber-500/[0.08] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-amber-300 sm:text-[10px]">
                     Public Portal
                   </span>
-
                 </div>
 
                 {/* Title */}
@@ -418,28 +369,20 @@ const Landing = () => {
 
                 {/* Features */}
                 <ul className="mt-7 space-y-3.5">
-
                   <li className="flex items-start gap-3 text-xs leading-5 text-white/75 transition-transform duration-300 hover:translate-x-1">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#cba358]" />
-                    <span>
-                      Scientific apparatus & equipment directory
-                    </span>
+                    <span>Scientific apparatus & equipment directory</span>
                   </li>
 
                   <li className="flex items-start gap-3 text-xs leading-5 text-white/75 transition-transform duration-300 hover:translate-x-1">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#cba358]" />
-                    <span>
-                      Equipment reservation & booking policy
-                    </span>
+                    <span>Equipment reservation & booking policy</span>
                   </li>
 
                   <li className="flex items-start gap-3 text-xs leading-5 text-white/75 transition-transform duration-300 hover:translate-x-1">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#cba358]" />
-                    <span>
-                      Calibration schedules & technical logs
-                    </span>
+                    <span>Calibration schedules & technical logs</span>
                   </li>
-
                 </ul>
 
                 {/* Button */}
@@ -448,24 +391,17 @@ const Landing = () => {
                   onClick={handleInstrumentsClick}
                   className="group/button relative mt-8 inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl border border-[#cba358]/30 bg-gradient-to-r from-[#123c2b] via-[#1b513a] to-[#123c2b] px-5 py-3.5 text-sm font-bold text-[#f9f1d8] shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition-all duration-300 hover:border-[#cba358]/70 hover:from-[#cba358] hover:via-[#d6aa5e] hover:to-[#b8873a] hover:text-[#062c1e] hover:shadow-[0_10px_35px_rgba(203,163,90,0.30)] active:scale-[0.98] sm:py-4"
                 >
-
                   {/* Button shine */}
                   <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover/button:translate-x-full" />
 
-                  <span className="relative z-10">
-                    Explore Instruments
-                  </span>
+                  <span className="relative z-10">Explore Instruments</span>
 
                   <ArrowRight className="relative z-10 h-4 w-4 transition-transform duration-300 group-hover/button:translate-x-1" />
-
                 </button>
-
               </div>
             </div>
-
           </div>
         </section>
-
       </main>
 
       {/* ============================================================
@@ -797,7 +733,6 @@ const Landing = () => {
         }
 
       `}</style>
-
     </div>
   );
 };
