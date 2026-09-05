@@ -150,6 +150,8 @@ const EditChemicalModal = ({
   onSuccess,
 }) => {
   const modalRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const sdsInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     canonicalName: "",
@@ -336,6 +338,8 @@ const EditChemicalModal = ({
 
     if (!selectedFile) return;
 
+    event.target.value = "";
+
     const allowedTypes = [
       "application/pdf",
       "application/msword",
@@ -377,6 +381,8 @@ const EditChemicalModal = ({
   const handleImageChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    event.target.value = "";
 
     const allowedTypes = [
       "image/jpeg",
@@ -615,35 +621,37 @@ const EditChemicalModal = ({
     <div
       className="
         fixed inset-0 z-[100]
-        flex items-center justify-center
-        overflow-hidden
+        overflow-y-auto
         bg-[var(--color-primary-dark)]/70
-        p-3 backdrop-blur-sm
-        sm:p-6
+        backdrop-blur-sm
       "
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-chemical-title"
-      onMouseDown={handleBackdropClick}
     >
       <div
-        ref={modalRef}
         className="
-          flex max-h-[calc(100dvh-24px)] w-full
-          max-w-4xl flex-col
-          overflow-hidden
-          rounded-[var(--radius-lg)]
-          border border-[var(--color-border)]
-          bg-[var(--color-surface)]
-          shadow-[var(--shadow-lg)]
-          sm:max-h-[calc(100dvh-48px)]
+          flex min-h-full items-center
+          justify-center p-3
+          sm:p-6
         "
-        onMouseDown={(event) =>
-          event.stopPropagation()
-        }
+        onMouseDown={handleBackdropClick}
       >
-        {/* Header */}
-        <header
+        <div
+          ref={modalRef}
+          className="
+            flex max-h-[calc(100dvh-24px)] w-full
+            max-w-4xl flex-col
+            overflow-hidden
+            rounded-[var(--radius-lg)]
+            border border-[var(--color-border)]
+            bg-[var(--color-surface)]
+            shadow-[var(--shadow-lg)]
+            sm:max-h-[calc(100dvh-48px)]
+          "
+        >
+          {/* Header */}
+          <header
           className="
             flex shrink-0 items-center justify-between
             border-b border-[var(--color-border)]
@@ -980,10 +988,13 @@ const EditChemicalModal = ({
                 />
 
                 {!imagePreview && !existingImageUrl ? (
-                  <label
-                    htmlFor="editImageFileInput"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      imageInputRef.current?.click()
+                    }
                     className={`
-                      flex flex-col items-center justify-center gap-3
+                      flex w-full flex-col items-center justify-center gap-3
                       rounded-[var(--radius-lg)] border-2 border-dashed
                       p-6 text-center cursor-pointer color-transition
                       ${
@@ -1004,15 +1015,7 @@ const EditChemicalModal = ({
                         Supports PNG, JPG, JPEG, WEBP, GIF, SVG up to 10 MB
                       </p>
                     </div>
-                    <input
-                      id="editImageFileInput"
-                      name="imageFile"
-                      type="file"
-                      accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
-                      onChange={handleImageChange}
-                      className="sr-only"
-                    />
-                  </label>
+                  </button>
                 ) : (
                   <div className="flex flex-col sm:flex-row items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
                     <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-black/5">
@@ -1033,20 +1036,15 @@ const EditChemicalModal = ({
                         {imageFile ? `${(imageFile.size / 1024 / 1024).toFixed(2)} MB` : "Attached image"}
                       </p>
                       <div className="mt-2 flex items-center justify-center sm:justify-start gap-2">
-                        <label
-                          htmlFor="editImageFileInput"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            imageInputRef.current?.click()
+                          }
                           className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)] cursor-pointer color-transition"
                         >
                           Change Image
-                          <input
-                            id="editImageFileInput"
-                            name="imageFile"
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
-                            onChange={handleImageChange}
-                            className="sr-only"
-                          />
-                        </label>
+                        </button>
                         <button
                           type="button"
                           onClick={handleRemoveImage}
@@ -1059,6 +1057,16 @@ const EditChemicalModal = ({
                     </div>
                   </div>
                 )}
+
+                <input
+                  ref={imageInputRef}
+                  id="editImageFileInput"
+                  name="imageFile"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
 
                 <ErrorMessage message={errors.imageFile} />
               </section>
@@ -1452,10 +1460,14 @@ const EditChemicalModal = ({
                       </button>
                     </div>
                   ) : (
-                    <label
-                      htmlFor="sdsFileEdit"
+                    <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        sdsInputRef.current?.click()
+                      }
                       className={`
-                        flex cursor-pointer
+                        flex w-full cursor-pointer
                         flex-col items-center justify-center
                         gap-2 rounded-[var(--radius-md)]
                         border-2 border-dashed
@@ -1480,16 +1492,18 @@ const EditChemicalModal = ({
                       <span className="text-xs text-[var(--color-text-muted)]">
                         Click to browse your files
                       </span>
+                    </button>
 
-                      <input
-                        id="sdsFileEdit"
-                        name="sdsFile"
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleFileChange}
-                        className="sr-only"
-                      />
-                    </label>
+                    <input
+                      ref={sdsInputRef}
+                      id="sdsFileEdit"
+                      name="sdsFile"
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    </>
                   )}
 
                   <ErrorMessage
@@ -1622,6 +1636,7 @@ const EditChemicalModal = ({
             </div>
           </footer>
         </form>
+      </div>
       </div>
     </div>
   );
