@@ -217,7 +217,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
   }, [autoNavigate, navigate, onResult, onClose, saveRecentScan, stopCamera]);
 
   // Start Camera Scanning
-  const startCamera = useCallback(async (cameraId = null) => {
+  const startCamera = useCallback(async (cameraId = null, { userInitiated = false } = {}) => {
     shouldBeScanningRef.current = true;
     try {
       localStorage.setItem("cms-scanner-power", "on");
@@ -275,27 +275,6 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
       const html5QrCode = new Html5Qrcode(readerId);
       scannerRef.current = html5QrCode;
 
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length > 0) {
-          setCameras(devices);
-          if (!selectedCameraId) {
-            // Auto-select the back-facing camera id for the flip UI only.
-            // The initial scan itself must NOT be forced to an exact deviceId
-            // because that constraint is unreliable on iOS/WebKit (and
-            // getCameras() already performed a getUserMedia internally).
-            const rearCamera = devices.find(d =>
-              d.label.toLowerCase().includes("back") ||
-              d.label.toLowerCase().includes("rear") ||
-              d.label.toLowerCase().includes("environment")
-            );
-            setSelectedCameraId(rearCamera ? rearCamera.id : devices[0].id);
-          }
-        }
-      } catch (e) {
-        console.warn("Could not enumerate camera devices", e);
-      }
-
       if (!isMountedRef.current || !shouldBeScanningRef.current) return;
 
       // html5-qrcode only accepts a string deviceId or a string facingMode
@@ -309,9 +288,11 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
         : { facingMode: "environment" };
 
       const fallbackCameraConfig = { facingMode: "environment" };
-      // The aspectRatio constraint is applied to the live track via
-      // applyConstraints() and is a known source of OverconstrainedError on
-      // some iOS versions, so it is omitted from the safe fallback attempt.
+      // aspectRatio is deliberately omitted from every start config: it is
+      // applied post-acquisition via applyConstraints() and is a known source
+      // of OverconstrainedError on some iOS versions. A rejected
+      // applyConstraints() also leaks the already-acquired stream (invisible
+      // to killVideoTracks), which then poisons any retry on WebKit.
       const fallbackScanningConfig = { fps: 15 };
 
       setIsScanning(true);
@@ -346,7 +327,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
       try {
         await html5QrCode.start(
           cameraConfig,
-          { fps: 15, aspectRatio: 1.5 },
+          { fps: 15 },
           onDecoded,
           onDecodeError
         );
@@ -362,6 +343,35 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
           onDecoded,
           onDecodeError
         );
+      }
+
+      // Deferred device enumeration for the flip UI. Deliberately runs AFTER
+      // the first start succeeds: Html5Qrcode.getCameras() performs its own
+      // getUserMedia acquire-and-release (opening the camera twice in rapid
+      // succession — enumerate then start — is unreliable on iOS/WebKit and
+      // frequently fails the second acquisition with NotReadableError).
+      if (isMountedRef.current && shouldBeScanningRef.current) {
+        Html5Qrcode.getCameras()
+          .then((devices) => {
+            if (!isMountedRef.current) return;
+            if (devices && devices.length > 0) {
+              setCameras(devices);
+              if (!selectedCameraId) {
+                // Auto-select the back-facing camera id for the flip UI only.
+                // The initial scan itself must NOT be forced to an exact
+                // deviceId because that constraint is unreliable on iOS/WebKit.
+                const rearCamera = devices.find(d =>
+                  d.label.toLowerCase().includes("back") ||
+                  d.label.toLowerCase().includes("rear") ||
+                  d.label.toLowerCase().includes("environment")
+                );
+                setSelectedCameraId(rearCamera ? rearCamera.id : devices[0].id);
+              }
+            }
+          })
+          .catch((e) => {
+            console.warn("Could not enumerate camera devices", e);
+          });
       }
 
       // Guard: if user navigated away or switched while camera was starting
@@ -384,6 +394,15 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
       }
       console.error("Camera startup error:", err);
       const name = err?.name || "";
+      if ((name === "NotAllowedError" || name === "SecurityError") && !userInitiated) {
+        // Non-fatal for the scripted auto-start on mount: leave the scanner
+        // paused so a user-gesture tap on "Start Camera" can retry cleanly,
+        // since WebKit is stricter about non-gesture acquisitions on iPhone.
+        console.info("Camera permission not granted on auto-start; awaiting explicit 'Start Camera'");
+        setIsScanning(false);
+        killVideoTracks();
+        return;
+      }
       let message;
       if (name === "NotAllowedError" || name === "SecurityError") {
         message =
@@ -411,7 +430,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
     const nextIndex = (currentIndex + 1) % cameras.length;
     const nextCamera = cameras[nextIndex];
     setSelectedCameraId(nextCamera.id);
-    stopCamera().then(() => startCamera(nextCamera.id));
+    stopCamera().then(() => startCamera(nextCamera.id, { userInitiated: true }));
   };
 
   // Image file QR upload
@@ -544,7 +563,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
                 ) : (
                   <button
                     type="button"
-                    onClick={() => startCamera()}
+                    onClick={() => startCamera(null, { userInitiated: true })}
                     title="Start scanner camera"
                     className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--color-primary-light)] color-transition shadow-sm"
                   >
@@ -630,7 +649,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => startCamera()}
+                      onClick={() => startCamera(null, { userInitiated: true })}
                       className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[var(--color-primary-light)] color-transition shadow"
                     >
                       <Camera size={14} />
