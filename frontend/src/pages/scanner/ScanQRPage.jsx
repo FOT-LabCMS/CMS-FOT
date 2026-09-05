@@ -8,17 +8,9 @@ const ScanQRPage = () => {
   const { user } = useAuth();
 
   const handleBack = () => {
-    try {
-      document.querySelectorAll("video").forEach((video) => {
-        if (video.srcObject && typeof video.srcObject.getTracks === "function") {
-          video.srcObject.getTracks().forEach((track) => track.stop());
-          video.srcObject = null;
-        }
-      });
-    } catch {
-      // ignore
-    }
-
+    // QRScanner's own useEffect cleanup handles camera teardown on unmount.
+    // We do not manually stop video tracks here to avoid racing with
+    // html5-qrcode's internal removeChild() calls.
     if (window.history.state?.idx > 0 || window.history.length > 1) {
       navigate(-1);
     } else {
