@@ -21,6 +21,7 @@ import {
 
 import api from "../../api/axiosInstance";
 import { getChemicalImageUrl } from "../../utils/chemicalImage";
+import useFileDrop from "../forms/useFileDrop";
 
 const STOCK_DIMENSION_OPTIONS = [
   {
@@ -333,12 +334,8 @@ const EditChemicalModal = ({
     });
   };
 
-  const handleFileChange = (event) => {
-    const selectedFile = event.target.files?.[0];
-
+  const processSdsFile = (selectedFile) => {
     if (!selectedFile) return;
-
-    event.target.value = "";
 
     const allowedTypes = [
       "application/pdf",
@@ -355,7 +352,6 @@ const EditChemicalModal = ({
           "Only PDF, DOC and DOCX files are allowed.",
       }));
 
-      event.target.value = "";
       return;
     }
 
@@ -366,7 +362,6 @@ const EditChemicalModal = ({
           "The SDS document must not exceed 10 MB.",
       }));
 
-      event.target.value = "";
       return;
     }
 
@@ -378,11 +373,13 @@ const EditChemicalModal = ({
     }));
   };
 
-  const handleImageChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const handleFileChange = (event) => {
+    processSdsFile(event.target.files?.[0]);
     event.target.value = "";
+  };
+
+  const processImageFile = (file) => {
+    if (!file) return;
 
     const allowedTypes = [
       "image/jpeg",
@@ -412,6 +409,11 @@ const EditChemicalModal = ({
     setImagePreview(URL.createObjectURL(file));
     setRemoveImage(false);
     setErrors((previous) => ({ ...previous, imageFile: "" }));
+  };
+
+  const handleImageChange = (event) => {
+    processImageFile(event.target.files?.[0]);
+    event.target.value = "";
   };
 
   const handleRemoveImage = () => {
@@ -614,6 +616,9 @@ const EditChemicalModal = ({
       onClose();
     }
   };
+
+  const imageDrop = useFileDrop(processImageFile);
+  const sdsDrop = useFileDrop(processSdsFile);
 
   if (!chemical) return null;
 
@@ -993,14 +998,17 @@ const EditChemicalModal = ({
                     onClick={() =>
                       imageInputRef.current?.click()
                     }
+                    {...imageDrop.dragHandlers}
                     className={`
                       flex w-full flex-col items-center justify-center gap-3
                       rounded-[var(--radius-lg)] border-2 border-dashed
                       p-6 text-center cursor-pointer color-transition
                       ${
-                        errors.imageFile
-                          ? "border-[var(--color-danger)] bg-red-500/5"
-                          : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
+                        imageDrop.isDragging
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary-tint)]"
+                          : errors.imageFile
+                            ? "border-[var(--color-danger)] bg-red-500/5"
+                            : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
                       }
                     `}
                   >
@@ -1009,7 +1017,9 @@ const EditChemicalModal = ({
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                        Click or drag & drop to upload a new bottle image
+                        {imageDrop.isDragging
+                          ? "Drop the image here"
+                          : "Click or drag & drop to upload a new bottle image"}
                       </p>
                       <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                         Supports PNG, JPG, JPEG, WEBP, GIF, SVG up to 10 MB
@@ -1041,6 +1051,7 @@ const EditChemicalModal = ({
                           onClick={() =>
                             imageInputRef.current?.click()
                           }
+                          {...imageDrop.dragHandlers}
                           className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)] cursor-pointer color-transition"
                         >
                           Change Image
@@ -1466,6 +1477,7 @@ const EditChemicalModal = ({
                       onClick={() =>
                         sdsInputRef.current?.click()
                       }
+                      {...sdsDrop.dragHandlers}
                       className={`
                         flex w-full cursor-pointer
                         flex-col items-center justify-center
@@ -1474,9 +1486,11 @@ const EditChemicalModal = ({
                         px-4 py-7 text-center
                         color-transition
                         ${
-                          errors.sdsFile
-                            ? "border-[var(--color-danger)]"
-                            : "border-[var(--color-border-strong)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]"
+                          sdsDrop.isDragging
+                            ? "border-[var(--color-primary)] bg-[var(--color-primary-tint)]"
+                            : errors.sdsFile
+                              ? "border-[var(--color-danger)]"
+                              : "border-[var(--color-border-strong)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]"
                         }
                       `}
                     >
@@ -1486,11 +1500,15 @@ const EditChemicalModal = ({
                       />
 
                       <span className="text-sm font-semibold text-[var(--color-text-primary)]">
-                        Select a replacement SDS
+                        {sdsDrop.isDragging
+                          ? "Drop the document here"
+                          : "Select a replacement SDS"}
                       </span>
 
                       <span className="text-xs text-[var(--color-text-muted)]">
-                        Click to browse your files
+                        {sdsDrop.isDragging
+                          ? "Release to add the document"
+                          : "Click to browse your files"}
                       </span>
                     </button>
 

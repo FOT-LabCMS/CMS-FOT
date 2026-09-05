@@ -104,3 +104,60 @@ h6 {
     scroll-behavior: auto !important;
   }
 }
+
+/* =========================================================
+   Sidebar SimpleBar
+   Consistent scrollbar appearance across operating systems
+   ========================================================= */
+
+.sidebar-simplebar {
+  height: 100%;
+  min-height: 0;
+}
+
+.sidebar-simplebar .simplebar-wrapper {
+  height: 100%;
+}
+
+.sidebar-simplebar .simplebar-mask {
+  height: 100%;
+}
+
+.sidebar-simplebar .simplebar-offset {
+  height: 100%;
+}
+
+.sidebar-simplebar .simplebar-content-wrapper {
+  height: 100%;
+}
+
+.sidebar-simplebar .simplebar-track {
+  background: transparent;
+}
+
+.sidebar-simplebar .simplebar-track.simplebar-vertical {
+  width: 6px;
+  right: 2px;
+  background: transparent;
+}
+
+.sidebar-simplebar .simplebar-scrollbar {
+  width: 6px;
+}
+
+.sidebar-simplebar .simplebar-scrollbar::before {
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  opacity: 1;
+  transition:
+    background 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.sidebar-simplebar .simplebar-scrollbar:hover::before {
+  background: rgba(255, 255, 255, 0.4);
+}
