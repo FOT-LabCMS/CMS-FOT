@@ -30,7 +30,7 @@ const rejectUnauthorized =
 const common = {
   use_env_variable: 'SEQUELIZE_DATABASE_URL',
   dialect: 'postgres',
-  logging: false,
+  logging: console.log,
 
   dialectOptions: sslEnabled
     ? {

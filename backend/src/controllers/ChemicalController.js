@@ -29,6 +29,7 @@ const normalizeOptionalDate = (value) => {
 
 
 const addChemical = async (req, res) => {
+  const imageFile = req.imageFile || (req.files && (req.files.imageFile?.[0] || req.files.image?.[0]));
   try {
     // When using multipart/form-data, arrays and other types might be stringified.
     const payload = { ...req.body };
@@ -59,6 +60,9 @@ const addChemical = async (req, res) => {
       if (req.file) {
         await deleteSdsFile(req.file.filename);
       }
+      if (imageFile) {
+        await deleteImageFile(imageFile.filename);
+      }
       return res.status(400).json({ 
         success: false,
         message: 'Missing required fields. Canonical name, Bin Card Number (BST###), stock dimension, and base unit are required.' 
@@ -69,6 +73,9 @@ const addChemical = async (req, res) => {
     if (!/^BST\d{3}$/.test(payload.binCardNumber)) {
       if (req.file) {
         await deleteSdsFile(req.file.filename);
+      }
+      if (imageFile) {
+        await deleteImageFile(imageFile.filename);
       }
       return res.status(400).json({
         success: false,
@@ -90,6 +97,9 @@ const addChemical = async (req, res) => {
       if (req.file) {
         await deleteSdsFile(req.file.filename);
       }
+      if (imageFile) {
+        await deleteImageFile(imageFile.filename);
+      }
       let field = 'Bin Card Number (BST###)';
       if (existingChemical.canonicalName.toLowerCase() === payload.canonicalName.trim().toLowerCase()) {
         field = 'canonical name';
@@ -100,7 +110,6 @@ const addChemical = async (req, res) => {
       });
     }
 
-    const imageFile = req.imageFile || (req.files && (req.files.imageFile?.[0] || req.files.image?.[0]));
     if (imageFile) {
       payload.imageUrl = `/uploads/images/${imageFile.filename}`;
     }
@@ -162,7 +171,6 @@ const addChemical = async (req, res) => {
     if (req.file) {
       await deleteSdsFile(req.file.filename);
     }
-    const imageFile = req.imageFile || (req.files && (req.files.imageFile?.[0] || req.files.image?.[0]));
     if (imageFile) {
       await deleteImageFile(imageFile.filename);
     }

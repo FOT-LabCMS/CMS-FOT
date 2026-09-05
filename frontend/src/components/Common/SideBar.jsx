@@ -24,9 +24,32 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   QrCode,
-  Scan,
   Microscope,
 } from "lucide-react";
+
+const sidebarScrollbarStyles = `
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+  }
+`;
 
 const ROLE_LABELS = {
   ADMIN: "Admin",
@@ -511,7 +534,13 @@ const SidebarContent = ({
       </div>
 
       {/* Navigation */}
-      <div className={`flex-1 py-5 transition-all duration-300 ${isCollapsed ? "px-2 overflow-y-auto overflow-x-hidden" : "px-4 overflow-y-auto"}`}>
+      <div
+        className={`sidebar-scroll flex-1 py-5 transition-all duration-300 ${
+          isCollapsed
+            ? "px-2 overflow-y-auto overflow-x-hidden"
+            : "px-4 overflow-y-auto"
+        }`}
+      >
         <div>
           {!isCollapsed ? (
             <p className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-accent-light)]">
@@ -718,6 +747,7 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
 
   return (
     <>
+      <style>{sidebarScrollbarStyles}</style>
       {/* Mobile top bar */}
       <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 shadow-[var(--shadow-sm)] lg:hidden">
         <button
