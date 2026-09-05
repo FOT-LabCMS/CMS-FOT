@@ -14,6 +14,7 @@ import {
 
 import api from "../../api/axiosInstance";
 import { getInstrumentImageUrl } from "../../utils/instrumentImage";
+import useFileDrop from "../forms/useFileDrop";
 
 const AVAILABILITY_OPTIONS = [
   { value: "AVAILABLE", label: "Available" },
@@ -149,8 +150,7 @@ const EditInstrumentModal = ({
     setSubmitMessage(null);
   };
 
-  const handleImageChange = (event) => {
-    const file = event.target.files?.[0];
+  const processImageFile = (file) => {
     if (!file) return;
 
     const allowedTypes = [
@@ -181,6 +181,11 @@ const EditInstrumentModal = ({
     setImagePreview(URL.createObjectURL(file));
     setRemoveImage(false);
     setErrors((previous) => ({ ...previous, imageFile: "" }));
+  };
+
+  const handleImageChange = (event) => {
+    processImageFile(event.target.files?.[0]);
+    event.target.value = "";
   };
 
   const handleRemoveImage = () => {
@@ -297,6 +302,8 @@ const EditInstrumentModal = ({
       onClose();
     }
   };
+
+  const imageDrop = useFileDrop(processImageFile);
 
   if (!instrument) return null;
 
@@ -533,14 +540,17 @@ const EditInstrumentModal = ({
                 {!imagePreview && !existingImageUrl ? (
                   <label
                     htmlFor="editInstrumentImageInput"
+                    {...imageDrop.dragHandlers}
                     className={`
                       flex flex-col items-center justify-center gap-3
                       rounded-[var(--radius-lg)] border-2 border-dashed
                       p-6 text-center cursor-pointer color-transition
                       ${
-                        errors.imageFile
-                          ? "border-[var(--color-danger)] bg-red-500/5"
-                          : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
+                        imageDrop.isDragging
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary-tint)]"
+                          : errors.imageFile
+                            ? "border-[var(--color-danger)] bg-red-500/5"
+                            : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
                       }
                     `}
                   >
@@ -549,7 +559,9 @@ const EditInstrumentModal = ({
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                        Click or drag & drop to upload a new instrument image
+                        {imageDrop.isDragging
+                          ? "Drop the image here"
+                          : "Click or drag & drop to upload a new instrument image"}
                       </p>
                       <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                         Supports PNG, JPG, JPEG, WEBP, GIF, SVG up to 10 MB
@@ -586,6 +598,7 @@ const EditInstrumentModal = ({
                       <div className="mt-2 flex items-center justify-center gap-2 sm:justify-start">
                         <label
                           htmlFor="editInstrumentImageInput"
+                          {...imageDrop.dragHandlers}
                           className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] color-transition hover:bg-[var(--color-surface-muted)]"
                         >
                           Change Image

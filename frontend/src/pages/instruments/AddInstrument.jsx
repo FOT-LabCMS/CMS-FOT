@@ -14,6 +14,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import useFileDrop from "../../components/forms/useFileDrop";
 
 const INITIAL_FORM = {
   name: "",
@@ -111,8 +112,7 @@ const AddInstrument = () => {
     setSubmitMessage(null);
   };
 
-  const handleImageChange = (event) => {
-    const file = event.target.files?.[0];
+  const processImageFile = (file) => {
     if (!file) return;
 
     const allowedTypes = [
@@ -142,6 +142,11 @@ const AddInstrument = () => {
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setErrors((prev) => ({ ...prev, imageFile: "" }));
+  };
+
+  const handleImageChange = (event) => {
+    processImageFile(event.target.files?.[0]);
+    event.target.value = "";
   };
 
   const handleRemoveImage = () => {
@@ -193,6 +198,7 @@ const AddInstrument = () => {
   };
 
   const isSubmitting = addInstrumentMutation.isPending;
+  const imageDrop = useFileDrop(processImageFile);
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
@@ -397,14 +403,17 @@ const AddInstrument = () => {
                       {!imagePreview ? (
                         <label
                           htmlFor="imageFileInput"
+                          {...imageDrop.dragHandlers}
                           className={`
                             flex flex-col items-center justify-center gap-3
                             rounded-[var(--radius-lg)] border-2 border-dashed
                             p-6 text-center cursor-pointer color-transition
                             ${
-                              errors.imageFile
-                                ? "border-[var(--color-danger)] bg-red-500/5"
-                                : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
+                              imageDrop.isDragging
+                                ? "border-[var(--color-primary)] bg-[var(--color-primary-tint)]"
+                                : errors.imageFile
+                                  ? "border-[var(--color-danger)] bg-red-500/5"
+                                  : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
                             }
                           `}
                         >
@@ -413,7 +422,9 @@ const AddInstrument = () => {
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                              Click or drag & drop to upload instrument image
+                              {imageDrop.isDragging
+                                ? "Drop the image here"
+                                : "Click or drag & drop to upload instrument image"}
                             </p>
                             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                               Supports PNG, JPG, JPEG, WEBP, GIF, SVG up to 10 MB
@@ -447,6 +458,7 @@ const AddInstrument = () => {
                             <div className="mt-2 flex items-center justify-center gap-2 sm:justify-start">
                               <label
                                 htmlFor="imageFileInput"
+                                {...imageDrop.dragHandlers}
                                 className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)] color-transition"
                               >
                                 Change Image
