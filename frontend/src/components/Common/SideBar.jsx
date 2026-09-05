@@ -1,3 +1,6 @@
+import SimpleBar from "simplebar-react";
+import "simplebar-react/dist/simplebar.min.css";
+
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -26,30 +29,6 @@ import {
   QrCode,
   Microscope,
 } from "lucide-react";
-
-const sidebarScrollbarStyles = `
-  .sidebar-scroll {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
-  }
-
-  .sidebar-scroll::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .sidebar-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .sidebar-scroll::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.25);
-    border-radius: 999px;
-  }
-
-  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.4);
-  }
-`;
 
 const ROLE_LABELS = {
   ADMIN: "Admin",
@@ -485,7 +464,7 @@ const SidebarContent = ({
   const department = user?.department || "Department of Biosystem Technology";
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Logo */}
       <div className={`border-b border-[var(--color-text-inverse)]/10 py-5 transition-all duration-300 flex ${isCollapsed ? "px-2 flex-col items-center gap-3" : "px-5 flex-row items-center justify-between"}`}>
         <button
@@ -534,58 +513,27 @@ const SidebarContent = ({
       </div>
 
       {/* Navigation */}
-      <div
-        className={`sidebar-scroll flex-1 py-5 transition-all duration-300 ${
-          isCollapsed
-            ? "px-2 overflow-y-auto overflow-x-hidden"
-            : "px-4 overflow-y-auto"
-        }`}
+      <SimpleBar
+        className="sidebar-simplebar min-h-0 flex-1"
+        autoHide={true}
+        forceVisible={false}
       >
-        <div>
-          {!isCollapsed ? (
-            <p className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-accent-light)]">
-              Main Navigation
-            </p>
-          ) : (
-            <div className="h-4 border-b border-[var(--color-text-inverse)]/10 mb-4 mx-2" />
-          )}
-
-          <nav className="space-y-1.5">
-            {mainItems.map((item) =>
-              item.children ? (
-                <CollapsibleSidebarLink
-                  key={item.label}
-                  item={item}
-                  closeMobileMenu={closeMobileMenu}
-                  userRole={userRole}
-                  isCollapsed={isCollapsed}
-                  expandSidebar={expandSidebar}
-                />
-              ) : (
-                <SidebarLink
-                  key={item.path}
-                  item={item}
-                  closeMobileMenu={closeMobileMenu}
-                  notificationCount={notificationCount}
-                  isCollapsed={isCollapsed}
-                />
-              ),
-            )}
-          </nav>
-        </div>
-
-        {adminItems.length > 0 && (
-          <div className={`mt-6 border-t border-[var(--color-text-inverse)]/10 ${isCollapsed ? "pt-4" : "pt-5"}`}>
+        <div
+          className={`py-5 transition-all duration-300 ${
+            isCollapsed ? "px-2" : "px-4"
+          }`}
+        >
+          <div>
             {!isCollapsed ? (
               <p className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-accent-light)]">
-                Administration
+                Main Navigation
               </p>
             ) : (
               <div className="h-4 border-b border-[var(--color-text-inverse)]/10 mb-4 mx-2" />
             )}
 
             <nav className="space-y-1.5">
-              {adminItems.map((item) =>
+              {mainItems.map((item) =>
                 item.children ? (
                   <CollapsibleSidebarLink
                     key={item.label}
@@ -607,8 +555,47 @@ const SidebarContent = ({
               )}
             </nav>
           </div>
-        )}
-      </div>
+
+          {adminItems.length > 0 && (
+            <div
+              className={`mt-6 border-t border-[var(--color-text-inverse)]/10 ${
+                isCollapsed ? "pt-4" : "pt-5"
+              }`}
+            >
+              {!isCollapsed ? (
+                <p className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-accent-light)]">
+                  Administration
+                </p>
+              ) : (
+                <div className="h-4 border-b border-[var(--color-text-inverse)]/10 mb-4 mx-2" />
+              )}
+
+              <nav className="space-y-1.5">
+                {adminItems.map((item) =>
+                  item.children ? (
+                    <CollapsibleSidebarLink
+                      key={item.label}
+                      item={item}
+                      closeMobileMenu={closeMobileMenu}
+                      userRole={userRole}
+                      isCollapsed={isCollapsed}
+                      expandSidebar={expandSidebar}
+                    />
+                  ) : (
+                    <SidebarLink
+                      key={item.path}
+                      item={item}
+                      closeMobileMenu={closeMobileMenu}
+                      notificationCount={notificationCount}
+                      isCollapsed={isCollapsed}
+                    />
+                  ),
+                )}
+              </nav>
+            </div>
+          )}
+        </div>
+      </SimpleBar>
 
       {/* User panel */}
       <div className={`border-t border-[var(--color-text-inverse)]/10 transition-all duration-300 ${isCollapsed ? "p-2" : "p-4"}`}>
@@ -747,7 +734,6 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
 
   return (
     <>
-      <style>{sidebarScrollbarStyles}</style>
       {/* Mobile top bar */}
       <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 shadow-[var(--shadow-sm)] lg:hidden">
         <button
