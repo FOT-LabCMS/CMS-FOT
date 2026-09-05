@@ -279,15 +279,17 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
         const devices = await Html5Qrcode.getCameras();
         if (devices && devices.length > 0) {
           setCameras(devices);
-          if (!cameraId && !selectedCameraId) {
-            const rearCamera = devices.find(d => 
-              d.label.toLowerCase().includes("back") || 
-              d.label.toLowerCase().includes("rear") || 
+          if (!selectedCameraId) {
+            // Auto-select the back-facing camera id for the flip UI only.
+            // The initial scan itself must NOT be forced to an exact deviceId
+            // because that constraint is unreliable on iOS/WebKit (and
+            // getCameras() already performed a getUserMedia internally).
+            const rearCamera = devices.find(d =>
+              d.label.toLowerCase().includes("back") ||
+              d.label.toLowerCase().includes("rear") ||
               d.label.toLowerCase().includes("environment")
             );
-            const chosenId = rearCamera ? rearCamera.id : devices[0].id;
-            setSelectedCameraId(chosenId);
-            cameraId = chosenId;
+            setSelectedCameraId(rearCamera ? rearCamera.id : devices[0].id);
           }
         }
       } catch (e) {
@@ -296,26 +298,71 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
 
       if (!isMountedRef.current || !shouldBeScanningRef.current) return;
 
+      // html5-qrcode only accepts a string deviceId or a string facingMode
+      // ("user" / "environment"). A plain string facingMode is a soft "ideal"
+      // preference per the Media Capture spec, so { facingMode: "environment" }
+      // prefers the back camera WITHOUT the mandatory exact-deviceId constraint
+      // that fails on iPhone/WebKit. Explicit user switches (switchCamera) keep
+      // using an exact deviceId.
       const cameraConfig = cameraId
         ? { deviceId: { exact: cameraId } }
         : { facingMode: "environment" };
 
+      const fallbackCameraConfig = { facingMode: "environment" };
+      // The aspectRatio constraint is applied to the live track via
+      // applyConstraints() and is a known source of OverconstrainedError on
+      // some iOS versions, so it is omitted from the safe fallback attempt.
+      const fallbackScanningConfig = { fps: 15 };
+
       setIsScanning(true);
 
-      await html5QrCode.start(
-        cameraConfig,
-        {
-          fps: 15,
-          aspectRatio: 1.5,
-        },
-        (decodedText) => {
-          console.log("QR Code decoded:", decodedText);
-          handleResolveCode(decodedText);
-        },
-        () => {
-          // frame misses
+      const onDecoded = (decodedText) => {
+        console.log("QR Code decoded:", decodedText);
+        handleResolveCode(decodedText);
+      };
+
+      const onDecodeError = () => {
+        // frame misses
+      };
+
+      // html5-qrcode rejects with plain strings (e.g.
+      // "Error getting userMedia, error = OverconstrainedError: ..."),
+      // not only Error objects, so match the error text as well.
+      const isCameraStartError = (err) => {
+        if (!err) return false;
+        const name = typeof err === "object" ? err?.name || "" : "";
+        const text = typeof err === "string" ? err : `${err?.message || ""}`;
+        const searchable = `${name} ${text}`.toLowerCase();
+        return (
+          searchable.includes("overconstrained") ||
+          searchable.includes("notfound") ||
+          searchable.includes("not found") ||
+          searchable.includes("notreadable") ||
+          searchable.includes("unable to find device") ||
+          searchable.includes("could not start video source")
+        );
+      };
+
+      try {
+        await html5QrCode.start(
+          cameraConfig,
+          { fps: 15, aspectRatio: 1.5 },
+          onDecoded,
+          onDecodeError
+        );
+      } catch (startErr) {
+        if (!isCameraStartError(startErr)) {
+          throw startErr;
         }
-      );
+        // Single safe fallback: retry once with the most permissive camera
+        // configuration. A second failure rejects and hits the catch below.
+        await html5QrCode.start(
+          fallbackCameraConfig,
+          fallbackScanningConfig,
+          onDecoded,
+          onDecodeError
+        );
+      }
 
       // Guard: if user navigated away or switched while camera was starting
       if (!isMountedRef.current || !shouldBeScanningRef.current) {
@@ -497,7 +544,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
                 ) : (
                   <button
                     type="button"
-                    onClick={() => startCamera(selectedCameraId)}
+                    onClick={() => startCamera()}
                     title="Start scanner camera"
                     className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--color-primary-light)] color-transition shadow-sm"
                   >
@@ -583,7 +630,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => startCamera(selectedCameraId)}
+                      onClick={() => startCamera()}
                       className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[var(--color-primary-light)] color-transition shadow"
                     >
                       <Camera size={14} />
