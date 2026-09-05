@@ -1,15 +1,11 @@
 import { useState, useMemo } from "react";
 import { X, MapPin, ChevronDown, FolderTree, Loader2, AlertTriangle, Save } from "lucide-react";
 import api from "../../api/axiosInstance";
-
-const LOCATION_TYPES = [
-  { value: "LAB", label: "Laboratory" },
-  { value: "ROOM", label: "Room" },
-  { value: "CABINET", label: "Cabinet / Cupboard" },
-  { value: "SHELF", label: "Shelf" },
-  { value: "FRIDGE", label: "Refrigerator / Freezer" },
-  { value: "OTHER", label: "Other" },
-];
+import {
+  LOCATION_TYPES,
+  getValidParentOptions,
+  clearInvalidParent,
+} from "../../utils/locationHierarchy";
 
 const EditLocationModal = ({ location, allLocations = [], onClose, onSuccess }) => {
   const [name, setName] = useState(location?.name || "");
@@ -40,6 +36,27 @@ const EditLocationModal = ({ location, allLocations = [], onClose, onSuccess }) 
     );
   }, [location, allLocations]);
 
+  // Only parents of a type that is valid for the selected location type,
+  // excluding the location itself and its descendants (to avoid circular trees).
+  const parentOptions = useMemo(() => {
+    const options = getValidParentOptions(type, allLocations);
+    return options.filter(
+      (loc) => loc.id !== location?.id && eligibleParentLocations.some((p) => p.id === loc.id)
+    );
+  }, [type, allLocations, location, eligibleParentLocations]);
+
+  const handleTypeChange = (e) => {
+    const nextType = e.target.value;
+    setType(nextType);
+    setParentLocationId(clearInvalidParent(nextType, parentLocationId, allLocations));
+    if (error) setError("");
+  };
+
+  const handleParentChange = (e) => {
+    setParentLocationId(e.target.value);
+    if (error) setError("");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -48,6 +65,10 @@ const EditLocationModal = ({ location, allLocations = [], onClose, onSuccess }) 
     }
     if (!type) {
       setError("Location type is required.");
+      return;
+    }
+    if (type !== "LAB" && !parentLocationId) {
+      setError(`A ${type} location must have a ${(LOCATION_TYPES.find((t) => t.value === type)?.label || "").toLowerCase()} parent.`);
       return;
     }
 
@@ -159,7 +180,7 @@ const EditLocationModal = ({ location, allLocations = [], onClose, onSuccess }) 
               <select
                 id="edit-loc-type"
                 value={type}
-                onChange={(e) => setType(e.target.value)}
+                onChange={handleTypeChange}
                 className="w-full appearance-none rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-2.5 px-3.5 pr-10 text-sm font-medium text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none transition-colors"
               >
                 {LOCATION_TYPES.map((t) => (
@@ -191,13 +212,22 @@ const EditLocationModal = ({ location, allLocations = [], onClose, onSuccess }) 
               <select
                 id="edit-loc-parent"
                 value={parentLocationId}
-                onChange={(e) => setParentLocationId(e.target.value)}
-                className="w-full appearance-none rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-2.5 pl-10 pr-10 text-sm font-medium text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none transition-colors"
+                onChange={handleParentChange}
+                disabled={type === "LAB" || parentOptions.length === 0}
+                className="w-full appearance-none rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-2.5 pl-10 pr-10 text-sm font-medium text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none transition-colors disabled:cursor-not-allowed disabled:bg-[var(--color-surface-muted)]"
               >
-                <option value="">None (Top-level location / Laboratory)</option>
-                {eligibleParentLocations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name} ({loc.type})
+                {type === "LAB" ? (
+                  <option value="">Laboratories are top-level (no parent)</option>
+                ) : (
+                  <option value="">
+                    {parentOptions.length === 0
+                      ? "No valid parents available for this type"
+                      : `Select a ${(LOCATION_TYPES.find((t) => t.value === type)?.label || "").toLowerCase()} parent...`}
+                  </option>
+                )}
+                {parentOptions.map((loc) => (
+                  <option key={loc.id} value={loc.id} title={loc.path}>
+                    {loc.path}
                   </option>
                 ))}
               </select>
