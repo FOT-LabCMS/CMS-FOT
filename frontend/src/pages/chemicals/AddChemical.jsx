@@ -24,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 // Import the configured Axios instance
 import api from "../../api/axiosInstance";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import useFileDrop from "../../components/forms/useFileDrop";
 
 
 const INITIAL_FORM = {
@@ -343,8 +344,7 @@ const AddChemical = () => {
     setSubmitMessage(null);
   };
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
+  const processSdsFile = (file) => {
     if (!file) return;
 
     const allowedTypes = [
@@ -365,8 +365,12 @@ const AddChemical = () => {
     setErrors((prev) => ({ ...prev, sdsFile: "" }));
   };
 
-  const handleImageChange = (event) => {
-    const file = event.target.files?.[0];
+  const handleFileChange = (event) => {
+    processSdsFile(event.target.files?.[0]);
+    event.target.value = "";
+  };
+
+  const processImageFile = (file) => {
     if (!file) return;
 
     const allowedTypes = [
@@ -396,6 +400,11 @@ const AddChemical = () => {
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setErrors((prev) => ({ ...prev, imageFile: "" }));
+  };
+
+  const handleImageChange = (event) => {
+    processImageFile(event.target.files?.[0]);
+    event.target.value = "";
   };
 
   const handleRemoveImage = () => {
@@ -568,6 +577,9 @@ const AddChemical = () => {
   };
 
   const isSubmitting = addChemicalMutation.isPending;
+
+  const imageDrop = useFileDrop(processImageFile);
+  const sdsDrop = useFileDrop(processSdsFile);
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
@@ -778,14 +790,17 @@ const AddChemical = () => {
                       {!imagePreview ? (
                         <label
                           htmlFor="imageFileInput"
+                          {...imageDrop.dragHandlers}
                           className={`
                             flex flex-col items-center justify-center gap-3
                             rounded-[var(--radius-lg)] border-2 border-dashed
                             p-6 text-center cursor-pointer color-transition
                             ${
-                              errors.imageFile
-                                ? "border-[var(--color-danger)] bg-red-500/5"
-                                : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
+                              imageDrop.isDragging
+                                ? "border-[var(--color-primary)] bg-[var(--color-primary-tint)]"
+                                : errors.imageFile
+                                  ? "border-[var(--color-danger)] bg-red-500/5"
+                                  : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
                             }
                           `}
                         >
@@ -794,7 +809,9 @@ const AddChemical = () => {
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                              Click or drag & drop to upload chemical bottle image
+                              {imageDrop.isDragging
+                                ? "Drop the image here"
+                                : "Click or drag & drop to upload chemical bottle image"}
                             </p>
                             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                               Supports PNG, JPG, JPEG, WEBP, GIF, SVG up to 10 MB
@@ -828,6 +845,7 @@ const AddChemical = () => {
                             <div className="mt-2 flex items-center justify-center sm:justify-start gap-2">
                               <label
                                 htmlFor="imageFileInput"
+                                {...imageDrop.dragHandlers}
                                 className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)] cursor-pointer color-transition"
                               >
                                 Change Image
@@ -1524,6 +1542,7 @@ const AddChemical = () => {
                     ) : (
                       <label
                         htmlFor="sdsFile"
+                        {...sdsDrop.dragHandlers}
                         className={`
                           relative flex cursor-pointer flex-col
                           items-center justify-center
@@ -1532,15 +1551,19 @@ const AddChemical = () => {
                           p-6 text-center
                           color-transition
                           ${
-                            errors.sdsFile
-                              ? "border-[var(--color-danger)] text-[var(--color-danger)]"
-                              : "border-[var(--color-border-strong)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)] hover:text-[var(--color-primary)]"
+                            sdsDrop.isDragging
+                              ? "border-[var(--color-primary)] bg-[var(--color-primary-tint)] text-[var(--color-primary)]"
+                              : errors.sdsFile
+                                ? "border-[var(--color-danger)] text-[var(--color-danger)]"
+                                : "border-[var(--color-border-strong)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)] hover:text-[var(--color-primary)]"
                           }
                         `}
                       >
                         <UploadCloud size={32} />
                         <span className="text-sm font-semibold">
-                          Click to upload or drag and drop
+                          {sdsDrop.isDragging
+                            ? "Drop the document here"
+                            : "Click to upload or drag and drop"}
                         </span>
                         <span className="text-xs">
                           PDF or DOCX (max. 10MB)
