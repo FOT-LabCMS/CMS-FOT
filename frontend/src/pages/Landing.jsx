@@ -196,7 +196,7 @@ const Landing = () => {
             <h1 className="mx-auto max-w-5xl text-[2.25rem] font-serif font-bold leading-[1.08] tracking-[-0.035em] sm:text-5xl md:text-6xl lg:text-7xl">
 
               <span className="block text-white">
-                Sadeepa_D to
+                Welcome to
               </span>
 
               <span className="luxury-shimmer mt-2 block bg-gradient-to-r from-[#f9f1d8] via-[#d6aa5e] to-[#f1dfb0] bg-clip-text text-transparent">
