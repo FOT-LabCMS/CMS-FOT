@@ -254,19 +254,26 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
       return;
     }
 
-    // Stop any previously running instance
+    // Stop any previously running instance. Only await stop()/clear() when
+    // a stream is actually live - if the previous attempt never got past
+    // getUserMedia() (state NOT_STARTED, e.g. a prior failed/denied
+    // attempt) there is nothing to tear down, and awaiting clear() anyway
+    // just inserts an unnecessary async gap between this tap and the
+    // getUserMedia() call below, which WebKit on iOS can treat as no
+    // longer being "close enough" to the user's tap.
     try {
       if (scannerRef.current) {
         const state = scannerRef.current.getState?.();
         if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
           await scannerRef.current.stop();
+          await scannerRef.current.clear();
         }
-        await scannerRef.current.clear();
       }
     } catch {
       // ignore
     } finally {
       killVideoTracks();
+      scannerRef.current = null;
     }
 
     if (!isMountedRef.current || !shouldBeScanningRef.current) return;
@@ -393,7 +400,11 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
         return;
       }
       console.error("Camera startup error:", err);
-      const name = err?.name || "";
+      // html5-qrcode sometimes rejects with a plain string instead of an
+      // Error object, so err?.name is empty in that case - fall back to
+      // stringifying the whole thing so nothing is silently lost.
+      const name = typeof err === "object" ? err?.name || "" : "";
+      const rawDetail = typeof err === "string" ? err : err?.message || "";
       if ((name === "NotAllowedError" || name === "SecurityError") && !userInitiated) {
         // Non-fatal for the scripted auto-start on mount: leave the scanner
         // paused so a user-gesture tap on "Start Camera" can retry cleanly,
@@ -417,7 +428,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
         message =
           "Unable to access the camera. If the app is being served over plain HTTP, mobile browsers block camera access — please use HTTPS. You can also use the 'Upload QR Image' / 'Manual Code Search' options.";
       }
-      setCameraError(message);
+      setCameraError(rawDetail ? `${message} (${rawDetail})` : message);
       setIsScanning(false);
       killVideoTracks();
     }
@@ -475,7 +486,23 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
       }
     }
 
-    if (isExplicitlyOff) {
+    // iOS/iPadOS Safari (and any WebKit-based browser on iOS, since Apple
+    // forces all iOS browsers to use WebKit) is unreliable when
+    // getUserMedia() is invoked without a genuine, synchronous user tap.
+    // Attempting it anyway does not just fail silently once - it leaves the
+    // page's camera/permission state in a bad spot for the rest of the
+    // session, so a later real tap on "Start Camera" also fails with no
+    // visible error. Skip the automatic attempt entirely on iOS and always
+    // require the explicit tap there. Android/desktop are unaffected and
+    // keep auto-starting as before.
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    const isIOS =
+      /iPad|iPhone|iPod/.test(ua) ||
+      // iPadOS 13+ reports as "MacIntel" but exposes touch support, unlike
+      // real Macs.
+      (ua.includes("Macintosh") && typeof navigator !== "undefined" && navigator.maxTouchPoints > 1);
+
+    if (isExplicitlyOff || isIOS) {
       shouldBeScanningRef.current = false;
     } else {
       initTimer = setTimeout(() => {
