@@ -43,7 +43,7 @@ const getDefaultLowStockThreshold = (chemical) => {
 };
 
 const SuccessModal = ({ batch, onAddNew, onViewList }) => {
-  const qrValue = `${window.location.origin}/stock/batches/${batch.id}`;
+  const qrValue = batch.id;
 
   const handlePrint = () => {
     const printWindow = window.open('', '', 'height=600,width=800');

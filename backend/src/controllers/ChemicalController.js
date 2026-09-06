@@ -1132,6 +1132,75 @@ const downloadSds = async (req, res) => {
   }
 };
 
+const deleteSds = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const chemical = await Chemical.findByPk(id);
+
+    if (!chemical) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chemical not found.',
+      });
+    }
+
+    if (!chemical.sdsStorageKey) {
+      return res.status(404).json({
+        success: false,
+        message: 'No SDS document is attached to this chemical.',
+      });
+    }
+
+    const storageKey = chemical.sdsStorageKey;
+    const sdsOriginalFilename = chemical.sdsOriginalFilename;
+
+    // Remove the physical file first so an orphan file never remains on disk.
+    // The helper swallows errors if the file is already missing.
+    const fileDeleted = await deleteSdsFile(storageKey);
+
+    // Clear all SDS-related fields from the database record
+    await chemical.update({
+      sdsStorageKey: null,
+      sdsOriginalFilename: null,
+      sdsMimeType: null,
+      sdsFileSize: null,
+      sdsChecksum: null,
+      sdsRevisionDate: null,
+      sdsUploadedAt: null,
+      sdsUploadedById: null,
+    });
+
+    // Audit Log: SDS Deletion
+    await logAction({
+      userId: req.user?.id,
+      userName: req.user?.fullName,
+      actionType: "DELETE_SDS",
+      entityType: "Chemical",
+      entityId: chemical.id,
+      details: {
+        binCardNumber: chemical.binCardNumber,
+        canonicalName: chemical.canonicalName,
+        sdsStorageKey: storageKey,
+        sdsOriginalFilename,
+        fileDeleted,
+      },
+      ipAddress: req.ip,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'SDS document deleted successfully.',
+      chemical,
+    });
+  } catch (error) {
+    console.error(`Error deleting SDS for chemical with ID ${id}:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while deleting SDS document.',
+    });
+  }
+};
+
 const resolveScanCode = async (req, res) => {
   try {
     let rawQuery = req.query.query || req.params.code || req.query.code;
@@ -1267,5 +1336,6 @@ module.exports = {
   getPublicChemicals,
   getChemicalStats,
   downloadSds,
+  deleteSds,
   resolveScanCode,
 };

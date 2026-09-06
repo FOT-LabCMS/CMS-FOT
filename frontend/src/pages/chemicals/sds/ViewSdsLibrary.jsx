@@ -1,10 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { differenceInYears, format, parseISO } from 'date-fns';
-import { FileText, Search, Loader2, ServerCrash, Download, Eye, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Search, Loader2, ServerCrash, Download, Eye, ArrowLeft, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import api from '../../../api/axiosInstance';
 import { useNavigate } from 'react-router-dom';
 import { getSdsFilename, getSdsUrl, downloadSdsFile } from '../../../utils/sds';
+import { useAuth } from '../../../context/AuthContext';
+import DeleteConfirmationModal from '../../../components/Common/DeleteConfirmationModal';
 
 const PAGE_SIZE = 10;
 
@@ -77,7 +79,27 @@ const ViewSdsLibrary = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [downloadingId, setDownloadingId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sdsToDelete, setSdsToDelete] = useState(null);
+  const [isDeleteProcessing, setIsDeleteProcessing] = useState(false);
   const debouncedSearch = useDebouncedValue(searchTerm);
+  const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
+
+  const handleSdsDeleteRequest = async () => {
+    if (!sdsToDelete) return;
+
+    setIsDeleteProcessing(true);
+    try {
+      await api.delete(`/chemicals/${sdsToDelete.id}/sds`);
+      await queryClient.invalidateQueries({ queryKey: ['chemicalsWithSds'] });
+      setSdsToDelete(null);
+    } catch (err) {
+      alert('Failed to delete SDS document: ' + (err.response?.data?.message || err.message));
+      setSdsToDelete(null);
+    } finally {
+      setIsDeleteProcessing(false);
+    }
+  };
 
   const { data, isLoading, isError, error, isPlaceholderData } = useQuery({
     queryKey: ['chemicalsWithSds', currentPage, debouncedSearch],
@@ -226,6 +248,17 @@ const ViewSdsLibrary = () => {
                             )}
                             Download
                           </button>
+                          {isAuthenticated && (user.role === "ADMIN" || user.role === "TECHNICAL_OFFICER") && (
+                            <button
+                              type="button"
+                              onClick={() => setSdsToDelete(chemical)}
+                              className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--color-danger)] bg-[var(--color-danger)]/10 px-3 py-2 text-xs font-semibold text-[var(--color-danger)] color-transition hover:bg-[var(--color-danger)] hover:text-[var(--color-text-inverse)]"
+                              title="Delete SDS"
+                            >
+                              <Trash2 size={14} />
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -321,6 +354,16 @@ const ViewSdsLibrary = () => {
           {renderContent()}
         </div>
       </main>
+
+      <DeleteConfirmationModal
+        isOpen={Boolean(sdsToDelete)}
+        onClose={() => setSdsToDelete(null)}
+        onConfirm={handleSdsDeleteRequest}
+        isProcessing={isDeleteProcessing}
+        title="Delete SDS Document"
+        message={`Are you sure you want to delete the SDS document "${sdsToDelete?.sdsOriginalFilename || 'the SDS document'}" for "${sdsToDelete?.canonicalName || 'this chemical'}"? This will permanently remove the file from the SDS library and cannot be undone.`}
+        confirmText="Yes, Delete SDS"
+      />
     </div>
   );
 };

@@ -765,8 +765,22 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
   useEffect(() => {
     if (!mobileOpen) return undefined;
 
-    const previousOverflow = document.body.style.overflow;
+    // iOS WebKit fix (Bug #4):
+    // Setting overflow:hidden on <body> triggers a WebKit compositor bug that
+    // suspends active <video> elements, freezing the QR scanner feed.
+    // The position:fixed + top:-scrollY pattern achieves the same scroll-lock
+    // without touching the video compositor layer.
+    const scrollY = window.scrollY;
+    const prev = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+    };
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
 
     const handleEscape = (event) => {
       if (event.key === "Escape") {
@@ -777,7 +791,12 @@ const Sidebar = ({ isCollapsed = false, toggleSidebar }) => {
     window.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = prev.overflow;
+      document.body.style.position = prev.position;
+      document.body.style.top = prev.top;
+      document.body.style.width = prev.width;
+      // Restore the scroll position that was lost when position:fixed was set.
+      window.scrollTo(0, scrollY);
       window.removeEventListener("keydown", handleEscape);
     };
   }, [mobileOpen]);

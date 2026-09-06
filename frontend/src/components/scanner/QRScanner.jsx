@@ -25,6 +25,8 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
   const scannerRef = useRef(null);
   const isMountedRef = useRef(true);
   const shouldBeScanningRef = useRef(false);
+  // Prevents concurrent startCamera() calls (e.g. double-tap or StrictMode).
+  const isStartingRef = useRef(false);
 
   // Scanner states
   const [isScanning, setIsScanning] = useState(false);
@@ -43,93 +45,59 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
     }
   });
 
-  // Force stop all active media stream tracks across video elements to turn off camera hardware
-  const killVideoTracks = useCallback(() => {
-    try {
-      const videos = document.querySelectorAll("video");
-      videos.forEach((video) => {
-        try {
-          if (video.srcObject && typeof video.srcObject.getTracks === "function") {
-            video.srcObject.getTracks().forEach((track) => {
-              try {
-                track.stop();
-              } catch {
-                // ignore
-              }
-            });
-          }
-          video.srcObject = null;
-        } catch {
-          // ignore
-        }
-      });
-
-      if (scannerRef.current?.renderedCamera?.mediaStream) {
-        try {
-          scannerRef.current.renderedCamera.mediaStream.getTracks().forEach((track) => {
-            try {
-              track.stop();
-            } catch {
-              // ignore
-            }
-          });
-        } catch {
-          // ignore
-        }
-      }
-
-      const container = document.getElementById(readerId);
-      if (container) {
-        container.innerHTML = "";
-      }
-    } catch (err) {
-      console.warn("Could not cleanly stop video tracks", err);
-    }
-  }, [readerId]);
-
-  // Stop / Turn Off camera
+  // ---------------------------------------------------------------------------
+  // stopCamera – lets html5-qrcode manage its own DOM.
+  //
+  // The library's stop() calls element.removeChild(canvasElement) and
+  // close() calls parentElement.removeChild(videoElement).  If we wipe
+  // container.innerHTML before or during those calls WebKit throws:
+  //   "Node.removeChild: Argument 1 is not an instance of Node"
+  // which is exactly the Safari warning that was observed.
+  //
+  // Rule: do NOT touch the readerId container's innerHTML anywhere in this
+  // component.  Let stop() / clear() own the scanner DOM.
+  // ---------------------------------------------------------------------------
   const stopCamera = useCallback(async (explicitUserAction = false) => {
     shouldBeScanningRef.current = false;
     if (explicitUserAction) {
       try {
-        localStorage.setItem("cms-scanner-power", "off");
+        // sessionStorage only: the paused state is intentionally not persisted
+        // to localStorage so it never blocks auto-start on the user's next visit.
         sessionStorage.setItem("cms-scanner-power", "off");
       } catch {
         // ignore
       }
     }
-    try {
-      if (scannerRef.current) {
-        try {
-          if (scannerRef.current.renderedCamera?.mediaStream) {
-            scannerRef.current.renderedCamera.mediaStream.getTracks().forEach((track) => track.stop());
-          }
-        } catch {
-          // ignore
-        }
 
-        const state = scannerRef.current.getState?.();
-        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-          try {
-            await scannerRef.current.stop();
-          } catch (stopErr) {
-            console.warn("scanner.stop() warning:", stopErr);
-          }
-        }
-        try {
-          await scannerRef.current.clear();
-        } catch {
-          // ignore
-        }
-      }
-    } catch (e) {
-      console.warn("Error stopping scanner", e);
-    } finally {
-      killVideoTracks();
-      scannerRef.current = null;
+    const scanner = scannerRef.current;
+    if (!scanner) {
       setIsScanning(false);
+      return;
     }
-  }, [killVideoTracks]);
+
+    try {
+      const state = scanner.getState?.();
+      if (
+        state === Html5QrcodeScannerState.SCANNING ||
+        state === Html5QrcodeScannerState.PAUSED
+      ) {
+        await scanner.stop();
+      }
+    } catch (stopErr) {
+      // html5-qrcode throws a string "Cannot stop, scanner is not running…"
+      // when stop() is called in a non-scanning state.  This is safe to ignore.
+      console.warn("scanner.stop() warning:", stopErr);
+    }
+
+    try {
+      await scanner.clear();
+    } catch {
+      // ignore – clear() wipes innerHTML which may already be empty
+    }
+
+    scannerRef.current = null;
+    setIsScanning(false);
+  }, []);
 
   const saveRecentScan = useCallback((item) => {
     setRecentScans((prev) => {
@@ -216,11 +184,37 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
     }
   }, [autoNavigate, navigate, onResult, onClose, saveRecentScan, stopCamera]);
 
-  // Start Camera Scanning
+  // ---------------------------------------------------------------------------
+  // startCamera
+  //
+  // iOS/WebKit camera rules:
+  //   1. getUserMedia() must be called within a synchronous user-gesture
+  //      activation context.  Every extra await before the call risks
+  //      expiring that activation window.
+  //   2. html5-qrcode v2.3.8's getCameras() internally opens the camera
+  //      (getUserMedia) and then immediately stops the tracks.  Calling it
+  //      before start() causes a double open-close-open cycle that leaves
+  //      iOS with a degraded stream (videoWidth === 0 in the decode loop).
+  //   3. aspectRatio applied via applyConstraints() post-acquisition is a
+  //      known source of OverconstrainedError on iOS and leaks the stream
+  //      when it throws (because the RenderedCameraImpl is not yet wired up).
+  //
+  // Fix strategy:
+  //   A. Do NOT call getCameras() before start().
+  //   B. Start with { facingMode: "environment" } (soft/ideal constraint).
+  //   C. Do NOT pass aspectRatio in the scan config.
+  //   D. After a successful start, enumerate cameras in the background
+  //      (fire-and-forget) purely for the Flip-camera UI.
+  //   E. Avoid touching the scanner container's innerHTML – let the library
+  //      own its DOM.
+  // ---------------------------------------------------------------------------
   const startCamera = useCallback(async (cameraId = null) => {
+    // Prevent concurrent startup calls (double-tap, StrictMode double-invoke).
+    if (isStartingRef.current) return;
+    isStartingRef.current = true;
+
     shouldBeScanningRef.current = true;
     try {
-      localStorage.setItem("cms-scanner-power", "on");
       sessionStorage.setItem("cms-scanner-power", "on");
     } catch {
       // ignore
@@ -229,102 +223,238 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
     setScanResult(null);
     setResolveError(null);
 
-    // Stop any previously running instance
-    try {
-      if (scannerRef.current) {
-        const state = scannerRef.current.getState?.();
-        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-          await scannerRef.current.stop();
-        }
-        await scannerRef.current.clear();
+    // getUserMedia is only exposed in secure contexts (HTTPS) or localhost.
+    const hostname =
+      typeof window !== "undefined" ? window.location.hostname : "";
+    const isLocalHost =
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1";
+    const mediaDevicesUnavailable =
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia;
+
+    if (mediaDevicesUnavailable) {
+      if (isMountedRef.current && shouldBeScanningRef.current) {
+        setCameraError(
+          isLocalHost
+            ? "Camera is not available in this browser. Please use the 'Upload QR Image' or 'Manual Code Search' options instead."
+            : "Camera access requires a secure (HTTPS) connection. This page is currently being served over plain HTTP, so mobile browsers block the camera. Please access the application over HTTPS, or use the 'Upload QR Image' / 'Manual Code Search' options below."
+        );
+        setIsScanning(false);
       }
-    } catch {
-      // ignore
-    } finally {
-      killVideoTracks();
+      isStartingRef.current = false;
+      return;
     }
 
-    if (!isMountedRef.current || !shouldBeScanningRef.current) return;
+    // ---------------------------------------------------------------------------
+    // Tear down any previously running scanner instance.
+    //
+    // We call stop()/clear() only when the library reports an active scan.
+    // We do NOT manually clear container.innerHTML – the library does that
+    // inside clear().  Clearing it ourselves before stop() causes the
+    // "Node.removeChild: Argument 1 is not an instance of Node" Safari error
+    // because the library's stop() still tries to removeChild() elements that
+    // we already destroyed.
+    // ---------------------------------------------------------------------------
+    if (scannerRef.current) {
+      try {
+        const prevState = scannerRef.current.getState?.();
+        if (
+          prevState === Html5QrcodeScannerState.SCANNING ||
+          prevState === Html5QrcodeScannerState.PAUSED
+        ) {
+          await scannerRef.current.stop();
+        }
+      } catch {
+        // ignore – may already be stopped
+      }
+      try {
+        await scannerRef.current.clear();
+      } catch {
+        // ignore
+      }
+      scannerRef.current = null;
+    }
+
+    if (!isMountedRef.current || !shouldBeScanningRef.current) {
+      isStartingRef.current = false;
+      return;
+    }
 
     try {
       const html5QrCode = new Html5Qrcode(readerId);
       scannerRef.current = html5QrCode;
 
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length > 0) {
-          setCameras(devices);
-          if (!cameraId && !selectedCameraId) {
-            const rearCamera = devices.find(d => 
-              d.label.toLowerCase().includes("back") || 
-              d.label.toLowerCase().includes("rear") || 
-              d.label.toLowerCase().includes("environment")
-            );
-            const chosenId = rearCamera ? rearCamera.id : devices[0].id;
-            setSelectedCameraId(chosenId);
-            cameraId = chosenId;
-          }
-        }
-      } catch (e) {
-        console.warn("Could not enumerate camera devices", e);
-      }
-
-      if (!isMountedRef.current || !shouldBeScanningRef.current) return;
-
+      // Use { facingMode: "environment" } (soft/ideal back-camera preference)
+      // for the initial start.  An explicit deviceId is only used when the
+      // user manually switches cameras via the Flip button, because an exact
+      // deviceId constraint is unreliable on iOS/WebKit for the first start.
       const cameraConfig = cameraId
         ? { deviceId: { exact: cameraId } }
         : { facingMode: "environment" };
 
+      // No aspectRatio – see note above.  fps: 15 keeps CPU usage reasonable.
+      const scanConfig = { fps: 15 };
+
       setIsScanning(true);
 
-      await html5QrCode.start(
-        cameraConfig,
-        {
-          fps: 15,
-          aspectRatio: 1.5,
-        },
-        (decodedText) => {
-          console.log("QR Code decoded:", decodedText);
-          handleResolveCode(decodedText);
-        },
-        () => {
-          // frame misses
-        }
-      );
+      // Yield one animation frame so React can flush the display:block
+      // re-render on the scanner container BEFORE html5-qrcode attaches the
+      // <video> element. On iOS WebKit, initialising a <video> inside a
+      // display:none node permanently locks its dimensions to 0×0, so the
+      // camera appears active but never decodes any frames.
+      await new Promise((resolve) => { requestAnimationFrame(resolve); });
+      if (!isMountedRef.current || !shouldBeScanningRef.current) {
+        setIsScanning(false);
+        isStartingRef.current = false;
+        return;
+      }
 
-      // Guard: if user navigated away or switched while camera was starting
+      const onDecoded = (decodedText) => {
+        console.log("QR Code decoded:", decodedText);
+        handleResolveCode(decodedText);
+      };
+
+      const onDecodeError = () => {
+        // frame misses – intentionally silent
+      };
+
+      // Primary start attempt.
+      let startSucceeded = false;
+      try {
+        await html5QrCode.start(cameraConfig, scanConfig, onDecoded, onDecodeError);
+        startSucceeded = true;
+      } catch (primaryErr) {
+        // If the primary config failed (e.g. exact deviceId not found on this
+        // device) AND we were using a specific deviceId, retry once with the
+        // soft facingMode fallback.
+        if (cameraId) {
+          console.warn("Primary camera start failed, trying facingMode fallback:", primaryErr);
+          try {
+            await html5QrCode.start(
+              { facingMode: "environment" },
+              scanConfig,
+              onDecoded,
+              onDecodeError
+            );
+            startSucceeded = true;
+          } catch (fallbackErr) {
+            // Both attempts failed – throw the original error so the catch
+            // block below can show the user a meaningful message.
+            throw primaryErr;
+          }
+        } else {
+          throw primaryErr;
+        }
+      }
+
+      // Guard: component may have been unmounted or user pressed Pause while
+      // the camera was still starting.
       if (!isMountedRef.current || !shouldBeScanningRef.current) {
         try {
-          const state = html5QrCode.getState?.();
-          if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+          const st = html5QrCode.getState?.();
+          if (
+            st === Html5QrcodeScannerState.SCANNING ||
+            st === Html5QrcodeScannerState.PAUSED
+          ) {
             await html5QrCode.stop();
           }
+          await html5QrCode.clear();
         } catch {
           // ignore
         }
-        killVideoTracks();
+        scannerRef.current = null;
         setIsScanning(false);
+        isStartingRef.current = false;
+        return;
+      }
+
+      // -----------------------------------------------------------------------
+      // Deferred camera enumeration for the Flip-camera UI.
+      //
+      // getCameras() internally opens the camera (getUserMedia) and immediately
+      // stops the tracks.  Calling it BEFORE start() causes a double open on
+      // iOS.  We call it AFTER the scanner is successfully running so that the
+      // first getUserMedia (inside start()) is not disturbed.
+      //
+      // Note: on some iOS/WebKit versions getCameras() may still fail even
+      // after a successful start().  We swallow the error and simply hide the
+      // Flip button (cameras stays empty → cameras.length <= 1).
+      // -----------------------------------------------------------------------
+      if (startSucceeded && isMountedRef.current) {
+        Html5Qrcode.getCameras()
+          .then((devices) => {
+            if (!isMountedRef.current) return;
+            if (devices && devices.length > 0) {
+              setCameras(devices);
+              if (!selectedCameraId) {
+                const rearCamera = devices.find(
+                  (d) =>
+                    d.label.toLowerCase().includes("back") ||
+                    d.label.toLowerCase().includes("rear") ||
+                    d.label.toLowerCase().includes("environment")
+                );
+                setSelectedCameraId(rearCamera ? rearCamera.id : devices[0].id);
+              }
+            }
+          })
+          .catch((e) => {
+            // Non-fatal – Flip button simply won't appear.
+            console.warn("Could not enumerate camera devices (Flip UI will be hidden):", e);
+          });
       }
     } catch (err) {
       if (!isMountedRef.current || !shouldBeScanningRef.current) {
-        killVideoTracks();
+        isStartingRef.current = false;
         return;
       }
       console.error("Camera startup error:", err);
-      setCameraError(
-        err.name === "NotAllowedError"
-          ? "Camera permission was denied. Please allow camera access in your browser settings or enter the code manually."
-          : "Unable to access camera. Please check camera connections or enter the code manually."
-      );
-      setIsScanning(false);
-      killVideoTracks();
-    }
-  }, [readerId, selectedCameraId, handleResolveCode, killVideoTracks]);
 
-  // Switch camera
+      // html5-qrcode rejects with plain strings such as
+      // "Error getting userMedia, error = NotAllowedError: …"
+      // so we inspect both err.name (if it's an Error object) and the
+      // stringified text.
+      const errName = typeof err === "object" ? (err?.name || "") : "";
+      const errText = typeof err === "string" ? err : (err?.message || "");
+      const combined = `${errName} ${errText}`.toLowerCase();
+
+      let message;
+      if (errName === "NotAllowedError" || errName === "SecurityError" || combined.includes("notallowed")) {
+        message =
+          "Camera permission was denied. Please allow camera access in your browser settings, or use the 'Upload QR Image' / 'Manual Code Search' options instead.";
+      } else if (
+        errName === "NotFoundError" ||
+        errName === "OverconstrainedError" ||
+        combined.includes("notfound") ||
+        combined.includes("overconstrained")
+      ) {
+        message =
+          "No usable camera was found on this device. You can still use the 'Upload QR Image' / 'Manual Code Search' options.";
+      } else if (errName === "NotReadableError" || errName === "AbortError" || combined.includes("notreadable")) {
+        message =
+          "The camera is currently unavailable (it may be in use by another application). Try again, or use the 'Upload QR Image' / 'Manual Code Search' options.";
+      } else {
+        message =
+          "Unable to access the camera. If the app is being served over plain HTTP, mobile browsers block camera access — please use HTTPS. You can also use the 'Upload QR Image' / 'Manual Code Search' options.";
+      }
+      setCameraError(message);
+      setIsScanning(false);
+
+      // Clean up the scanner instance so a retry starts fresh.
+      if (scannerRef.current) {
+        try { await scannerRef.current.clear(); } catch { /* ignore */ }
+        scannerRef.current = null;
+      }
+    } finally {
+      isStartingRef.current = false;
+    }
+  }, [readerId, selectedCameraId, handleResolveCode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Switch camera (Flip button)
   const switchCamera = () => {
     if (cameras.length <= 1) return;
-    const currentIndex = cameras.findIndex(c => c.id === selectedCameraId);
+    const currentIndex = cameras.findIndex((c) => c.id === selectedCameraId);
     const nextIndex = (currentIndex + 1) % cameras.length;
     const nextCamera = cameras[nextIndex];
     setSelectedCameraId(nextCamera.id);
@@ -355,27 +485,58 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
     }
   };
 
+  // ---------------------------------------------------------------------------
   // Mount effect
+  //
+  // iOS/WebKit note: getUserMedia() requires a genuine synchronous user-gesture
+  // context.  A setTimeout() callback is NOT a user gesture on iOS – the
+  // camera popup may not appear or may silently fail, leaving the page in a
+  // bad permission state for the rest of the session.
+  //
+  // Detection: we treat any device that matches the iPad/iPhone/iPod UA string
+  // OR a desktop Safari UA with touch points > 1 (iPadOS 13+ reports as Mac)
+  // as iOS and skip the automatic timer-based start.  The user must tap
+  // "Start Camera" manually on those devices, which provides the required
+  // synchronous gesture context.
+  //
+  // Non-iOS platforms (Android, desktop) continue to auto-start after a short
+  // delay as before.
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     isMountedRef.current = true;
+    // NOTE: isStartingRef is NOT reset here. It is initialised to false by
+    // useRef(false) on first mount and reset in the cleanup return below.
+    // Resetting it at the top of the effect body races with in-flight async
+    // startCamera() calls during StrictMode double-invoke remounts.
     let active = true;
     let initTimer = null;
 
-    // Check if scanner was explicitly turned off previously by the user
+    // Use sessionStorage only (clears when the tab closes) so a paused state
+    // never permanently prevents auto-start on the user's next visit.
     let isExplicitlyOff = false;
     if (!isModal) {
       try {
-        isExplicitlyOff =
-          localStorage.getItem("cms-scanner-power") === "off" ||
-          sessionStorage.getItem("cms-scanner-power") === "off";
+        isExplicitlyOff = sessionStorage.getItem("cms-scanner-power") === "off";
       } catch {
         isExplicitlyOff = false;
       }
     }
 
-    if (isExplicitlyOff) {
+    // Detect iOS / iPadOS
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    const isIOS =
+      /iPad|iPhone|iPod/.test(ua) ||
+      // iPadOS 13+ reports "MacIntel" but exposes touch support unlike real Macs
+      (ua.includes("Macintosh") &&
+        typeof navigator !== "undefined" &&
+        navigator.maxTouchPoints > 1);
+
+    if (isExplicitlyOff || isIOS) {
+      // On iOS let the user initiate via the "Start Camera" button so that
+      // getUserMedia() is called synchronously from within a user gesture.
       shouldBeScanningRef.current = false;
     } else {
+      // Non-iOS: auto-start after a short delay
       initTimer = setTimeout(() => {
         if (active && isMountedRef.current) {
           startCamera();
@@ -384,7 +545,23 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
     }
 
     const handleBeforeUnload = () => {
-      killVideoTracks();
+      // Best-effort: stop all scanner tracks when the page is hidden/closed.
+      // We do not call scanner.stop() here because that is async; we just
+      // stop the underlying tracks directly.
+      try {
+        const scanner = scannerRef.current;
+        if (scanner) {
+          const st = scanner.getState?.();
+          if (
+            st === Html5QrcodeScannerState.SCANNING ||
+            st === Html5QrcodeScannerState.PAUSED
+          ) {
+            scanner.stop().catch(() => {});
+          }
+        }
+      } catch {
+        // ignore
+      }
     };
     window.addEventListener("pagehide", handleBeforeUnload);
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -392,6 +569,10 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
     return () => {
       isMountedRef.current = false;
       shouldBeScanningRef.current = false;
+      // Reset the guard HERE (in cleanup) rather than at the top of the effect
+      // body, so a remount never clears it while an in-flight startCamera()
+      // is still executing its async chain.
+      isStartingRef.current = false;
       active = false;
       if (initTimer) {
         clearTimeout(initTimer);
@@ -399,17 +580,24 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
       window.removeEventListener("pagehide", handleBeforeUnload);
       window.removeEventListener("beforeunload", handleBeforeUnload);
 
-      if (scannerRef.current) {
+      // Cleanup on unmount – stop() then clear() to remove the DOM nodes
+      // owned by html5-qrcode. Both are async so we chain them fire-and-
+      // forget. scannerRef is nulled IMMEDIATELY so a fast remount
+      // (StrictMode or navigate-away-and-back) never reuses this instance.
+      const scanner = scannerRef.current;
+      scannerRef.current = null;
+      if (scanner) {
         try {
-          const state = scannerRef.current.getState?.();
-          if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-            scannerRef.current.stop().catch(() => {});
-          }
+          const st = scanner.getState?.();
+          const isActive =
+            st === Html5QrcodeScannerState.SCANNING ||
+            st === Html5QrcodeScannerState.PAUSED;
+          (isActive ? scanner.stop().catch(() => {}) : Promise.resolve())
+            .finally(() => scanner.clear().catch(() => {}));
         } catch {
-          // ignore
+          try { scanner.clear().catch(() => {}); } catch { /* ignore */ }
         }
       }
-      killVideoTracks();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -461,7 +649,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
                 ) : (
                   <button
                     type="button"
-                    onClick={() => startCamera(selectedCameraId)}
+                    onClick={() => startCamera()}
                     title="Start scanner camera"
                     className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--color-primary-light)] color-transition shadow-sm"
                   >
@@ -547,7 +735,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => startCamera(selectedCameraId)}
+                      onClick={() => startCamera()}
                       className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[var(--color-primary-light)] color-transition shadow"
                     >
                       <Camera size={14} />
@@ -648,7 +836,7 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-bold text-[var(--color-text-primary)] leading-tight">
-                    Manual Code & Batch Search
+                    Manual Code &amp; Batch Search
                   </h3>
                   <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
                     Enter code or bin card number manually
@@ -812,4 +1000,3 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
 };
 
 export default QRScanner;
-
