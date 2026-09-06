@@ -500,9 +500,9 @@ const Login = () => {
 
         {/* Footer Logos (Right bottom) */}
         <div className="absolute bottom-6 right-6 flex items-center gap-3">
-          <p className="text-[10px] text-gray-400 italic">
-            Powered by Department of Bio Systems Technology
-          </p>
+          {/* <p className="text-[10px] text-gray-400 italic">
+        
+          </p> */}
           <div className="w-8 h-8 rounded-full border border-gray-200 p-1 bg-white flex items-center justify-center opacity-60">
             <img
               src="/faculty_logo.png"
