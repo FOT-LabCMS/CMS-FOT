@@ -673,26 +673,30 @@ const SidebarContent = ({
                   </span>
                 </div>
 
+                {["ADMIN", "LECTURER"].includes(userRole) && (
+                  <button
+                    type="button"
+                    onClick={openPasswordReset}
+                    aria-label="Open password reset"
+                    title="Open password reset"
+                    className="shrink-0 rounded-full p-1 text-[var(--color-accent-light)] transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-light)]"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                )}
+              </>
+            ) : (
+              ["ADMIN", "LECTURER"].includes(userRole) && (
                 <button
                   type="button"
                   onClick={openPasswordReset}
                   aria-label="Open password reset"
                   title="Open password reset"
-                  className="shrink-0 rounded-full p-1 text-[var(--color-accent-light)] transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-light)]"
+                  className="rounded-full p-1 text-[var(--color-accent-light)] transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-light)]"
                 >
-                  <ChevronRight size={18} />
+                  <ChevronRight size={18} className="rotate-95" />
                 </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={openPasswordReset}
-                aria-label="Open password reset"
-                title="Open password reset"
-                className="rounded-full p-1 text-[var(--color-accent-light)] transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-light)]"
-              >
-                <ChevronRight size={18} className="rotate-95" />
-              </button>
+              )
             )}
           </div>
 

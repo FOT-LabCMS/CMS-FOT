@@ -207,7 +207,7 @@ const InstrumentDetails = () => {
                       <BadgeIcon size={12} />
                       {badge.label}
                     </span>
-                    {instrument.warranty && (
+                    {canModify && instrument.warranty && (
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-300 bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">
                         <ShieldCheck size={12} />
                         Warranty: {instrument.warranty}
@@ -251,7 +251,7 @@ const InstrumentDetails = () => {
                     {badge.label}
                   </span>
                 </DetailItem>
-                {instrument.warranty && (
+                {canModify && instrument.warranty && (
                   <DetailItem label="Warranty">
                     <span className="inline-flex items-center gap-2">
                       <ShieldCheck size={15} className="text-[var(--color-primary)]" />

@@ -46,7 +46,14 @@ function App() {
         <Route path="/instruments" element={<Instruments />} />
         <Route path="/instruments/:id" element={<InstrumentDetails />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/reset-password" element={<PasswordReset />} />
+        <Route
+          path="/reset-password"
+          element={
+            <ProtectedRoute roles={["ADMIN", "LECTURER"]}>
+              <PasswordReset />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/chemicals/:id" element={<ChemicalDetails />} />
 
         {/* Protected Home Route - Available for Authenticated users including COMMON */}
