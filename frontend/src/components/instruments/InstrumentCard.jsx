@@ -123,7 +123,7 @@ const InstrumentCard = ({
         )}
 
         <div className="mt-3 space-y-2">
-          {warranty && (
+          {!isPublicView && warranty && (
             <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
               <ShieldCheck size={14} className="shrink-0 text-[var(--color-primary)]" />
               <span className="min-w-0 flex-1 truncate">Warranty: {warranty}</span>
