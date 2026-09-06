@@ -14,7 +14,7 @@ const authorizeRoles = (...roles) => {
 
 router.post("/register", verifyToken, authorizeRoles("ADMIN"), UserController.createUser);
 router.post("/login", UserController.loginUser);
-router.post("/reset-password", verifyToken, UserController.changePassword);
+router.post("/reset-password", verifyToken, authorizeRoles("ADMIN", "LECTURER"), UserController.changePassword);
 router.get("/viewusers", verifyToken, authorizeRoles("ADMIN"), UserController.viewUsers);
 router.delete("/deleteuser/:id", verifyToken, authorizeRoles("ADMIN"), UserController.deleteUser);
 
