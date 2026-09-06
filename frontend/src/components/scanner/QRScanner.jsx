@@ -61,7 +61,8 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
     shouldBeScanningRef.current = false;
     if (explicitUserAction) {
       try {
-        localStorage.setItem("cms-scanner-power", "off");
+        // sessionStorage only: the paused state is intentionally not persisted
+        // to localStorage so it never blocks auto-start on the user's next visit.
         sessionStorage.setItem("cms-scanner-power", "off");
       } catch {
         // ignore
@@ -214,7 +215,6 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
 
     shouldBeScanningRef.current = true;
     try {
-      localStorage.setItem("cms-scanner-power", "on");
       sessionStorage.setItem("cms-scanner-power", "on");
     } catch {
       // ignore
@@ -298,6 +298,18 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
       const scanConfig = { fps: 15 };
 
       setIsScanning(true);
+
+      // Yield one animation frame so React can flush the display:block
+      // re-render on the scanner container BEFORE html5-qrcode attaches the
+      // <video> element. On iOS WebKit, initialising a <video> inside a
+      // display:none node permanently locks its dimensions to 0×0, so the
+      // camera appears active but never decodes any frames.
+      await new Promise((resolve) => { requestAnimationFrame(resolve); });
+      if (!isMountedRef.current || !shouldBeScanningRef.current) {
+        setIsScanning(false);
+        isStartingRef.current = false;
+        return;
+      }
 
       const onDecoded = (decodedText) => {
         console.log("QR Code decoded:", decodedText);
@@ -492,17 +504,19 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
   // ---------------------------------------------------------------------------
   useEffect(() => {
     isMountedRef.current = true;
-    isStartingRef.current = false;
+    // NOTE: isStartingRef is NOT reset here. It is initialised to false by
+    // useRef(false) on first mount and reset in the cleanup return below.
+    // Resetting it at the top of the effect body races with in-flight async
+    // startCamera() calls during StrictMode double-invoke remounts.
     let active = true;
     let initTimer = null;
 
-    // Check if scanner was explicitly turned off previously by the user
+    // Use sessionStorage only (clears when the tab closes) so a paused state
+    // never permanently prevents auto-start on the user's next visit.
     let isExplicitlyOff = false;
     if (!isModal) {
       try {
-        isExplicitlyOff =
-          localStorage.getItem("cms-scanner-power") === "off" ||
-          sessionStorage.getItem("cms-scanner-power") === "off";
+        isExplicitlyOff = sessionStorage.getItem("cms-scanner-power") === "off";
       } catch {
         isExplicitlyOff = false;
       }
@@ -555,6 +569,10 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
     return () => {
       isMountedRef.current = false;
       shouldBeScanningRef.current = false;
+      // Reset the guard HERE (in cleanup) rather than at the top of the effect
+      // body, so a remount never clears it while an in-flight startCamera()
+      // is still executing its async chain.
+      isStartingRef.current = false;
       active = false;
       if (initTimer) {
         clearTimeout(initTimer);
@@ -562,21 +580,22 @@ const QRScanner = ({ onResult, autoNavigate = true, isModal = false, onClose }) 
       window.removeEventListener("pagehide", handleBeforeUnload);
       window.removeEventListener("beforeunload", handleBeforeUnload);
 
-      // Cleanup on unmount – stop the scanner if it is running.
-      // We do not await here (React cleanup cannot be async) so we fire-and-
-      // forget.  The library will stop the camera track and remove its own DOM.
+      // Cleanup on unmount – stop() then clear() to remove the DOM nodes
+      // owned by html5-qrcode. Both are async so we chain them fire-and-
+      // forget. scannerRef is nulled IMMEDIATELY so a fast remount
+      // (StrictMode or navigate-away-and-back) never reuses this instance.
       const scanner = scannerRef.current;
+      scannerRef.current = null;
       if (scanner) {
         try {
           const st = scanner.getState?.();
-          if (
+          const isActive =
             st === Html5QrcodeScannerState.SCANNING ||
-            st === Html5QrcodeScannerState.PAUSED
-          ) {
-            scanner.stop().catch(() => {});
-          }
+            st === Html5QrcodeScannerState.PAUSED;
+          (isActive ? scanner.stop().catch(() => {}) : Promise.resolve())
+            .finally(() => scanner.clear().catch(() => {}));
         } catch {
-          // ignore
+          try { scanner.clear().catch(() => {}); } catch { /* ignore */ }
         }
       }
     };
