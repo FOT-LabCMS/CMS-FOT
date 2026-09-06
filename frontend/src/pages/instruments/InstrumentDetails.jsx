@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Loader2,
@@ -13,6 +13,10 @@ import {
   ShieldCheck,
   LinkIcon,
   CalendarClock,
+  Image as ImageIcon,
+  X,
+  ZoomIn,
+  Eye,
 } from "lucide-react";
 import api from "../../api/axiosInstance";
 import EditInstrumentModal from "../../components/instruments/EditInstrumentModal";
@@ -69,6 +73,18 @@ const InstrumentDetails = () => {
 
   const [editingInstrument, setEditingInstrument] = useState(null);
   const [deletingInstrument, setDeletingInstrument] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isImageModalOpen) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setIsImageModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isImageModalOpen]);
 
   const {
     data,
@@ -179,16 +195,36 @@ const InstrumentDetails = () => {
             {/* Header */}
             <div className="flex flex-col gap-6 border-b border-[var(--color-border)] p-5 sm:p-7 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex min-w-0 items-start gap-4">
-                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-primary-tint)] sm:h-28 sm:w-28">
+                <div
+                  role={resolvedImageUrl ? "button" : undefined}
+                  tabIndex={resolvedImageUrl ? 0 : undefined}
+                  onClick={resolvedImageUrl ? () => setIsImageModalOpen(true) : undefined}
+                  onKeyDown={resolvedImageUrl ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      setIsImageModalOpen(true);
+                    }
+                  } : undefined}
+                  className={`h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-primary-tint)] sm:h-28 sm:w-28 ${
+                    resolvedImageUrl ? "group relative cursor-pointer transition-all duration-300 hover:border-[var(--color-primary)] hover:shadow-lg" : ""
+                  }`}
+                >
                   {resolvedImageUrl ? (
-                    <img
-                      src={resolvedImageUrl}
-                      alt={instrument.name}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
+                    <>
+                      <img
+                        src={resolvedImageUrl}
+                        alt={instrument.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-lg)] bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="flex items-center gap-1 rounded-full bg-black/75 px-2.5 py-1 text-[11px] font-bold text-white shadow">
+                          <Eye size={13} />
+                          Preview
+                        </div>
+                      </div>
+                    </>
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-[var(--color-primary)]">
                       <Microscope size={44} />
@@ -305,6 +341,48 @@ const InstrumentDetails = () => {
           message={`Are you sure you want to deactivate "${instrument.name}"? This action will hide it from the instrument list but will not remove historical data.`}
           confirmText="Yes, Deactivate"
         />
+      )}
+      {/* Full-size Image Preview Modal */}
+      {isImageModalOpen && resolvedImageUrl && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Instrument Image Preview"
+          onClick={() => setIsImageModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[var(--radius-lg)] border border-white/20 bg-[var(--color-surface)] shadow-2xl"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-2.5">
+                <ImageIcon size={18} className="text-[var(--color-primary)]" />
+                <h3 className="font-bold text-sm sm:text-base text-[var(--color-text-primary)] truncate">
+                  {instrument.name}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsImageModalOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-danger)] transition-colors"
+                aria-label="Close preview"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body: Image */}
+            <div className="flex max-h-[75vh] items-center justify-center p-4 overflow-auto bg-black/5">
+              <img
+                src={resolvedImageUrl}
+                alt={instrument.name}
+                className="max-h-[70vh] w-auto max-w-full rounded-[var(--radius-md)] object-contain shadow-sm"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
