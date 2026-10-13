@@ -205,8 +205,7 @@ const viewUsers = async (req, res) => {
           [Op.not]: {
             [Op.or]: [
               { institutionalId: { [Op.iLike]: "R999997" } },
-              { fullName: { [Op.iLike]: "super admin" } },
-              { role: "SUPERADMIN" },
+              { fullName: { [Op.iLike]: "%super admin%" } },
             ],
           },
         },
