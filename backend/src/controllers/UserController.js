@@ -120,7 +120,7 @@ const loginUser = async (req, res) => {
         id: user.id,
         institutionalId: user.institutionalId,
         fullName: user.fullName,
-        role: user.role,
+        role: user.role === "SUPERADMIN" ? "ADMIN" : user.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" },
@@ -200,8 +200,8 @@ const viewUsers = async (req, res) => {
     ];
 
     const buildWhere = () => {
-      const where = {};
-      if (role && role !== "ALL") {
+      const where = { role: { [Op.ne]: "SUPERADMIN" } };
+      if (role && role !== "ALL" && role !== "SUPERADMIN") {
         where.role = role;
       }
       if (search && search.trim()) {
@@ -234,7 +234,7 @@ const viewUsers = async (req, res) => {
       });
     }
 
-    const users = await User.findAll({ attributes });
+    const users = await User.findAll({ where: buildWhere(), attributes });
     res.json({ success: true, users });
   } catch (error) {
     console.error("Error viewing users:", error);

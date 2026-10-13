@@ -42,6 +42,7 @@ module.exports = function (sequelize) {
           "TECHNICAL_OFFICER",
           "ADMIN",
           "COMMON",
+          "SUPERADMIN",
         ),
         allowNull: false,
       },
