@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   User,
   UserPlus,
+  Users,
   Wrench,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -569,6 +570,26 @@ const AddUsers = () => {
                       <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)] font-medium">
                         Restricted to checking chemical availability and stock
                         quantities. No other system permissions.
+                      </p>
+                    </div>
+
+                    {/* Common */}
+                    <div className="group flex flex-col gap-1.5 rounded-[var(--radius-md)] border border-sky-100 bg-sky-50/20 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:bg-sky-50/40 hover:shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-sky-800">
+                          <Users size={13} className="stroke-[2.5] shrink-0" />
+                          <span className="text-[11px] font-bold tracking-wide uppercase">
+                            Common
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800 uppercase tracking-wider">
+                          Catalog Only
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)] font-medium">
+                        Access is limited strictly to browsing and searching
+                        available chemicals in the main chemical catalogue. No
+                        management or dashboard access.
                       </p>
                     </div>
                   </div>
