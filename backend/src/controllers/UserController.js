@@ -200,19 +200,34 @@ const viewUsers = async (req, res) => {
     ];
 
     const buildWhere = () => {
-      const where = {};
+      const conditions = [
+        {
+          [Op.not]: {
+            [Op.or]: [
+              { institutionalId: { [Op.iLike]: "R999997" } },
+              { fullName: { [Op.iLike]: "super admin" } },
+              { role: "SUPERADMIN" },
+            ],
+          },
+        },
+      ];
+
       if (role && role !== "ALL") {
-        where.role = role;
+        conditions.push({ role });
       }
+
       if (search && search.trim()) {
         const q = search.trim();
-        where[Op.or] = [
-          { fullName: { [Op.iLike]: `%${q}%` } },
-          { email: { [Op.iLike]: `%${q}%` } },
-          { institutionalId: { [Op.iLike]: `%${q}%` } },
-        ];
+        conditions.push({
+          [Op.or]: [
+            { fullName: { [Op.iLike]: `%${q}%` } },
+            { email: { [Op.iLike]: `%${q}%` } },
+            { institutionalId: { [Op.iLike]: `%${q}%` } },
+          ],
+        });
       }
-      return where;
+
+      return { [Op.and]: conditions };
     };
 
     if (isPaginated) {
@@ -234,7 +249,8 @@ const viewUsers = async (req, res) => {
       });
     }
 
-    const users = await User.findAll({ attributes });
+    const where = buildWhere();
+    const users = await User.findAll({ where, attributes });
     res.json({ success: true, users });
   } catch (error) {
     console.error("Error viewing users:", error);
@@ -268,6 +284,15 @@ const deleteUser = async (req, res) => {
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
+    }
+    if (
+      user.institutionalId?.toUpperCase() === "R999997" ||
+      user.fullName?.toLowerCase() === "super admin" ||
+      user.role === "SUPERADMIN"
+    ) {
+      return res
+        .status(403)
+        .json({ error: "Access denied. Cannot modify or delete Super Admin." });
     }
     if (user.role === "ADMIN" || user.role === "TECHNICAL_OFFICER") {
       // Audit Log: Deactivate User
