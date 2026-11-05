@@ -42,4 +42,7 @@ router.put('/:id', verifyToken, isAdminOrTO, BatchController.updateBatch);
 // Route to dispose an expired batch
 router.post('/:id/dispose', verifyToken, isAdminOrTO, BatchController.disposeBatch);
 
+// Route to remove a batch (blocked when usage/return records exist)
+router.delete('/:id', verifyToken, isAdminOrTO, BatchController.deleteBatch);
+
 module.exports = router;

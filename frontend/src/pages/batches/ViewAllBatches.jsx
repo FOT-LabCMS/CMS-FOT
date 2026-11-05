@@ -24,6 +24,7 @@ import {
 import { format } from "date-fns";
 import api from "../../api/axiosInstance";
 import { useAuth } from "../../context/AuthContext";
+import DeleteConfirmationModal from "../../components/Common/DeleteConfirmationModal";
 import { QRCodeSVG } from "qrcode.react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -697,6 +698,10 @@ const ViewAllBatches = () => {
   const [statusCounts, setStatusCounts] = useState({});
   const [qrModalBatch, setQrModalBatch] = useState(null);
   const [editingBatch, setEditingBatch] = useState(null);
+  const [deletingBatch, setDeletingBatch] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -764,7 +769,7 @@ const ViewAllBatches = () => {
       cancelled = true;
       window.clearInterval(refreshTimer);
     };
-  }, [currentPage, debouncedSearch, statusFilter, batches.length]);
+  }, [currentPage, debouncedSearch, statusFilter, batches.length, refreshKey]);
 
   const expiredCount = useMemo(
     () => statusCounts.Expired || 0,
@@ -783,6 +788,31 @@ const ViewAllBatches = () => {
         batch.id === updatedBatch.id ? updatedBatch : batch,
       ),
     );
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingBatch) return;
+
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      const response = await api.delete(`/batches/${deletingBatch.id}`);
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || "Failed to remove batch.");
+      }
+      setDeletingBatch(null);
+      setRefreshKey((key) => key + 1);
+    } catch (err) {
+      setDeleteError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to remove batch.",
+      );
+      setDeletingBatch(null);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const renderContent = () => {
@@ -984,6 +1014,19 @@ const ViewAllBatches = () => {
                             title="Edit Batch"
                           >
                             <Pencil size={16} />
+                          </button>
+                        )}
+                        {canEditBatch && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletingBatch(batch);
+                            }}
+                            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-red-600 hover:bg-red-50 hover:text-red-700"
+                            title="Remove Batch"
+                          >
+                            <Trash2 size={16} />
                           </button>
                         )}
                       </div>
@@ -1214,10 +1257,41 @@ const ViewAllBatches = () => {
             </div>
           </div>
 
+          {deleteError && (
+            <div className="mb-4 flex items-start justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-red-50 p-3 text-sm font-medium text-[var(--color-danger)]">
+              <span className="flex items-start gap-2">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                {deleteError}
+              </span>
+              <button
+                type="button"
+                onClick={() => setDeleteError("")}
+                className="shrink-0 rounded p-0.5 hover:bg-red-100"
+                title="Dismiss"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
           {/* Content Area */}
           {renderContent()}
         </div>
       </main>
+
+      {deletingBatch && (
+        <DeleteConfirmationModal
+          isOpen={!!deletingBatch}
+          onClose={() => {
+            if (!isDeleting) setDeletingBatch(null);
+          }}
+          onConfirm={handleConfirmDelete}
+          isProcessing={isDeleting}
+          title="Remove Batch"
+          message={`Are you sure you want to permanently remove batch "${deletingBatch.batchNumber}" of "${deletingBatch.chemical?.canonicalName || "N/A"}"? This cannot be undone. Batches that already have usage or return records cannot be removed.`}
+          confirmText="Yes, Remove"
+        />
+      )}
     </div>
   );
 };
