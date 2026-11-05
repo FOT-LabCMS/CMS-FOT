@@ -75,9 +75,11 @@ const ChemicalCard = ({
             <h3 className="text-base font-bold text-[var(--color-text-primary)] truncate">
               {canonicalName}
             </h3>
-            <p className="text-xs font-semibold text-[var(--color-accent-dark)] truncate">
-              {binCardNumber}
-            </p>
+            {binCardNumber && (
+              <span className="mt-1 inline-flex items-center rounded-full bg-[var(--color-primary-tint)] px-2 py-0.5 text-[11px] font-bold tracking-wide text-[var(--color-primary)]">
+                {binCardNumber}
+              </span>
+            )}
           </div>
         </div>
         <button

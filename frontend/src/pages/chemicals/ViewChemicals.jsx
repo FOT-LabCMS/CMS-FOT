@@ -10,9 +10,17 @@ import { useAuth } from '../../context/AuthContext';
 
 const PAGE_SIZE = 8;
 
+const SORT_OPTIONS = [
+  { value: 'binCardNumber-asc', label: 'Bin Card Number (A-Z)', sort: 'binCardNumber', order: 'asc' },
+  { value: 'binCardNumber-desc', label: 'Bin Card Number (Z-A)', sort: 'binCardNumber', order: 'desc' },
+  { value: 'canonicalName-asc', label: 'Name (A-Z)', sort: 'canonicalName', order: 'asc' },
+  { value: 'createdAt-desc', label: 'Newest First', sort: 'createdAt', order: 'desc' },
+];
+
 const ViewChemicals = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [sortOption, setSortOption] = useState('binCardNumber-asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingChemical, setEditingChemical] = useState(null);
   const [deletingChemical, setDeletingChemical] = useState(null);
@@ -28,13 +36,22 @@ const ViewChemicals = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  const handleSortChange = (event) => {
+    setSortOption(event.target.value);
+    setCurrentPage(1);
+  };
+
   const { data, isLoading: loading, isError, error, isPlaceholderData } = useQuery({
-    queryKey: ['chemicals', currentPage, debouncedSearch],
+    queryKey: ['chemicals', currentPage, debouncedSearch, sortOption],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set('page', String(currentPage));
       params.set('limit', String(PAGE_SIZE));
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+
+      const selectedSort = SORT_OPTIONS.find((option) => option.value === sortOption) || SORT_OPTIONS[0];
+      params.set('sort', selectedSort.sort);
+      params.set('order', selectedSort.order);
 
       const response = await api.get(`/chemicals?${params.toString()}`);
       if (response.data?.success) {
@@ -222,8 +239,8 @@ const ViewChemicals = () => {
           </header>
 
           {/* Search and Filter Bar */}
-          <div className="mb-6">
-            <div className="relative">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
               <Search
                 size={20}
                 className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
@@ -233,9 +250,21 @@ const ViewChemicals = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by name, code, or formula..."
-                className="w-full max-w-lg rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-3 pl-12 pr-4 text-sm font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] color-transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-tint)]"
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-3 pl-12 pr-4 text-sm font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] color-transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-tint)]"
               />
             </div>
+            <select
+              value={sortOption}
+              onChange={handleSortChange}
+              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] color-transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-tint)] sm:w-auto"
+              aria-label="Sort chemicals"
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  Sort: {option.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Content Area */}
