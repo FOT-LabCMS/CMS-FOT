@@ -25,6 +25,8 @@ const INITIAL_FORM = {
   binCardNumber: "",
   batchNumber: "",
   dateReleased: "",
+  quantityUsed: "",
+  inputUnit: "native",
   purpose: "",
   stuRegisterNum: "",
   userName: "",
@@ -226,6 +228,7 @@ const DisplosaReq = () => {
   const [formDataError, setFormDataError] = useState("");
 
   const [batchOptions, setBatchOptions] = useState([]);
+  const [batchesData, setBatchesData] = useState([]);
   const [isBatchLoading, setIsBatchLoading] = useState(false);
 
   useEffect(() => {
@@ -281,6 +284,7 @@ const DisplosaReq = () => {
         });
 
         if (isMounted) {
+          setBatchesData(sortedBatches);
           setBatchOptions(
             sortedBatches.map((b) => ({
               value: b.batchNumber,
@@ -293,7 +297,12 @@ const DisplosaReq = () => {
               })(),
             })),
           );
-          setForm((prev) => ({ ...prev, batchNumber: "" }));
+          setForm((prev) => ({
+            ...prev,
+            batchNumber: "",
+            quantityUsed: "",
+            inputUnit: "native",
+          }));
           if (sortedBatches.length === 0) {
             setErrors((prev) => ({
               ...prev,
@@ -307,8 +316,14 @@ const DisplosaReq = () => {
         }
       } catch (error) {
         if (isMounted) {
+          setBatchesData([]);
           setBatchOptions([]);
-          setForm((prev) => ({ ...prev, batchNumber: "" }));
+          setForm((prev) => ({
+            ...prev,
+            batchNumber: "",
+            quantityUsed: "",
+            inputUnit: "native",
+          }));
           setErrors((prev) => ({
             ...prev,
             batchNumber:
@@ -333,15 +348,27 @@ const DisplosaReq = () => {
   const handleChemicalChange = (value) => {
     if (!value) {
       setBatchOptions([]);
+      setBatchesData([]);
     }
-    setForm((prev) => ({ ...prev, binCardNumber: value, batchNumber: "" }));
-    setErrors((prev) => ({ ...prev, binCardNumber: "", batchNumber: "" }));
+    setForm((prev) => ({
+      ...prev,
+      binCardNumber: value,
+      batchNumber: "",
+      quantityUsed: "",
+      inputUnit: "native",
+    }));
+    setErrors((prev) => ({
+      ...prev,
+      binCardNumber: "",
+      batchNumber: "",
+      quantityUsed: "",
+    }));
     setSubmitMessage(null);
   };
 
   const handleBatchChange = (value) => {
-    setForm((prev) => ({ ...prev, batchNumber: value }));
-    setErrors((prev) => ({ ...prev, batchNumber: "" }));
+    setForm((prev) => ({ ...prev, batchNumber: value, quantityUsed: "" }));
+    setErrors((prev) => ({ ...prev, batchNumber: "", quantityUsed: "" }));
     setSubmitMessage(null);
   };
 
@@ -351,6 +378,26 @@ const DisplosaReq = () => {
     setSubmitMessage(null);
   };
 
+  const selectedBatch = batchesData.find(
+    (b) => b.batchNumber === form.batchNumber,
+  );
+  const selectedChemicalInfo = selectedBatch?.chemical || {};
+  const selectedBaseUnit = selectedChemicalInfo.baseUnit || "";
+  const selectedDensityValue = Number(selectedChemicalInfo.densityValue) || null;
+  const selectedCanUseMassInput =
+    selectedChemicalInfo.physicalState === "LIQUID" &&
+    selectedChemicalInfo.stockDimension === "VOLUME" &&
+    selectedDensityValue &&
+    selectedDensityValue > 0;
+
+  const computedReleaseVolume = (() => {
+    const qty = Number(form.quantityUsed);
+    if (form.quantityUsed === "" || !Number.isFinite(qty) || qty <= 0) return null;
+    if (form.inputUnit === "g" && selectedCanUseMassInput)
+      return qty / selectedDensityValue;
+    return qty;
+  })();
+
   const validateForm = () => {
     const nextErrors = {};
 
@@ -358,6 +405,19 @@ const DisplosaReq = () => {
     if (!form.batchNumber) nextErrors.batchNumber = "Select a batch number.";
     if (!form.dateReleased)
       nextErrors.dateReleased = "Release date is required.";
+
+    const qty = Number(form.quantityUsed);
+    if (form.quantityUsed === "" || !Number.isFinite(qty) || qty <= 0) {
+      nextErrors.quantityUsed = "Enter a measured quantity to release.";
+    } else if (!selectedBatch) {
+      nextErrors.quantityUsed = "Select a batch first.";
+    } else if (
+      computedReleaseVolume != null &&
+      computedReleaseVolume > Number(selectedBatch.currentQuantity)
+    ) {
+      nextErrors.quantityUsed = `Measured quantity exceeds available stock (${selectedBatch.currentQuantity}${selectedBaseUnit ? ` ${selectedBaseUnit}` : ""}).`;
+    }
+
     if (!form.purpose.trim())
       nextErrors.purpose = "Purpose of release is required.";
     if (!form.stuRegisterNum.trim())
@@ -387,6 +447,8 @@ const DisplosaReq = () => {
 
       const response = await api.post("/dispose/createreleaserecord", {
         ...form,
+        quantityUsed: Number(form.quantityUsed),
+        inputUnit: form.inputUnit === "g" ? "g" : undefined,
       });
 
       if (response.data?.success === false) {
@@ -397,7 +459,9 @@ const DisplosaReq = () => {
 
       setSubmitMessage({
         type: "success",
-        text: "Release record created successfully!",
+        text:
+          response.data?.message ||
+          "Release record created and stock updated successfully.",
       });
     } catch (error) {
       setSubmitMessage({
@@ -418,6 +482,7 @@ const DisplosaReq = () => {
     setErrors({});
     setSubmitMessage(null);
     setBatchOptions([]);
+    setBatchesData([]);
   };
 
   const selectedChemicalLabel =
@@ -589,6 +654,95 @@ const DisplosaReq = () => {
                     </div>
 
                     <div>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <InputLabel
+                          htmlFor="quantityUsed"
+                          required
+                          description={
+                            form.batchNumber
+                              ? "Measured quantity to release. Stock will be reduced by this amount."
+                              : "Select a batch first to enter the measured quantity."
+                          }
+                        >
+                          Measured Quantity
+                        </InputLabel>
+                        {selectedCanUseMassInput && (
+                          <div className="flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-0.5 text-xs font-semibold">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForm((prev) => ({
+                                  ...prev,
+                                  inputUnit: "native",
+                                }))
+                              }
+                              className={`rounded-full px-2.5 py-1 transition-colors ${
+                                form.inputUnit === "native"
+                                  ? "bg-[var(--color-primary)] text-[var(--color-text-inverse)]"
+                                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                              }`}
+                            >
+                              {selectedBaseUnit || "Vol"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForm((prev) => ({ ...prev, inputUnit: "g" }))
+                              }
+                              className={`rounded-full px-2.5 py-1 transition-colors ${
+                                form.inputUnit === "g"
+                                  ? "bg-[var(--color-primary)] text-[var(--color-text-inverse)]"
+                                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                              }`}
+                            >
+                              g
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <Beaker
+                          size={18}
+                          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+                        />
+                        <input
+                          id="quantityUsed"
+                          type="number"
+                          min="0"
+                          step="0.0001"
+                          value={form.quantityUsed}
+                          onChange={handleFieldChange("quantityUsed")}
+                          disabled={!form.batchNumber}
+                          placeholder={
+                            form.batchNumber
+                              ? `Enter measured qty${selectedBaseUnit ? ` (${form.inputUnit === "g" ? "g" : selectedBaseUnit})` : ""}`
+                              : "Select a batch first"
+                          }
+                          className={`w-full rounded-[var(--radius-md)] border bg-[var(--color-surface)] py-3 pl-10 pr-14 text-sm font-medium text-[var(--color-text-primary)] color-transition placeholder:text-[var(--color-text-muted)] disabled:cursor-not-allowed disabled:opacity-60 ${
+                            errors.quantityUsed
+                              ? "border-[var(--color-danger)]"
+                              : "border-[var(--color-border)] focus:border-[var(--color-primary)]"
+                          }`}
+                        />
+                        <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--color-text-muted)]">
+                          {form.inputUnit === "g" ? "g" : selectedBaseUnit}
+                        </span>
+                      </div>
+                      {selectedBatch && (
+                        <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                          Available: {Number(selectedBatch.currentQuantity)}
+                          {selectedBaseUnit ? ` ${selectedBaseUnit}` : ""}
+                          {computedReleaseVolume != null &&
+                          form.inputUnit === "g" &&
+                          selectedCanUseMassInput
+                            ? ` · Will deduct ${computedReleaseVolume.toFixed(4)} ${selectedBaseUnit}`
+                            : ""}
+                        </p>
+                      )}
+                      <ErrorMessage message={errors.quantityUsed} />
+                    </div>
+
+                    <div>
                       <InputLabel
                         htmlFor="stuRegisterNum"
                         required
@@ -602,7 +756,7 @@ const DisplosaReq = () => {
                           className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
                         />
                         <input
-                          id="stuRegisterNum  "
+                          id="stuRegisterNum"
                           type="text"
                           value={form.stuRegisterNum}
                           onChange={handleFieldChange("stuRegisterNum")}
@@ -773,6 +927,16 @@ const DisplosaReq = () => {
                       </dt>
                       <dd className="text-sm font-bold text-[var(--color-text-primary)]">
                         {form.dateReleased || "—"}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
+                      <dt className="text-sm text-[var(--color-text-secondary)]">
+                        Measured qty
+                      </dt>
+                      <dd className="text-sm font-bold text-[var(--color-text-primary)]">
+                        {form.quantityUsed
+                          ? `${form.quantityUsed} ${form.inputUnit === "g" ? "g" : selectedBaseUnit}`
+                          : "—"}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">

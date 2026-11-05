@@ -168,11 +168,6 @@ const MAIN_MENU_ITEMS = [
         path: "/disposal/request",
         roles: ["ADMIN", "TECHNICAL_OFFICER"],
       },
-      {
-        label: "Return Chemicals",
-        path: "/disposal/return",
-        roles: ["ADMIN", "TECHNICAL_OFFICER"],
-      },
     ],
   },
   {
