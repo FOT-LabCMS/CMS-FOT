@@ -1,6 +1,7 @@
 const { Dispose } = require("../models/index.js");
 const { Chemical } = require("../models/index.js");
 const { Batch } = require("../models/index.js");
+const { sequelize } = require("../models/index.js");
 const { Op } = require("sequelize");
 const { logAction } = require("../services/auditLogService.js");
 const { notifyLowStockBatch } = require("../services/notificationService.js");
@@ -15,7 +16,13 @@ const createreleaserecord = async (req, res) => {
     purpose,
     remark,
     supervisorName,
+    quantityUsed: quantityUsedBody,
+    usageQty,
+    inputUnit,
   } = req.body;
+  const measuredQtyRaw = quantityUsedBody ?? usageQty;
+  const measuredQty = Number(measuredQtyRaw);
+
   if (
     !binCardNumber ||
     !batchNumber ||
@@ -27,32 +34,104 @@ const createreleaserecord = async (req, res) => {
   ) {
     return res.status(400).json({ message: "All fields are required" });
   }
+  if (
+    measuredQtyRaw === undefined ||
+    measuredQtyRaw === "" ||
+    !Number.isFinite(measuredQty) ||
+    measuredQty <= 0
+  ) {
+    return res
+      .status(400)
+      .json({ message: "A valid measured quantity is required" });
+  }
+
+  const t = await sequelize.transaction();
   try {
     const chemical = await Chemical.findOne({
       where: { binCardNumber: binCardNumber },
+      attributes: [
+        "id",
+        "canonicalName",
+        "binCardNumber",
+        "densityValue",
+        "densityUnit",
+        "stockDimension",
+        "physicalState",
+        "baseUnit",
+      ],
+      transaction: t,
+      lock: t.LOCK.UPDATE,
     });
     if (!chemical) {
+      await t.rollback();
       return res.status(404).json({ message: "Chemical not found" });
     }
     const batch = await Batch.findOne({
-      where: { batchNumber: batchNumber },
+      where: { batchNumber: batchNumber, chemicalId: chemical.id },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
     });
     if (!batch) {
+      await t.rollback();
       return res.status(404).json({ message: "Batch not found" });
     }
-    const dispose = await Dispose.create({
-      binCardNumber: binCardNumber,
-      chemicalName: chemical.canonicalName,
-      batchNumber: batchNumber,
-      dateReleased: dateReleased,
-      purpose: purpose,
-      stuRegisterNum: stuRegisterNum,
-      userName: userName,
-      supervisorName: supervisorName,
-      remark: remark,
-    });
+    if (Number(batch.currentQuantity) <= 0) {
+      await t.rollback();
+      return res
+        .status(400)
+        .json({ message: "This batch has no available stock" });
+    }
 
-    // Audit Log: Chemical Released
+    let volumeToDeduct = measuredQty;
+    let conversionNote = null;
+
+    if (inputUnit === "g") {
+      if (
+        chemical.stockDimension === "VOLUME" &&
+        chemical.densityValue &&
+        Number(chemical.densityValue) > 0
+      ) {
+        volumeToDeduct = measuredQty / Number(chemical.densityValue);
+        conversionNote = `${measuredQty} g converted to ${volumeToDeduct.toFixed(4)} ${chemical.baseUnit || chemical.densityUnit || "volume units"} using density ${chemical.densityValue}`;
+      } else {
+        conversionNote = "Density not available; treated input as native unit.";
+      }
+    }
+
+    if (volumeToDeduct > Number(batch.currentQuantity)) {
+      await t.rollback();
+      return res.status(400).json({
+        message: `Quantity to release (${volumeToDeduct.toFixed(4)}) exceeds current stock (${batch.currentQuantity})`,
+      });
+    }
+
+    const deductedQty = parseFloat(volumeToDeduct.toFixed(4));
+    batch.currentQuantity = parseFloat(
+      (Number(batch.currentQuantity) - volumeToDeduct).toFixed(4),
+    );
+    await batch.save({ transaction: t });
+
+    const dispose = await Dispose.create(
+      {
+        binCardNumber: binCardNumber,
+        chemicalName: chemical.canonicalName,
+        batchNumber: batchNumber,
+        quantityUsed: deductedQty,
+        dateReleased: dateReleased,
+        dateReturned: dateReleased,
+        purpose: purpose,
+        stuRegisterNum: stuRegisterNum,
+        userName: userName,
+        supervisorName: supervisorName,
+        remark: remark,
+        returnedStatus: "RETURNED",
+      },
+      { transaction: t },
+    );
+
+    await t.commit();
+    await notifyLowStockBatch(batch.id);
+
     await logAction({
       userId: req.user.id,
       userName: req.user.fullName,
@@ -63,13 +142,22 @@ const createreleaserecord = async (req, res) => {
         binCardNumber: dispose.binCardNumber,
         batchNumber: dispose.batchNumber,
         purpose: dispose.purpose,
+        quantityUsed: dispose.quantityUsed,
+        stockDeducted: deductedQty,
+        conversionNote,
       },
       ipAddress: req.ip,
     });
-    res
-      .status(201)
-      .json({ message: "Release record created successfully", dispose });
+    res.status(201).json({
+      message: "Release record created and stock updated successfully",
+      dispose,
+      updatedStock: batch.currentQuantity,
+      conversionNote,
+    });
   } catch (error) {
+    try {
+      await t.rollback();
+    } catch (_) {}
     console.error("Error creating release record:", error);
     res.status(500).json({ message: "Internal server error" });
   }
@@ -88,6 +176,13 @@ const updateqty = async (req, res) => {
     const dispose = await Dispose.findByPk(id);
     if (!dispose) {
       return res.status(404).json({ message: "Dispose record not found" });
+    }
+
+    if (dispose.returnedStatus === "RETURNED" || dispose.quantityUsed != null) {
+      return res.status(400).json({
+        message: "This release record is already finalized; stock was not changed.",
+        dispose,
+      });
     }
 
     const batch = await Batch.findOne({
@@ -293,6 +388,7 @@ const getbatchbychemicalid = async (req, res) => {
     const batches = await Batch.findAll({
       where: {
         chemicalId: chemical.id,
+        currentQuantity: { [Op.gt]: 0 },
         [Op.or]: [{ expiryDate: null }, { expiryDate: { [Op.gte]: today } }],
         ...(releasedBatchNumbers.length > 0
           ? { batchNumber: { [Op.notIn]: releasedBatchNumbers } }
@@ -303,7 +399,13 @@ const getbatchbychemicalid = async (req, res) => {
         {
           model: Chemical,
           as: "chemical",
-          attributes: ["baseUnit"],
+          attributes: [
+            "baseUnit",
+            "densityValue",
+            "densityUnit",
+            "stockDimension",
+            "physicalState",
+          ],
         },
       ],
       order: [["batchNumber", "ASC"]],
@@ -312,7 +414,7 @@ const getbatchbychemicalid = async (req, res) => {
       return res.json({
         batches: [],
         message:
-          "No batches are currently available for this chemical (all available batches are expired or currently out on release).",
+          "No batches are currently available for this chemical (all available batches are expired, out of stock, or currently out on release).",
       });
     }
     res.json({ batches, message: null });

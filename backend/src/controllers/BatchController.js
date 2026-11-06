@@ -645,12 +645,78 @@ const disposeBatch = async (req, res) => {
   }
 };
 
+const deleteBatch = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const batch = await Batch.findByPk(id, {
+      include: [
+        {
+          model: Chemical,
+          as: 'chemical',
+          attributes: ['canonicalName', 'binCardNumber'],
+        },
+      ],
+    });
+
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Batch not found.',
+      });
+    }
+
+    // Prevent removal when usage/return records exist for this batch number.
+    const usageCount = await Dispose.count({
+      where: { batchNumber: batch.batchNumber },
+    });
+
+    if (usageCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `This batch cannot be removed because it has ${usageCount} usage/return record(s) associated with batch number "${batch.batchNumber}".`,
+      });
+    }
+
+    const batchDetails = {
+      batchNumber: batch.batchNumber,
+      chemicalName: batch.chemical?.canonicalName || 'N/A',
+      binCardNumber: batch.chemical?.binCardNumber || null,
+      quantityReceived: batch.quantityReceived,
+      currentQuantity: batch.currentQuantity,
+    };
+
+    await batch.destroy();
+
+    await logAction({
+      userId: req.user?.id,
+      userName: req.user?.fullName,
+      actionType: 'DELETE_BATCH',
+      entityType: 'Batch',
+      entityId: id,
+      details: batchDetails,
+      ipAddress: req.ip,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Batch removed successfully.',
+    });
+  } catch (error) {
+    console.error(`Error deleting batch with ID ${id}:`, error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while deleting the batch.',
+    });
+  }
+};
+
 module.exports = {
   addBatch,
   getAllBatches,
   getBatchById,
   updateBatch,
   disposeBatch,
+  deleteBatch,
   checkExpiryNotifications,
   checkLowStockNotifications,
   getBatchStats,

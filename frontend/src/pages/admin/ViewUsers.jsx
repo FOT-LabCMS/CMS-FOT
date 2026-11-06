@@ -121,7 +121,13 @@ const ViewUsers = () => {
         if (cancelled) return;
 
         const data = response.data?.users || response.data || [];
-        setUsers(data);
+        const visibleUsers = data.filter(
+          (u) =>
+            u.institutionalId?.toUpperCase() !== "R999997" &&
+            u.fullName?.toLowerCase() !== "super admin" &&
+            u.role !== "SUPERADMIN"
+        );
+        setUsers(visibleUsers);
         if (response.data?.pagination) {
           setPagination(response.data.pagination);
         }

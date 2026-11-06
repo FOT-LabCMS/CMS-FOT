@@ -189,7 +189,7 @@ const addChemical = async (req, res) => {
 
 const getAllChemicals = async (req, res) => {
   try {
-    const { page, limit, search } = req.query;
+    const { page, limit, search, sort, order } = req.query;
     const isPaginated = page !== undefined && limit !== undefined;
 
     const buildWhere = () => {
@@ -205,6 +205,19 @@ const getAllChemicals = async (req, res) => {
       return where;
     };
 
+    const buildOrder = () => {
+      const sortableColumns = {
+        binCardNumber: 'binCardNumber',
+        canonicalName: 'canonicalName',
+        createdAt: 'createdAt',
+        updatedAt: 'updatedAt',
+      };
+      const column = sortableColumns[sort] || 'binCardNumber';
+      const direction =
+        String(order || '').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+      return [[column, direction]];
+    };
+
     // Only fetch active chemicals for the main list view
     if (isPaginated) {
       const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -215,7 +228,7 @@ const getAllChemicals = async (req, res) => {
       const [chemicals, total] = await Promise.all([
         Chemical.findAll({
           where,
-          order: [['createdAt', 'DESC']],
+          order: buildOrder(),
           offset,
           limit: limitNum,
         }),
@@ -232,7 +245,7 @@ const getAllChemicals = async (req, res) => {
 
     const chemicals = await Chemical.findAll({
       where: { isActive: true },
-      order: [['createdAt', 'DESC']],
+      order: buildOrder(),
     });
     res.status(200).json({
       success: true,
