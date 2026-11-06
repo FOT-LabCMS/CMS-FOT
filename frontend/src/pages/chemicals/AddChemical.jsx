@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ChevronDown,
   FlaskConical,
-  Image as ImageIcon,
   Info,
   Loader2,
   Paperclip,
@@ -179,6 +178,8 @@ const AddChemical = () => {
   const [sdsFile, setSdsFile] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [backImageFile, setBackImageFile] = useState(null);
+  const [backImagePreview, setBackImagePreview] = useState(null);
 
   const [isCasLoading, setIsCasLoading] = useState(false);
   const [casLookupMessage, setCasLookupMessage] = useState(null);
@@ -415,6 +416,51 @@ const AddChemical = () => {
     }
   };
 
+  const processBackImageFile = (file) => {
+    if (!file) return;
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+      "image/svg+xml",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setErrors((prev) => ({
+        ...prev,
+        backImageFile: "Invalid image format. Allowed formats: JPG, PNG, WEBP, GIF, SVG.",
+      }));
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors((prev) => ({
+        ...prev,
+        backImageFile: "Image file size must not exceed 10 MB.",
+      }));
+      return;
+    }
+
+    setBackImageFile(file);
+    setBackImagePreview(URL.createObjectURL(file));
+    setErrors((prev) => ({ ...prev, backImageFile: "" }));
+  };
+
+  const handleBackImageChange = (event) => {
+    processBackImageFile(event.target.files?.[0]);
+    event.target.value = "";
+  };
+
+  const handleRemoveBackImage = () => {
+    setBackImageFile(null);
+    if (backImagePreview) {
+      URL.revokeObjectURL(backImagePreview);
+      setBackImagePreview(null);
+    }
+  };
+
   const handleSynonymChange = (index, value) => {
     setFormData((previous) => {
       const updatedSynonyms = [...previous.synonyms];
@@ -560,6 +606,9 @@ const AddChemical = () => {
     if (imageFile) {
       formPayload.append("imageFile", imageFile);
     }
+    if (backImageFile) {
+      formPayload.append("backImageFile", backImageFile);
+    }
 
     addChemicalMutation.mutate(formPayload);
   };
@@ -574,12 +623,122 @@ const AddChemical = () => {
       URL.revokeObjectURL(imagePreview);
       setImagePreview(null);
     }
+    setBackImageFile(null);
+    if (backImagePreview) {
+      URL.revokeObjectURL(backImagePreview);
+      setBackImagePreview(null);
+    }
   };
 
   const isSubmitting = addChemicalMutation.isPending;
 
   const imageDrop = useFileDrop(processImageFile);
+  const backImageDrop = useFileDrop(processBackImageFile);
   const sdsDrop = useFileDrop(processSdsFile);
+
+  const renderImageUploadSection = ({
+    inputId,
+    label,
+    description,
+    drop,
+    preview,
+    file,
+    error,
+    onChange,
+    onRemove,
+    emptyText,
+    alt,
+  }) => (
+    <div>
+      <InputLabel htmlFor={inputId} description={description}>
+        {label}
+      </InputLabel>
+
+      {!preview ? (
+        <label
+          htmlFor={inputId}
+          {...drop.dragHandlers}
+          className={`
+            flex flex-col items-center justify-center gap-3
+            rounded-[var(--radius-lg)] border-2 border-dashed
+            p-6 text-center cursor-pointer color-transition
+            ${
+              drop.isDragging
+                ? "border-[var(--color-primary)] bg-[var(--color-primary-tint)]"
+                : error
+                  ? "border-[var(--color-danger)] bg-red-500/5"
+                  : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
+            }
+          `}
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
+            <UploadCloud size={24} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+              {drop.isDragging ? "Drop the image here" : emptyText}
+            </p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              Supports PNG, JPG, JPEG, WEBP, GIF, SVG up to 10 MB
+            </p>
+          </div>
+          <input
+            id={inputId}
+            name={inputId === "backImageFileInput" ? "backImageFile" : "imageFile"}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+            onChange={onChange}
+            className="sr-only"
+          />
+        </label>
+      ) : (
+        <div className="flex flex-col items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 sm:flex-row">
+          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-black/5">
+            <img
+              src={preview}
+              alt={alt}
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="min-w-0 flex-1 text-center sm:text-left">
+            <p className="truncate text-sm font-bold text-[var(--color-text-primary)]">
+              {file?.name || "Selected Image"}
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+              {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ""}
+            </p>
+            <div className="mt-2 flex items-center justify-center gap-2 sm:justify-start">
+              <label
+                htmlFor={inputId}
+                {...drop.dragHandlers}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] color-transition hover:bg-[var(--color-surface-muted)]"
+              >
+                Change Image
+                <input
+                  id={inputId}
+                  name={inputId === "backImageFileInput" ? "backImageFile" : "imageFile"}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+                  onChange={onChange}
+                  className="sr-only"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={onRemove}
+                className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 color-transition hover:bg-red-100"
+              >
+                <Trash2 size={13} />
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ErrorMessage message={error} />
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
@@ -780,98 +939,44 @@ const AddChemical = () => {
 
                     {/* Chemical Bottle Image Upload Section */}
                     <div className="md:col-span-2">
-                      <InputLabel
-                        htmlFor="imageFileInput"
-                        description="Upload a photo or illustration of the chemical bottle / container (optional, max 10MB)."
-                      >
-                        Chemical Bottle Image
-                      </InputLabel>
+                      <div className="mb-1">
+                        <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                          Chemical Bottle Images
+                          <span className="ml-2 text-xs font-medium text-[var(--color-text-muted)]">
+                            Front and back sides are both optional
+                          </span>
+                        </p>
+                      </div>
 
-                      {!imagePreview ? (
-                        <label
-                          htmlFor="imageFileInput"
-                          {...imageDrop.dragHandlers}
-                          className={`
-                            flex flex-col items-center justify-center gap-3
-                            rounded-[var(--radius-lg)] border-2 border-dashed
-                            p-6 text-center cursor-pointer color-transition
-                            ${
-                              imageDrop.isDragging
-                                ? "border-[var(--color-primary)] bg-[var(--color-primary-tint)]"
-                                : errors.imageFile
-                                  ? "border-[var(--color-danger)] bg-red-500/5"
-                                  : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
-                            }
-                          `}
-                        >
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
-                            <UploadCloud size={24} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                              {imageDrop.isDragging
-                                ? "Drop the image here"
-                                : "Click or drag & drop to upload chemical bottle image"}
-                            </p>
-                            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                              Supports PNG, JPG, JPEG, WEBP, GIF, SVG up to 10 MB
-                            </p>
-                          </div>
-                          <input
-                            id="imageFileInput"
-                            name="imageFile"
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
-                            onChange={handleImageChange}
-                            className="sr-only"
-                          />
-                        </label>
-                      ) : (
-                        <div className="flex flex-col sm:flex-row items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
-                          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-black/5">
-                            <img
-                              src={imagePreview}
-                              alt="Chemical preview"
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0 text-center sm:text-left">
-                            <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">
-                              {imageFile?.name || "Selected Image"}
-                            </p>
-                            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                              {imageFile ? `${(imageFile.size / 1024 / 1024).toFixed(2)} MB` : ""}
-                            </p>
-                            <div className="mt-2 flex items-center justify-center sm:justify-start gap-2">
-                              <label
-                                htmlFor="imageFileInput"
-                                {...imageDrop.dragHandlers}
-                                className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)] cursor-pointer color-transition"
-                              >
-                                Change Image
-                                <input
-                                  id="imageFileInput"
-                                  name="imageFile"
-                                  type="file"
-                                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
-                                  onChange={handleImageChange}
-                                  className="sr-only"
-                                />
-                              </label>
-                              <button
-                                type="button"
-                                onClick={handleRemoveImage}
-                                className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 color-transition"
-                              >
-                                <Trash2 size={13} />
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {renderImageUploadSection({
+                          inputId: "imageFileInput",
+                          label: "Front Side Image (Optional)",
+                          description: "Upload a photo or illustration of the front side of the chemical bottle / container (max 10MB).",
+                          drop: imageDrop,
+                          preview: imagePreview,
+                          file: imageFile,
+                          error: errors.imageFile,
+                          onChange: handleImageChange,
+                          onRemove: handleRemoveImage,
+                          emptyText: "Click or drag & drop to upload the front side image",
+                          alt: "Chemical front side preview",
+                        })}
 
-                      <ErrorMessage message={errors.imageFile} />
+                        {renderImageUploadSection({
+                          inputId: "backImageFileInput",
+                          label: "Back Side Image (Optional)",
+                          description: "Upload a photo or illustration of the back side of the chemical bottle / container (max 10MB).",
+                          drop: backImageDrop,
+                          preview: backImagePreview,
+                          file: backImageFile,
+                          error: errors.backImageFile,
+                          onChange: handleBackImageChange,
+                          onRemove: handleRemoveBackImage,
+                          emptyText: "Click or drag & drop to upload the back side image",
+                          alt: "Chemical back side preview",
+                        })}
+                      </div>
                     </div>
 
                     <div>

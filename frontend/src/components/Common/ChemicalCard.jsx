@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Beaker,
   FileText,
@@ -35,6 +34,7 @@ const ChemicalCard = ({
     canonicalName,
     binCardNumber,
     imageUrl,
+    backImageUrl,
     formula,
     physicalState,
     stockDimension,
@@ -43,7 +43,7 @@ const ChemicalCard = ({
     totalStock,
   } = chemical;
 
-  const resolvedImageUrl = getChemicalImageUrl(imageUrl);
+  const resolvedImageUrl = getChemicalImageUrl(imageUrl || backImageUrl);
 
   return (
     <Link

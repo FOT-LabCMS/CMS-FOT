@@ -285,7 +285,13 @@ const ChemicalDetails = () => {
   const [isConfirmingSdsDelete, setIsConfirmingSdsDelete] = useState(false);
   const [isSdsDeleteProcessing, setIsSdsDeleteProcessing] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [activeImageSide, setActiveImageSide] = useState("front");
   const { user, isAuthenticated } = useAuth();
+
+  const openImagePreview = (side) => {
+    setActiveImageSide(side);
+    setIsImageModalOpen(true);
+  };
 
   useEffect(() => {
     if (!isImageModalOpen) return undefined;
@@ -388,6 +394,15 @@ const ChemicalDetails = () => {
 
   if (!chemical) return null;
 
+  const heroImageUrl = chemical.imageUrl || chemical.backImageUrl;
+  const heroImageSide = chemical.imageUrl ? "front" : "back";
+  const hasFrontImage = Boolean(chemical.imageUrl);
+  const hasBackImage = Boolean(chemical.backImageUrl);
+  const activeImageUrl =
+    activeImageSide === "back"
+      ? chemical.backImageUrl || chemical.imageUrl
+      : chemical.imageUrl || chemical.backImageUrl;
+
   const sdsUrl = getSdsUrl(chemical.sdsStorageKey);
   const sdsFilename = chemical.sdsOriginalFilename || getSdsFilename(chemical.sdsStorageKey);
   const sdsNeedsReview = isSdsOutdated(chemical.sdsRevisionDate);
@@ -432,21 +447,21 @@ const ChemicalDetails = () => {
 
                     {/* Header Right: Chemical Bottle Image (Above) and Action Buttons (Below) */}
                     <div className="flex flex-col items-center sm:items-end gap-3.5 shrink-0">
-                      {chemical.imageUrl && (
+                      {heroImageUrl && (
                         <div
                           role="button"
                           tabIndex={0}
-                          onClick={() => setIsImageModalOpen(true)}
+                          onClick={() => openImagePreview(heroImageSide)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
-                              setIsImageModalOpen(true);
+                              openImagePreview(heroImageSide);
                             }
                           }}
                           className="group relative h-28 w-28 sm:h-32 sm:w-32 cursor-pointer overflow-hidden rounded-[var(--radius-md)] border-2 border-white/25 bg-white/10 p-1 shadow-lg backdrop-blur-sm transition-all duration-300 hover:border-[var(--color-accent-light)] hover:scale-105 hover:shadow-xl"
                           title="Click to view full chemical bottle image"
                         >
                           <img
-                            src={getChemicalImageUrl(chemical.imageUrl)}
+                            src={getChemicalImageUrl(heroImageUrl)}
                             alt={chemical.canonicalName}
                             className="h-full w-full rounded-[calc(var(--radius-md)-4px)] object-cover"
                             onError={(e) => {
@@ -612,40 +627,82 @@ const ChemicalDetails = () => {
                   </section>
                 )}
 
-                {chemical.imageUrl && (
+                {(hasFrontImage || hasBackImage) && (
                   <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
                     <header className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
                       <ImageIcon size={20} className="text-[var(--color-primary)]" />
-                      <h2 className="text-base font-bold text-[var(--color-text-primary)]">Bottle Image</h2>
+                      <h2 className="text-base font-bold text-[var(--color-text-primary)]">Bottle Images</h2>
                     </header>
-                    <div className="p-4 sm:p-5 flex justify-center">
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setIsImageModalOpen(true)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            setIsImageModalOpen(true);
-                          }
-                        }}
-                        className="group relative max-h-64 w-full cursor-pointer overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-black/5 flex items-center justify-center p-2 transition-all hover:border-[var(--color-primary)]"
-                        title="Click to view full image"
-                      >
-                        <img
-                          src={getChemicalImageUrl(chemical.imageUrl)}
-                          alt={chemical.canonicalName}
-                          className="max-h-60 max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
-                          onError={(e) => {
-                            e.currentTarget.parentElement.style.display = "none";
-                          }}
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                          <div className="flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-xs font-bold text-white shadow">
-                            <ZoomIn size={14} />
-                            Click to expand
+                    <div className="grid gap-4 p-4 sm:p-5 md:grid-cols-2">
+                      {hasFrontImage && (
+                        <div>
+                          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                            Front Side
+                          </p>
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openImagePreview("front")}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                openImagePreview("front");
+                              }
+                            }}
+                            className="group relative max-h-64 w-full cursor-pointer overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-black/5 flex items-center justify-center p-2 transition-all hover:border-[var(--color-primary)]"
+                            title="Click to view full front side image"
+                          >
+                            <img
+                              src={getChemicalImageUrl(chemical.imageUrl)}
+                              alt={`${chemical.canonicalName} front side`}
+                              className="max-h-60 max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                              onError={(e) => {
+                                e.currentTarget.parentElement.style.display = "none";
+                              }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                              <div className="flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-xs font-bold text-white shadow">
+                                <ZoomIn size={14} />
+                                Click to expand
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
+
+                      {hasBackImage && (
+                        <div>
+                          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                            Back Side
+                          </p>
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openImagePreview("back")}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                openImagePreview("back");
+                              }
+                            }}
+                            className="group relative max-h-64 w-full cursor-pointer overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-black/5 flex items-center justify-center p-2 transition-all hover:border-[var(--color-primary)]"
+                            title="Click to view full back side image"
+                          >
+                            <img
+                              src={getChemicalImageUrl(chemical.backImageUrl)}
+                              alt={`${chemical.canonicalName} back side`}
+                              className="max-h-60 max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                              onError={(e) => {
+                                e.currentTarget.parentElement.style.display = "none";
+                              }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-md)] bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                              <div className="flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-xs font-bold text-white shadow">
+                                <ZoomIn size={14} />
+                                Click to expand
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </section>
                 )}
@@ -792,7 +849,7 @@ const ChemicalDetails = () => {
         confirmText="Yes, Delete SDS"
       />
       {/* Full-size Image Preview Modal */}
-      {isImageModalOpen && chemical?.imageUrl && (
+      {isImageModalOpen && (chemical?.imageUrl || chemical?.backImageUrl) && (
         <div
           role="dialog"
           aria-modal="true"
@@ -822,11 +879,39 @@ const ChemicalDetails = () => {
               </button>
             </div>
 
+            {/* Side switcher */}
+            {hasFrontImage && hasBackImage && (
+              <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 sm:px-5">
+                <button
+                  type="button"
+                  onClick={() => setActiveImageSide("front")}
+                  className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+                    activeImageSide === "front"
+                      ? "bg-[var(--color-primary)] text-[var(--color-text-inverse)]"
+                      : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                  }`}
+                >
+                  Front Side
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveImageSide("back")}
+                  className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+                    activeImageSide === "back"
+                      ? "bg-[var(--color-primary)] text-[var(--color-text-inverse)]"
+                      : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                  }`}
+                >
+                  Back Side
+                </button>
+              </div>
+            )}
+
             {/* Modal Body: Image */}
             <div className="flex max-h-[75vh] items-center justify-center p-4 overflow-auto bg-black/5">
               <img
-                src={getChemicalImageUrl(chemical.imageUrl)}
-                alt={chemical.canonicalName}
+                src={getChemicalImageUrl(activeImageUrl)}
+                alt={`${chemical.canonicalName} ${activeImageSide} side`}
                 className="max-h-[70vh] w-auto max-w-full rounded-[var(--radius-md)] object-contain shadow-sm"
               />
             </div>
