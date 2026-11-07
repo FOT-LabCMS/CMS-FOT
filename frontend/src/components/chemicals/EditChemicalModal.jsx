@@ -152,6 +152,7 @@ const EditChemicalModal = ({
 }) => {
   const modalRef = useRef(null);
   const imageInputRef = useRef(null);
+  const backImageInputRef = useRef(null);
   const sdsInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -179,6 +180,10 @@ const EditChemicalModal = ({
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [removeImage, setRemoveImage] = useState(false);
+  const [existingBackImageUrl, setExistingBackImageUrl] = useState("");
+  const [backImageFile, setBackImageFile] = useState(null);
+  const [backImagePreview, setBackImagePreview] = useState(null);
+  const [removeBackImage, setRemoveBackImage] = useState(false);
 
   useEffect(() => {
     if (!chemical) return;
@@ -215,6 +220,10 @@ const EditChemicalModal = ({
     setImageFile(null);
     setImagePreview(null);
     setRemoveImage(false);
+    setExistingBackImageUrl(chemical.backImageUrl || "");
+    setBackImageFile(null);
+    setBackImagePreview(null);
+    setRemoveBackImage(false);
     setErrors({});
     setSubmitMessage(null);
     setSdsFile(null);
@@ -426,6 +435,54 @@ const EditChemicalModal = ({
     setRemoveImage(true);
   };
 
+  const processBackImageFile = (file) => {
+    if (!file) return;
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+      "image/svg+xml",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setErrors((previous) => ({
+        ...previous,
+        backImageFile: "Invalid image format. Allowed formats: JPG, PNG, WEBP, GIF, SVG.",
+      }));
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors((previous) => ({
+        ...previous,
+        backImageFile: "Image file size must not exceed 10 MB.",
+      }));
+      return;
+    }
+
+    setBackImageFile(file);
+    setBackImagePreview(URL.createObjectURL(file));
+    setRemoveBackImage(false);
+    setErrors((previous) => ({ ...previous, backImageFile: "" }));
+  };
+
+  const handleBackImageChange = (event) => {
+    processBackImageFile(event.target.files?.[0]);
+    event.target.value = "";
+  };
+
+  const handleRemoveBackImage = () => {
+    setBackImageFile(null);
+    if (backImagePreview) {
+      URL.revokeObjectURL(backImagePreview);
+      setBackImagePreview(null);
+    }
+    setExistingBackImageUrl("");
+    setRemoveBackImage(true);
+  };
+
   const validateForm = () => {
     const nextErrors = {};
 
@@ -531,7 +588,13 @@ const EditChemicalModal = ({
       let requestBody = payload;
       let requestConfig = {};
 
-      if (sdsFile || imageFile || removeImage) {
+      if (
+        sdsFile ||
+        imageFile ||
+        removeImage ||
+        backImageFile ||
+        removeBackImage
+      ) {
         const multipartData = new FormData();
 
         Object.entries(payload).forEach(
@@ -562,6 +625,12 @@ const EditChemicalModal = ({
         }
         if (removeImage) {
           multipartData.append("removeImage", "true");
+        }
+        if (backImageFile) {
+          multipartData.append("backImageFile", backImageFile);
+        }
+        if (removeBackImage) {
+          multipartData.append("removeBackImage", "true");
         }
 
         requestBody = multipartData;
@@ -618,7 +687,125 @@ const EditChemicalModal = ({
   };
 
   const imageDrop = useFileDrop(processImageFile);
+  const backImageDrop = useFileDrop(processBackImageFile);
   const sdsDrop = useFileDrop(processSdsFile);
+
+  const renderImageEditor = ({
+    title,
+    description,
+    inputId,
+    inputRef,
+    drop,
+    displaySrc,
+    hasImage,
+    displayName,
+    displaySize,
+    alt,
+    error,
+    onChange,
+    onRemove,
+  }) => (
+    <section
+      className="
+        rounded-[var(--radius-lg)]
+        border border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        p-4 shadow-[var(--shadow-sm)]
+        sm:p-5
+      "
+    >
+      <SectionTitle
+        icon={ImageIcon}
+        title={title}
+        description={description}
+      />
+
+      {!hasImage ? (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          {...drop.dragHandlers}
+          className={`
+            flex w-full flex-col items-center justify-center gap-3
+            rounded-[var(--radius-lg)] border-2 border-dashed
+            p-6 text-center cursor-pointer color-transition
+            ${
+              drop.isDragging
+                ? "border-[var(--color-primary)] bg-[var(--color-primary-tint)]"
+                : error
+                  ? "border-[var(--color-danger)] bg-red-500/5"
+                  : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
+            }
+          `}
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
+            <UploadCloud size={24} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+              {drop.isDragging
+                ? "Drop the image here"
+                : `Click or drag & drop to upload the ${title.toLowerCase()}`}
+            </p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              Supports PNG, JPG, JPEG, WEBP, GIF, SVG up to 10 MB
+            </p>
+          </div>
+        </button>
+      ) : (
+        <div className="flex flex-col sm:flex-row items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
+          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-black/5">
+            <img
+              src={displaySrc}
+              alt={alt}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </div>
+          <div className="flex-1 min-w-0 text-center sm:text-left">
+            <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">
+              {displayName}
+            </p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              {displaySize}
+            </p>
+            <div className="mt-2 flex items-center justify-center sm:justify-start gap-2">
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                {...drop.dragHandlers}
+                className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)] cursor-pointer color-transition"
+              >
+                Change Image
+              </button>
+              <button
+                type="button"
+                onClick={onRemove}
+                className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 color-transition"
+              >
+                <Trash2 size={13} />
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <input
+        ref={inputRef}
+        id={inputId}
+        name={inputId === "editBackImageFileInput" ? "backImageFile" : "imageFile"}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+        onChange={onChange}
+        className="hidden"
+      />
+
+      <ErrorMessage message={error} />
+    </section>
+  );
 
   if (!chemical) return null;
 
@@ -976,111 +1163,50 @@ const EditChemicalModal = ({
                 </div>
               </section>
 
-              {/* Image */}
-              <section
-                className="
-                  rounded-[var(--radius-lg)]
-                  border border-[var(--color-border)]
-                  bg-[var(--color-surface)]
-                  p-4 shadow-[var(--shadow-sm)]
-                  sm:p-5
-                "
-              >
-                <SectionTitle
-                  icon={ImageIcon}
-                  title="Image"
-                  description="Upload, change, or remove the photo / illustration of this chemical bottle."
-                />
+              {/* Images */}
+              {renderImageEditor({
+                title: "Front Side Image",
+                description: "Upload, change, or remove the front side photo / illustration of this chemical bottle (optional).",
+                inputId: "editImageFileInput",
+                inputRef: imageInputRef,
+                drop: imageDrop,
+                displaySrc: imagePreview || getChemicalImageUrl(existingImageUrl),
+                hasImage: Boolean(imagePreview || existingImageUrl),
+                displayName:
+                  imageFile?.name ||
+                  (existingImageUrl ? "Current front side image" : "Selected Image"),
+                displaySize: imageFile
+                  ? `${(imageFile.size / 1024 / 1024).toFixed(2)} MB`
+                  : "Attached image",
+                alt: "Chemical front side preview",
+                error: errors.imageFile,
+                onChange: handleImageChange,
+                onRemove: handleRemoveImage,
+              })}
 
-                {!imagePreview && !existingImageUrl ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      imageInputRef.current?.click()
-                    }
-                    {...imageDrop.dragHandlers}
-                    className={`
-                      flex w-full flex-col items-center justify-center gap-3
-                      rounded-[var(--radius-lg)] border-2 border-dashed
-                      p-6 text-center cursor-pointer color-transition
-                      ${
-                        imageDrop.isDragging
-                          ? "border-[var(--color-primary)] bg-[var(--color-primary-tint)]"
-                          : errors.imageFile
-                            ? "border-[var(--color-danger)] bg-red-500/5"
-                            : "border-[var(--color-border)] bg-[var(--color-surface-muted)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-tint)]/20"
-                      }
-                    `}
-                  >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-primary-tint)] text-[var(--color-primary)]">
-                      <UploadCloud size={24} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                        {imageDrop.isDragging
-                          ? "Drop the image here"
-                          : "Click or drag & drop to upload a new bottle image"}
-                      </p>
-                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                        Supports PNG, JPG, JPEG, WEBP, GIF, SVG up to 10 MB
-                      </p>
-                    </div>
-                  </button>
-                ) : (
-                  <div className="flex flex-col sm:flex-row items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
-                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-black/5">
-                      <img
-                        src={imagePreview || getChemicalImageUrl(existingImageUrl)}
-                        alt="Chemical bottle preview"
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0 text-center sm:text-left">
-                      <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">
-                        {imageFile?.name || (existingImageUrl ? "Current image" : "Selected Image")}
-                      </p>
-                      <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                        {imageFile ? `${(imageFile.size / 1024 / 1024).toFixed(2)} MB` : "Attached image"}
-                      </p>
-                      <div className="mt-2 flex items-center justify-center sm:justify-start gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            imageInputRef.current?.click()
-                          }
-                          {...imageDrop.dragHandlers}
-                          className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)] cursor-pointer color-transition"
-                        >
-                          Change Image
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleRemoveImage}
-                          className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 color-transition"
-                        >
-                          <Trash2 size={13} />
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <input
-                  ref={imageInputRef}
-                  id="editImageFileInput"
-                  name="imageFile"
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-
-                <ErrorMessage message={errors.imageFile} />
-              </section>
+              {renderImageEditor({
+                title: "Back Side Image",
+                description: "Upload, change, or remove the back side photo / illustration of this chemical bottle (optional).",
+                inputId: "editBackImageFileInput",
+                inputRef: backImageInputRef,
+                drop: backImageDrop,
+                displaySrc:
+                  backImagePreview ||
+                  getChemicalImageUrl(existingBackImageUrl),
+                hasImage: Boolean(backImagePreview || existingBackImageUrl),
+                displayName:
+                  backImageFile?.name ||
+                  (existingBackImageUrl
+                    ? "Current back side image"
+                    : "Selected Image"),
+                displaySize: backImageFile
+                  ? `${(backImageFile.size / 1024 / 1024).toFixed(2)} MB`
+                  : "Attached image",
+                alt: "Chemical back side preview",
+                error: errors.backImageFile,
+                onChange: handleBackImageChange,
+                onRemove: handleRemoveBackImage,
+              })}
 
               {/* Stock measurement */}
               <section

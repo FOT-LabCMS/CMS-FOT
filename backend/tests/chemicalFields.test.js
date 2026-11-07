@@ -12,7 +12,7 @@ describe('Chemical binCardNumber and imageUrl Model Tests', () => {
   });
   const Chemical = ChemicalModel(sequelize);
 
-  it('has binCardNumber and imageUrl defined on the model', () => {
+  it('has binCardNumber, imageUrl, and backImageUrl defined on the model', () => {
     const rawAttributes = Chemical.rawAttributes;
 
     expect(rawAttributes.binCardNumber).toBeDefined();
@@ -23,6 +23,18 @@ describe('Chemical binCardNumber and imageUrl Model Tests', () => {
     expect(rawAttributes.imageUrl).toBeDefined();
     expect(rawAttributes.imageUrl.allowNull).toBe(true);
     expect(rawAttributes.imageUrl.field).toBe('image_url');
+
+    expect(rawAttributes.backImageUrl).toBeDefined();
+    expect(rawAttributes.backImageUrl.allowNull).toBe(true);
+    expect(rawAttributes.backImageUrl.field).toBe('back_image_url');
+  });
+
+  it('keeps front and back image fields independent and nullable', () => {
+    const rawAttributes = Chemical.rawAttributes;
+
+    expect(rawAttributes.imageUrl.field).not.toBe(rawAttributes.backImageUrl.field);
+    expect(rawAttributes.imageUrl.defaultValue).toBeUndefined();
+    expect(rawAttributes.backImageUrl.defaultValue).toBeUndefined();
   });
 
   it('validates BST### format for binCardNumber', () => {

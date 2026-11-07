@@ -26,10 +26,47 @@ const normalizeOptionalDate = (value) => {
   return normalizedValue ? normalizedValue : null;
 };
 
+const getUploadedChemicalImages = (req) => ({
+  imageFile:
+    req.imageFile ||
+    (req.files && (req.files.imageFile?.[0] || req.files.image?.[0])),
+  backImageFile:
+    req.backImageFile || (req.files && req.files.backImageFile?.[0]),
+});
+
+const cleanupUploadedChemicalFiles = async (req, imageFile, backImageFile) => {
+  if (req.file) {
+    await deleteSdsFile(req.file.filename);
+  }
+  if (imageFile) {
+    await deleteImageFile(imageFile.filename);
+  }
+  if (backImageFile) {
+    await deleteImageFile(backImageFile.filename);
+  }
+};
+
+const deleteLocalImageIfUnused = async (imageUrl) => {
+  if (!imageUrl || !String(imageUrl).startsWith('/uploads/images/')) {
+    return;
+  }
+
+  const referenceCount = await Chemical.count({
+    where: {
+      [Op.or]: [{ imageUrl }, { backImageUrl: imageUrl }],
+    },
+  });
+
+  if (referenceCount === 0) {
+    await deleteImageFile(imageUrl);
+  }
+};
+
 
 
 const addChemical = async (req, res) => {
-  const imageFile = req.imageFile || (req.files && (req.files.imageFile?.[0] || req.files.image?.[0]));
+  const { imageFile, backImageFile } = getUploadedChemicalImages(req);
+  let persisted = false;
   try {
     // When using multipart/form-data, arrays and other types might be stringified.
     const payload = { ...req.body };
@@ -45,24 +82,21 @@ const addChemical = async (req, res) => {
 
     payload.sdsRevisionDate = normalizeOptionalDate(payload.sdsRevisionDate);
 
-    // Normalize binCardNumber and imageUrl
+    // Normalize binCardNumber and image URLs
     if (payload.binCardNumber !== undefined && payload.binCardNumber !== null) {
       payload.binCardNumber = String(payload.binCardNumber).trim().toUpperCase();
     }
 
-    if (payload.imageUrl !== undefined && payload.imageUrl !== null) {
-      const trimmedUrl = String(payload.imageUrl).trim();
-      payload.imageUrl = trimmedUrl ? trimmedUrl : null;
-    }
+    ['imageUrl', 'backImageUrl'].forEach((key) => {
+      if (payload[key] !== undefined && payload[key] !== null) {
+        const trimmedUrl = String(payload[key]).trim();
+        payload[key] = trimmedUrl ? trimmedUrl : null;
+      }
+    });
 
     // Basic validation for required fields based on the model
     if (!payload.canonicalName || !payload.stockDimension || !payload.baseUnit || !payload.binCardNumber) {
-      if (req.file) {
-        await deleteSdsFile(req.file.filename);
-      }
-      if (imageFile) {
-        await deleteImageFile(imageFile.filename);
-      }
+      await cleanupUploadedChemicalFiles(req, imageFile, backImageFile);
       return res.status(400).json({ 
         success: false,
         message: 'Missing required fields. Canonical name, Bin Card Number (BST###), stock dimension, and base unit are required.' 
@@ -71,12 +105,7 @@ const addChemical = async (req, res) => {
 
     // Validate binCardNumber format (BST + 3 digits)
     if (!/^BST\d{3}$/.test(payload.binCardNumber)) {
-      if (req.file) {
-        await deleteSdsFile(req.file.filename);
-      }
-      if (imageFile) {
-        await deleteImageFile(imageFile.filename);
-      }
+      await cleanupUploadedChemicalFiles(req, imageFile, backImageFile);
       return res.status(400).json({
         success: false,
         message: 'Bin Card Number must follow the format BST followed by exactly 3 digits (e.g. BST001).',
@@ -94,12 +123,7 @@ const addChemical = async (req, res) => {
     });
 
     if (existingChemical) {
-      if (req.file) {
-        await deleteSdsFile(req.file.filename);
-      }
-      if (imageFile) {
-        await deleteImageFile(imageFile.filename);
-      }
+      await cleanupUploadedChemicalFiles(req, imageFile, backImageFile);
       let field = 'Bin Card Number (BST###)';
       if (existingChemical.canonicalName.toLowerCase() === payload.canonicalName.trim().toLowerCase()) {
         field = 'canonical name';
@@ -112,6 +136,10 @@ const addChemical = async (req, res) => {
 
     if (imageFile) {
       payload.imageUrl = `/uploads/images/${imageFile.filename}`;
+    }
+
+    if (backImageFile) {
+      payload.backImageUrl = `/uploads/images/${backImageFile.filename}`;
     }
 
     // Add file info to the payload if a file was uploaded
@@ -127,6 +155,7 @@ const addChemical = async (req, res) => {
 
     // Create the new chemical in the database
     const chemical = await Chemical.create(payload);
+    persisted = true;
 
     await createNotification({
       actor: {
@@ -156,6 +185,7 @@ const addChemical = async (req, res) => {
         canonicalName: chemical.canonicalName,
         binCardNumber: chemical.binCardNumber,
         imageUrl: chemical.imageUrl,
+        backImageUrl: chemical.backImageUrl,
         stockDimension: chemical.stockDimension,
         baseUnit: chemical.baseUnit,
       },
@@ -168,11 +198,8 @@ const addChemical = async (req, res) => {
       chemical,
     });
   } catch (error) {
-    if (req.file) {
-      await deleteSdsFile(req.file.filename);
-    }
-    if (imageFile) {
-      await deleteImageFile(imageFile.filename);
+    if (!persisted) {
+      await cleanupUploadedChemicalFiles(req, imageFile, backImageFile);
     }
     console.error('Error creating chemical:', error);
     if (error.name === 'SequelizeValidationError') {
@@ -329,6 +356,7 @@ const getPublicChemicals = async (req, res) => {
         "baseUnit",
         "sdsStorageKey",
         "imageUrl",
+        "backImageUrl",
         [
           sequelize.literal(`(
             SELECT COALESCE(SUM(b.current_quantity), 0)
@@ -418,17 +446,13 @@ const getChemicalById = async (req, res) => {
 
 const updateChemical = async (req, res) => {
   const { id } = req.params;
-  const imageFile = req.imageFile || (req.files && (req.files.imageFile?.[0] || req.files.image?.[0]));
+  const { imageFile, backImageFile } = getUploadedChemicalImages(req);
+  let persisted = false;
   try {
     const chemical = await Chemical.findByPk(id);
 
     if (!chemical) {
-      if (req.file) {
-        await deleteSdsFile(req.file.filename);
-      }
-      if (imageFile) {
-        await deleteImageFile(imageFile.filename);
-      }
+      await cleanupUploadedChemicalFiles(req, imageFile, backImageFile);
       return res.status(404).json({ success: false, message: 'Chemical not found.' });
     }
 
@@ -437,6 +461,7 @@ const updateChemical = async (req, res) => {
       canonicalName: chemical.canonicalName,
       binCardNumber: chemical.binCardNumber,
       imageUrl: chemical.imageUrl,
+      backImageUrl: chemical.backImageUrl,
       casNumber: chemical.casNumber,
       hazardCategory: chemical.hazardCategory,
       isActive: chemical.isActive,
@@ -444,6 +469,7 @@ const updateChemical = async (req, res) => {
 
     const oldSdsStorageKey = chemical.sdsStorageKey;
     const oldImageUrl = chemical.imageUrl;
+    const oldBackImageUrl = chemical.backImageUrl;
     const payload = { ...req.body };
 
     if (payload.synonyms && typeof payload.synonyms === 'string') {
@@ -467,12 +493,7 @@ const updateChemical = async (req, res) => {
         },
       });
       if (existingChemical) {
-        if (req.file) {
-          await deleteSdsFile(req.file.filename);
-        }
-        if (imageFile) {
-          await deleteImageFile(imageFile.filename);
-        }
+        await cleanupUploadedChemicalFiles(req, imageFile, backImageFile);
         return res.status(409).json({
           success: false,
           message: `A chemical with the name "${payload.canonicalName}" already exists.`
@@ -485,8 +506,7 @@ const updateChemical = async (req, res) => {
       payload.binCardNumber = String(payload.binCardNumber).trim().toUpperCase();
 
       if (!/^BST\d{3}$/.test(payload.binCardNumber)) {
-        if (req.file) await deleteSdsFile(req.file.filename);
-        if (imageFile) await deleteImageFile(imageFile.filename);
+        await cleanupUploadedChemicalFiles(req, imageFile, backImageFile);
         return res.status(400).json({
           success: false,
           message: 'Bin Card Number must follow the format BST followed by exactly 3 digits (e.g. BST001).',
@@ -501,8 +521,7 @@ const updateChemical = async (req, res) => {
           },
         });
         if (existingBin) {
-          if (req.file) await deleteSdsFile(req.file.filename);
-          if (imageFile) await deleteImageFile(imageFile.filename);
+          await cleanupUploadedChemicalFiles(req, imageFile, backImageFile);
           return res.status(409).json({
             success: false,
             message: `A chemical with Bin Card Number "${payload.binCardNumber}" already exists.`,
@@ -518,6 +537,17 @@ const updateChemical = async (req, res) => {
       payload.imageUrl = null;
     }
 
+    // Handle chemical back image update independently of the front image
+    if (backImageFile) {
+      payload.backImageUrl = `/uploads/images/${backImageFile.filename}`;
+    } else if (
+      payload.removeBackImage === 'true' ||
+      payload.removeBackImage === true ||
+      payload.backImageUrl === ''
+    ) {
+      payload.backImageUrl = null;
+    }
+
     if (req.file) {
       payload.sdsStorageKey = req.file.filename; // Store filename only, not the full path
       payload.sdsOriginalFilename = req.file.originalname;
@@ -529,6 +559,7 @@ const updateChemical = async (req, res) => {
     }
 
     await chemical.update(payload);
+    persisted = true;
 
     // If replacement succeeded and an old file existed, remove the old file from disk
     if (req.file && oldSdsStorageKey && oldSdsStorageKey !== req.file.filename) {
@@ -536,8 +567,12 @@ const updateChemical = async (req, res) => {
     }
 
     // If image replaced or removed, delete old image file if stored locally
-    if ((imageFile || payload.imageUrl === null) && oldImageUrl && oldImageUrl.startsWith('/uploads/images/')) {
-      await deleteImageFile(oldImageUrl);
+    if (imageFile || payload.imageUrl === null) {
+      await deleteLocalImageIfUnused(oldImageUrl);
+    }
+
+    if (backImageFile || payload.backImageUrl === null) {
+      await deleteLocalImageIfUnused(oldBackImageUrl);
     }
 
     // Audit Log: Chemical Update
@@ -560,12 +595,9 @@ const updateChemical = async (req, res) => {
       chemical,
     });
   } catch (error) {
-    if (req.file) {
-      // Discard newly uploaded file to avoid orphan and preserve old file
-      await deleteSdsFile(req.file.filename);
-    }
-    if (imageFile) {
-      await deleteImageFile(imageFile.filename);
+    // Discard newly uploaded files to avoid orphans and preserve existing images
+    if (!persisted) {
+      await cleanupUploadedChemicalFiles(req, imageFile, backImageFile);
     }
     console.error(`Error updating chemical with ID ${id}:`, error);
     if (error.name === 'SequelizeValidationError') {

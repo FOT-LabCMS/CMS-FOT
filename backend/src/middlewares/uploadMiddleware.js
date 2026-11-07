@@ -9,7 +9,11 @@ const storage = multer.diskStorage({
         cb(null, getSdsUploadDir());
       } else if (file.fieldname === 'instrumentImage') {
         cb(null, getInstrumentUploadDir());
-      } else if (file.fieldname === 'imageFile' || file.fieldname === 'image') {
+      } else if (
+        file.fieldname === 'imageFile' ||
+        file.fieldname === 'image' ||
+        file.fieldname === 'backImageFile'
+      ) {
         cb(null, getImageUploadDir());
       } else {
         cb(new Error(`Unexpected upload field: ${file.fieldname}`));
@@ -25,6 +29,8 @@ const storage = multer.diskStorage({
       cb(null, `sds-${uniqueSuffix}${ext}`);
     } else if (file.fieldname === 'instrumentImage') {
       cb(null, `instrument-${uniqueSuffix}${ext}`);
+    } else if (file.fieldname === 'backImageFile') {
+      cb(null, `chemical-back-${uniqueSuffix}${ext}`);
     } else {
       cb(null, `chemical-${uniqueSuffix}${ext}`);
     }
@@ -53,6 +59,7 @@ const fileFilter = (req, file, cb) => {
   if (
     file.fieldname === 'imageFile' ||
     file.fieldname === 'image' ||
+    file.fieldname === 'backImageFile' ||
     file.fieldname === 'instrumentImage'
   ) {
     const allowedImageMimeTypes = [
@@ -89,6 +96,7 @@ const upload = multer({
   { name: 'sdsFile', maxCount: 1 },
   { name: 'imageFile', maxCount: 1 },
   { name: 'image', maxCount: 1 },
+  { name: 'backImageFile', maxCount: 1 },
   { name: 'instrumentImage', maxCount: 1 },
 ]);
 
@@ -122,6 +130,9 @@ const uploadSds = (req, res, next) => {
         req.imageFile = req.files.imageFile[0];
       } else if (req.files.image && req.files.image.length > 0) {
         req.imageFile = req.files.image[0];
+      }
+      if (req.files.backImageFile && req.files.backImageFile.length > 0) {
+        req.backImageFile = req.files.backImageFile[0];
       }
       if (req.files.instrumentImage && req.files.instrumentImage.length > 0) {
         req.instrumentImage = req.files.instrumentImage[0];

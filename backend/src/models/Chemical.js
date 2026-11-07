@@ -96,6 +96,11 @@ module.exports = function ChemicalModel(sequelize) {
         allowNull: true,
         field: "image_url",
       },
+      backImageUrl: {
+        type: DataTypes.STRING(1024),
+        allowNull: true,
+        field: "back_image_url",
+      },
       remarks: {
         type: DataTypes.TEXT,
         allowNull: true,
